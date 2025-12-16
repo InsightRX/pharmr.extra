@@ -1,42 +1,23 @@
 <!-- badges: start -->
-[![R-CMD-check](https://github.com/InsightRX/pharma_ai_r/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/InsightRX/pharma_ai_r/actions/workflows/R-CMD-check.yaml)
+[![R-CMD-check](https://github.com/InsightRX/pharmr.extra/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/InsightRX/pharmr.extra/actions/workflows/R-CMD-check.yaml)
   <!-- badges: end -->
 
-# pharmaair
+# pharmr.extra
 
-pharmaAIR provides functions to facilitate automated analysis of clinical trial datasets,
-including reading in .xpt files, wrangling data, plotting, and analysis.
+`pharmar.extra` is an R package that acts as an extension to `pharmr` (R wrapper
+for Pharmpy). Pharmpy is a solid toolkit for automated model development. It is
+developed at Uppsala University.
 
-Manual installation:
+The goal of `pharmar.extra` is:
+- to provide some functions that are (currently) still missing in pharmr. If they get added in the future in Pharmpy natively, they will be removed from this package.
+- to provide stable and more user-friendly wrapper functions for performing
+certain tasks, such as running a model (`run_nlme()`) or exporting Pharmpy 
+models and results.
+
+## Installation
+
+`pharmr.extra` is currently not available on CRAN. It can be installed using:
 
 ```r
-remotes::install_github("InsightRX/pharma_ai_r")
-```
-
-
-# Docker
-
-For use as a container in the AI architecture, build the docker container e.g. using:
-
-```
-docker build -t pharma_ai_r .
-```
-
-# Pushing image to ECR
-
-```
-## Build image: 
-docker build -t apolloai:pharmaai .
-
-## Tag:
-docker tag apolloai/pharmaair 678372015519.dkr.ecr.us-west-2.amazonaws.com/pharma_ai_r:update-nm-functions
-
-## Log in to ECR:
-aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 678372015519.dkr.ecr.us-west-2.amazonaws.com
-
-## Push to ECR:
-docker push 678372015519.dkr.ecr.us-west-2.amazonaws.com/pharma_ai_r:update-nm-functions
-
-## To remove tag locally:
-docker rmi 678372015519.dkr.ecr.us-west-2.amazonaws.com/pharma_ai_r:update-nm-functions
+remotes::install_github("InsightRX/pharmr.extra")
 ```
