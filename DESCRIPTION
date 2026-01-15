@@ -3,6 +3,7 @@ Title: Extension of pharmr (Pharmpy) functionality
 Version: 0.0.0.9000
 Authors@R: c(
     person("Ron", "Keizer", email = "ron@insight-rx.com", role = c("cre", "aut")),
+    person("Michael", "McCarthy", email = "michael.mccarthy@insight-rx.com", role = "ctb"),
     person("InsightRX", role = "cph")
   )
 Author: Ron Keizer
@@ -13,21 +14,24 @@ Description: Provides functions that provide extensions and workarounds for
     more stable alternatives.
 Imports:
     pharmr,
-    glue,
     cli,
     dplyr,
-    lubridate,
-    nlmixr2est,
-    rxode2,
+    ggplot2,
+    glue,
+    htmlwidgets,
+    irxutils,
+    job,
+    knitr,
+    luna,
+    PKPDsim,
+    plotly,
+    readr,
     rlang,
+    rstudioapi,
+    rxode2,
     stringr,
     tidyr,
-    tidyselect,
-    plotly,
-    htmltools,
-    htmlwidgets,
-    jsonlite,
-    irxutils
+    tidyselect
 Suggests:
     fs,
     mockery,
@@ -35,8 +39,13 @@ Suggests:
     rmarkdown,
     testthat (>= 3.2.0),
     withr
-License: file LICENSE
+Remotes:
+    InsightRX/irxutils,
+    InsightRX/luna,
+    InsightRX/PKPDsim
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.3
 Config/testthat/edition: 3
+URL: https://insightrx.github.io/pharmr.extra/
