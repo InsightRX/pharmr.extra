@@ -8,11 +8,19 @@
 \description{
 Provides functions that provide extensions and workarounds for pharmr / Pharmpy. The goal of the package is to provide functionality that is not (yet) available within Pharmpy, and for some existing functionality provide more stable alternatives.
 }
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://insightrx.github.io/pharmr.extra/}
+}
+
+}
 \author{
 \strong{Maintainer}: Ron Keizer \email{ron@insight-rx.com}
 
 Other contributors:
 \itemize{
+  \item Michael McCarthy \email{michael.mccarthy@insight-rx.com} [contributor]
   \item InsightRX [copyright holder]
 }
 
