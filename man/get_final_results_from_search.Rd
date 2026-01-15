@@ -13,6 +13,8 @@ get_final_results_from_search(id, results, tool = NULL, verbose = TRUE)
 
 \item{tool}{Pharmpy search tool. If \code{NULL}, will try to infer from class of
 results object}
+
+\item{verbose}{TODO}
 }
 \description{
 For a Pharmpy grid search, fetch the fit info and attach to object

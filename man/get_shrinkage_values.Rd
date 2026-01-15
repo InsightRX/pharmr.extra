@@ -6,6 +6,11 @@
 \usage{
 get_shrinkage_values(txt, type = "ETASHRINKSD")
 }
+\arguments{
+\item{txt}{TODO}
+
+\item{type}{TODO}
+}
 \description{
 Get shrinkage values from a single line in NONMEM output
 }

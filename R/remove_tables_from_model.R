@@ -51,6 +51,8 @@ remove_data_section <- function(text) {
 
 #' Function to remove all $TABLE sections
 #'
+#' @param text TODO
+#' @param file TODO
 remove_table_sections <- function(text, file = NULL) {
   if(!is.null(file)) {
     if(length(file) != 1) {

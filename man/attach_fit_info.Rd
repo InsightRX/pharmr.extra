@@ -20,7 +20,11 @@ attach_fit_info(
 \item{model}{pharmpy model object or NONMEM model code (character) or path
 to NONMEM model file.}
 
+\item{fit_folder}{TODO}
+
 \item{output_file}{NONMEM output file, default is \code{run.lst}}
+
+\item{is_sim_model}{TODO}
 
 \item{verbose}{verbose output?}
 }

@@ -6,6 +6,7 @@
 #' even if they do not have a correlation with other parameters?
 #' @param triangle return the lower triangle as a vector instead of a
 #' matrix object?
+#' @param nonmem TODO
 #' @param limit lower limit, to avoid becoming zero, which is not allowed by
 #' NONMEM (`A COVARIANCE IS ZERO, BUT THE BLOCK IS NOT A BAND MATRIX.`)
 #'

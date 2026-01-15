@@ -6,6 +6,11 @@
 \usage{
 remove_table_sections(text, file = NULL)
 }
+\arguments{
+\item{text}{TODO}
+
+\item{file}{TODO}
+}
 \description{
 Function to remove all $TABLE sections
 }

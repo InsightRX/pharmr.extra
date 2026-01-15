@@ -1,6 +1,7 @@
 #' Wrapper function to add covariates to a pharmpy model
 #'
 #' @inheritParams create_model
+#' @param model TODO
 #'
 #' @export
 add_covariates_to_model <- function(

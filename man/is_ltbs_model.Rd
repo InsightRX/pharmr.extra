@@ -6,6 +6,9 @@
 \usage{
 is_ltbs_model(model)
 }
+\arguments{
+\item{model}{TODO}
+}
 \description{
 Is the residual error model "log-transform both-sides"?
 }

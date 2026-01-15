@@ -1,10 +1,11 @@
 #' Clean pharmpy run folders like modelfit1 etc
 #'
 #' @inheritParams run_nlme
-#' @param clean should folders really be removed (`TRUE`), or just show a warning (`FALSE`)
+#' @param folder TODO
+#' @param tool TODO
+#' @param remove TODO
 #'
 #' @export
-#'
 clean_pharmpy_runfolders <- function(
   id = NULL,
   folder,

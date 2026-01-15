@@ -18,6 +18,8 @@ get_initial_estimates_from_data(data, n_cmt = 1, scale_observations = NULL)
 \item{data}{NONMEM-style dataset}
 
 \item{n_cmt}{number of distribution / elimination compartments.}
+
+\item{scale_observations}{TODO}
 }
 \description{
 Get a very crude estimate for V to serve as initial estimate

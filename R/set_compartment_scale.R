@@ -77,11 +77,11 @@ set_compartment_scale <- function(
 #' Only applies to PK parameters, not all parameters
 #'
 #' @inheritParams set_compartment_scale
-#'
+#' @param scale TODO
+#' 
 #' @returns Pharmpy model object
 #'
 #' @export
-#'
 scale_initial_estimates_pk <- function(
     model,
     scale

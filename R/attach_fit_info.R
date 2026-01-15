@@ -3,6 +3,8 @@
 #'
 #' @inheritParams run_nlme
 #' @inheritParams get_fit_info
+#' @param fit_folder TODO
+#' @param is_sim_model TODO
 #'
 #' @export
 #'

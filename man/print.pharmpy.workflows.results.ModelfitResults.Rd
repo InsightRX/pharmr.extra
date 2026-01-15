@@ -8,6 +8,8 @@
 }
 \arguments{
 \item{x}{pharmpy fit object}
+
+\item{...}{TODO}
 }
 \description{
 Print function that provides basic run information for a pharmpy modelfit

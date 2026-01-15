@@ -53,7 +53,7 @@ compare_nlme_runs <- function(
     attr(fit, "model") <- model
     fit
   })
-  comp <- compare_nlme_fit(
+  comp <- luna::compare_nlme_fit(
     fits, 
     return_object = T
   )

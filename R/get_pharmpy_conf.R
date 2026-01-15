@@ -28,12 +28,16 @@ get_pharmpy_conf <- function() {
 }
 
 #' Helper function for read_ini
+#'
+#' @param regexp TODO
+#' @param x TODO
 extract <- function(regexp, x) {
   regmatches(x, regexec(regexp, x))[[1]][2]
 }
 
 #' Read ini file core function
 #'
+#' @param fn TODO
 read_ini <- function(fn) {
   blank = "^\\s*$"
   header = "^\\[(.*)\\]$"

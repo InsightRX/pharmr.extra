@@ -1,6 +1,7 @@
 #' Run model with pharmpy
 #'
 #' @inheritParams call_nmfe
+#' @param clean TODO
 #'
 #' @export
 #'
@@ -46,7 +47,7 @@ call_pharmpy_fit <- function(
 
   ## Copy all results from modelfit folder back into main folder
   for(p in model_paths) {
-    last_pharmpy_runfolder <- tail(get_pharmpy_runfolders(id = NULL, folder = path, tool = "modelfit"), 1)
+    last_pharmpy_runfolder <- utils::tail(get_pharmpy_runfolders(id = NULL, folder = path, tool = "modelfit"), 1)
     run_folder <- file.path(path, last_pharmpy_runfolder, "models", "run")
     files <- dir(run_folder)
     for(f in files) {

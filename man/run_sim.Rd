@@ -8,7 +8,7 @@ run_sim(
   fit = NULL,
   data = NULL,
   model = NULL,
-  id = get_random_id("sim_"),
+  id = luna::get_random_id("sim_"),
   force = FALSE,
   t_obs = NULL,
   dictionary = list(ID = "ID", DV = "DV", EVID = "EVID", AMT = "AMT", CMT = "CMT", MDV =
@@ -27,6 +27,8 @@ run_sim(
 )
 }
 \arguments{
+\item{fit}{TODO}
+
 \item{data}{dataset (data.frame). Optional, can also be included in \code{model}
 object (if specified as pharmpy model object).}
 
@@ -43,6 +45,8 @@ removed before rerunning NONMEM? Default \code{FALSE}.}
 
 \item{t_obs}{a vector of observations times. If specified, will override
 the observations in each subject in the input dataset.}
+
+\item{dictionary}{TODO}
 
 \item{regimen}{if specified, will replace the regimens for each subject with
 a custom regimen. Can be specified in two ways. The simplest way is to just
@@ -61,6 +65,8 @@ exactly to any covariates included in the model. An \code{ID} column is required
 and for time-varying covariates, a \code{TIME} column is also required (otherwise
 it will be assumed covariates are not changing over time).}
 
+\item{tool}{TODO}
+
 \item{n_subjects}{number of subjects to simulate, when using sampled data
 (i.e. requires \code{covariates} argument)}
 
@@ -68,13 +74,19 @@ it will be assumed covariates are not changing over time).}
 perform. The dataset for the simulation will stay the same between each
 iterations.}
 
+\item{variables}{TODO}
+
 \item{add_pk_variables}{calculate basic PK variables that can be extracted
 in post-processing, such as CMAX_OBS, TMAX_OBS, AUC_SS.}
+
+\item{output_file}{TODO}
 
 \item{update_table}{should any existing $TABLE records be removed, and a new
 \code{simtab} be created? This is default. If \code{FALSE}, it will leave $TABLEs as
 specifed in the model. However, in the return object, only the first table
 is returned back. If \code{FALSE}, the \code{add_pk_variables} argument will be ignored.}
+
+\item{seed}{TODO}
 
 \item{verbose}{verbose output?}
 }

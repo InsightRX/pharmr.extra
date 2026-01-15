@@ -17,6 +17,8 @@ call_pharmpy_fit(
 
 \item{path}{run folder path, e.g. "run1"}
 
+\item{clean}{TODO}
+
 \item{console}{show output from nmfe in console? Default \code{FALSE}}
 
 \item{verbose}{verbose output?}

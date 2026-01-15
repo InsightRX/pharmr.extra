@@ -1,10 +1,9 @@
 #' Temporary function that returns a hardcoded nlmixr2 model
 #' 
-#' Any arguments to the function are just ignored, this is just for demo
+#' @param ... Any arguments to the function are just ignored, this is just for demo
 #' purposes
 #' 
 #' @export
-#' 
 create_model_nlmixr <- function(...) {
   mod <- function() {
     ini({

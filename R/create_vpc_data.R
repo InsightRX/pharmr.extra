@@ -11,9 +11,10 @@
 #' @param keep_columns character vector of column names in original dataset
 #' to keep in the output dataset
 #' @param verbose verbose output?
+#' @param id TODO
+#' @param use_pharmpy TODO
 #'
 #' @export
-#'
 create_vpc_data <- function(
   fit = NULL,
   model = NULL,
@@ -86,7 +87,7 @@ create_vpc_data <- function(
 
   tmp_path <- file.path(
     tempdir(),
-    paste0("simulation_", random_string(5))
+    paste0("simulation_", irxutils::random_string(5))
   )
   dir.create(tmp_path)
   if(is.null(id)) {
@@ -128,11 +129,11 @@ create_vpc_data <- function(
   ## Generate a TAD colunmn
   if(is.null(obs$TAD)) {
     obs <- obs |>
-      dplyr::group_by(ID) |>
-      dplyr::mutate(last_dose_time = if_else(EVID == 1, TIME, NA)) |>
-      tidyr::fill(last_dose_time, .direction = "downup") |>
-      dplyr::mutate(TAD = TIME - last_dose_time) |>
-      dplyr::select(-last_dose_time)
+      dplyr::group_by(.data$ID) |>
+      dplyr::mutate(last_dose_time = dplyr::if_else(.data$EVID == 1, .data$TIME, NA)) |>
+      tidyr::fill("last_dose_time", .direction = "downup") |>
+      dplyr::mutate(TAD = .data$TIME - .data$last_dose_time) |>
+      dplyr::select(-"last_dose_time")
   }
 
   ## Check if obs and sim match up, and make sure sim has the columns it needs

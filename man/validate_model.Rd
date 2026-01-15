@@ -6,6 +6,9 @@
 \usage{
 validate_model(model)
 }
+\arguments{
+\item{model}{TODO}
+}
 \description{
 Validate the specified model, ensure it's valid Pharmpy model
 }

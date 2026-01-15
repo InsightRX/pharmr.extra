@@ -12,6 +12,17 @@ create_regimen(
   route = c("oral", "iv", "sc", "im")
 )
 }
+\arguments{
+\item{dose}{TODO}
+
+\item{interval}{TODO}
+
+\item{n}{TODO}
+
+\item{t_inf}{TODO}
+
+\item{route}{TODO}
+}
 \description{
 The resulting data.frame can be passed to \code{luna::run_sim()} as the \code{regimen}
 argument.

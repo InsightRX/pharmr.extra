@@ -18,7 +18,7 @@
 #' If specified as a list object, it should contain the IIV magnitude (on SD
 #' scale) for parameters and potential correlations specified using a tilde,
 #' e.g. `list("CL" = 0.2, "V" = 0.3, "CL~V" = 0.1)`.
-#' @param iiv_effect either `character` or `list`. If character, one of
+#' @param iiv_type either `character` or `list`. If character, one of
 #' `c("exp", "add", "prop", "log", "re_log")`. If `list`, should specify for
 #' each parameter the effect type, e.g. `list(CL = "add", V = "exp")`. Default
 #' is `"exp"` for all.
@@ -104,6 +104,8 @@ create_model <- function(
     settings = list(), # TBD
     verbose = FALSE
 ) {
+  # Requires luna, see FIXME below:
+  rlang::check_installed("luna")
 
   ## Parse arguments
   route <- match.arg(route)
@@ -128,6 +130,8 @@ create_model <- function(
 
   ## Read base model
   if(verbose) cli::cli_alert_info("Reading base model")
+  # FIXME: This is an awkward dependency. Might make more sense to have this
+  # file in this package?
   mod <- pharmr::read_model(
     path = system.file(
       paste0("models/nonmem/base_", route, ".mod"),
@@ -338,6 +342,9 @@ create_model <- function(
 #' Helper function to combine default estimation options with user-specified,
 #' and ensure correct format.
 #'
+#' @param tool TODO
+#' @param estimation_method TODO
+#' @param estimation_options TODO
 get_estimation_options <- function(tool, estimation_method, estimation_options) {
   tool_options <- estimation_options_defaults[[tool]][[estimation_method]]
   if(!is.null(estimation_options)) {
@@ -376,6 +383,8 @@ estimation_options_defaults <- list(
 
 #' Logic to set the residual error model structure for the model
 #'
+#' @param mod TODO
+#' @param ruv TODO
 set_residual_error <- function(mod, ruv) {
   if(ruv == "proportional") {
     mod <- pharmr::set_proportional_error_model(mod)
@@ -398,17 +407,19 @@ set_residual_error <- function(mod, ruv) {
 #' If dose and observation events all happen in the same compartment,
 #' then assume IV administration, else oral absorption (or sc, im, etc).
 #'
+#' @param data TODO
+#' @param default TODO
 get_route_from_data <- function(data, default = "iv") {
   if(is.null(data)) {
     return(default)
   }
   dose_cmt <- data |>
-    dplyr::filter(EVID == 1) |>
-    dplyr::pull(CMT) |>
+    dplyr::filter(.data$EVID == 1) |>
+    dplyr::pull("CMT") |>
     unique()
   obs_cmt <- data |>
-    dplyr::filter(EVID == 0) |>
-    dplyr::pull(CMT) |>
+    dplyr::filter(.data$EVID == 0) |>
+    dplyr::pull("CMT") |>
     unique()
   if(length(setdiff(dose_cmt, obs_cmt)) > 0) {
     route <- "oral"

@@ -6,6 +6,9 @@
 \usage{
 get_parameters_with_iiv(mod)
 }
+\arguments{
+\item{mod}{TODO}
+}
 \description{
 Get a character vector with all parameters on which IIV is present
 }

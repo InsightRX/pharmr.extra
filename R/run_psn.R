@@ -1,5 +1,6 @@
 #' Run a PsN tool
 #'
+#' @param model TODO
 run_psn <- function(
   model
 ) {

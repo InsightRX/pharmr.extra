@@ -6,6 +6,9 @@
 \usage{
 create_modelfit_parameter_table(fit)
 }
+\arguments{
+\item{fit}{TODO}
+}
 \description{
 Create a data.frame with parameter estimates
 }

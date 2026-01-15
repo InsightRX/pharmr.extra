@@ -28,20 +28,27 @@ stack_encounters <- function(
     enct_length <- ceiling(max(data[[time]])/gap) * gap
     tmp <- data |>
       dplyr::mutate(TIME_COLUMN = .data[[time]]) |>
-      dplyr::mutate(idx = 1:length(TIME_COLUMN)) |>
-      dplyr::group_by(ID) |>
+      dplyr::mutate(idx = 1:length(.data$TIME_COLUMN)) |>
+      dplyr::group_by(.data$ID) |>
       dplyr::mutate(
-        ENC_TIME = TIME_COLUMN,
-        prv_time = c(0, TIME_COLUMN)[-length(TIME_COLUMN)],
-        is_decreasing = c(0, diff(TIME_COLUMN)) < 0) |>
+        ENC_TIME = .data$TIME_COLUMN,
+        prv_time = c(0, .data$TIME_COLUMN)[-length(.data$TIME_COLUMN)],
+        is_decreasing = c(0, diff(.data$TIME_COLUMN)) < 0) |>
       dplyr::mutate(
-        encounter_idx = cumsum(is_decreasing),
-        enct_start_time = encounter_idx * enct_length
+        encounter_idx = cumsum(.data$is_decreasing),
+        enct_start_time = .data$encounter_idx * enct_length
       )
     if(reset_encounters) {
       evid3_events <- tmp |>
-        dplyr::filter(is_decreasing) |>
-        dplyr::mutate(TIME_COLUMN = enct_start_time, EVID = 3, MDV = 1, DV = 0, AMT = 0, idx = idx - 0.5) # make sure to squeeze in, and not make other changes to dataset order
+        dplyr::filter(.data$is_decreasing) |>
+        dplyr::mutate(
+          TIME_COLUMN = .data$enct_start_time,
+          EVID = 3,
+          MDV = 1,
+          DV = 0,
+          AMT = 0,
+          idx = .data$idx - 0.5
+        ) # make sure to squeeze in, and not make other changes to dataset order
       for(key in names(tmp)) { # revert back auto-converted columns to character
         if(inherits(tmp[[key]], "character")) {
           class(evid3_events[[key]]) <- "character"
@@ -49,17 +56,17 @@ stack_encounters <- function(
       }
       comb <- dplyr::bind_rows(
         tmp |>
-          dplyr::mutate(TIME_COLUMN = TIME_COLUMN + ifelse(is.na(enct_start_time), 0, enct_start_time)),
+          dplyr::mutate(TIME_COLUMN = .data$TIME_COLUMN + ifelse(is.na(.data$enct_start_time), 0, .data$enct_start_time)),
         evid3_events
       ) |>
-        dplyr::arrange(idx)
+        dplyr::arrange(.data$idx)
     } else {
       comb <- tmp
     }
     return(
       comb |> ## make sure to remove helper columns
-        dplyr::mutate(!!time := TIME_COLUMN) |>
-        dplyr::select(!!input_columns, ENC_TIME) |>
+        dplyr::mutate(!!time := .data$TIME_COLUMN) |>
+        dplyr::select(!!input_columns, "ENC_TIME") |>
         as.data.frame()
     )
   }
@@ -68,8 +75,8 @@ stack_encounters <- function(
 ## Function to check if time in NONMEM dataset is always increasing.
 time_is_always_increasing <- function(data, time = "TIME") {
   data |>
-    dplyr::group_by(ID) |>
+    dplyr::group_by(.data$ID) |>
     dplyr::mutate(is_increasing = c(0, diff(.data[[time]])) >= 0) |>
-    dplyr::pull(is_increasing) |>
+    dplyr::pull("is_increasing") |>
     all()
 }

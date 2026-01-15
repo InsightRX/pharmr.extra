@@ -24,6 +24,8 @@ call_psn(
 \item{options}{a vector of arguments to pass to the PsN tool, e.g.
 \verb{c("--samples=100", "--dir="test")}}
 
+\item{tool}{TODO}
+
 \item{console}{show output from nmfe in console? Default \code{FALSE}}
 
 \item{verbose}{verbose output?}

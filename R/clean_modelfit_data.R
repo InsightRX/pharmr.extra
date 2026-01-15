@@ -35,10 +35,12 @@ clean_modelfit_data <- function(
               if(any(idx)) { ## add an LLOQ column
                 if(verbose)
                   cli::cli_alert_warning("Detected `<` in DV column, adding LLOQ column to handle BLOQ data.")
-                data <- data |>
-                  dplyr::mutate(DV = as.numeric(stringr::str_replace_all(DV, "\\<", ""))) |>
-                  dplyr::mutate(LLOQ = dplyr::if_else(idx, DV, 0)) |>
-                  dplyr::mutate(DV = dplyr::if_else(idx, 0, DV))
+                data <- dplyr::mutate(
+                  data,
+                  DV = as.numeric(stringr::str_replace_all(.data$DV, "\\<", "")),
+                  LLOQ = dplyr::if_else(idx, .data$DV, 0),
+                  DV = dplyr::if_else(idx, 0, .data$DV)
+                )
               }
               tmp_dv <- as.numeric(data$DV)
             } else {
@@ -68,16 +70,15 @@ clean_modelfit_data <- function(
       if("LNDV" %in% names(data)) {
         cli::cli_alert_info("Log-transform both sides error model, and detected LNDV column in dataset. Setting LNDV column as dependent variable instead of current `DV` column (will be retained as `ODV`).")
         data <- data |>
-          dplyr::mutate(ODV = DV) |>
-          dplyr::mutate(DV = LNDV)
+          dplyr::mutate(ODV = .data$DV) |>
+          dplyr::mutate(DV = .data$LNDV)
       } else {
         cli::cli_alert_warning("Log-transform both sides error model, but no `LNDV` column. Assuming `DV` is log-transformed.")
       }
     }
 
     if(tool != "nonmem") { ## nlmixr2 requires lower-case `cmt`
-      data <- data |>
-        dplyr::rename(cmt = CMT)
+      data <- dplyr::rename(data, cmt = "CMT")
     }
 
     ## Save dataset

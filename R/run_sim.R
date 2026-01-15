@@ -1,7 +1,7 @@
 #' Run simulations
 #'
 #' @inheritParams run_nlme
-#'
+#' @param fit TODO
 #' @param regimen if specified, will replace the regimens for each subject with
 #' a custom regimen. Can be specified in two ways. The simplest way is to just
 #' specify a list with elements `dose`, `interval`, `n`, and
@@ -19,6 +19,7 @@
 #' it will be assumed covariates are not changing over time).
 #' @param t_obs a vector of observations times. If specified, will override
 #' the observations in each subject in the input dataset.
+#' @param dictionary TODO
 #' @param n_subjects number of subjects to simulate, when using sampled data
 #' (i.e. requires `covariates` argument)
 #' @param n_iterations number of iterations of the entire simulation to
@@ -30,6 +31,10 @@
 #'  `simtab` be created? This is default. If `FALSE`, it will leave $TABLEs as
 #' specifed in the model. However, in the return object, only the first table
 #' is returned back. If `FALSE`, the `add_pk_variables` argument will be ignored.
+#' @param tool TODO
+#' @param variables TODO
+#' @param output_file TODO
+#' @param seed TODO
 #'
 #' @returns data.frame with simulation results
 #'
@@ -38,7 +43,7 @@ run_sim <- function(
     fit = NULL,
     data = NULL,
     model = NULL,
-    id = get_random_id("sim_"),
+    id = luna::get_random_id("sim_"), # TODO: export from luna
     force = FALSE,
     t_obs = NULL,
     dictionary = list(
@@ -126,7 +131,7 @@ run_sim <- function(
     random_sample <- sample(ids, n_subjects, replace = TRUE)
     sim_data <- lapply(seq_along(random_sample), function(i) {
       input_data |>
-        dplyr::filter(ID == random_sample[i]) |>
+        dplyr::filter(.data$ID == random_sample[i]) |>
         dplyr::mutate(ID = i)
     }) %>%
       dplyr::bind_rows()
@@ -152,7 +157,7 @@ run_sim <- function(
         dplyr::select(- new_covariates) |> ## remove existing covariates
         dplyr::left_join(
           covariates,
-          by = join_by(ID == ID, TIME == TIME)
+          by = c("ID", "TIME")
         ) |>
         tidyr::fill(new_covariates, .direction = "downup")
     }
@@ -169,17 +174,17 @@ run_sim <- function(
     )
     ## remove old doses and add new
     sim_data <- sim_data |>
-      dplyr::filter(EVID != 1) |>
+      dplyr::filter(.data$EVID != 1) |>
       dplyr::bind_rows(doses) |>
-      dplyr::arrange(.regimen, ID, TIME, EVID) |>
-      dplyr::group_by(ID) |>
+      dplyr::arrange(.data$.regimen, .data$ID, .data$TIME, .data$EVID) |>
+      dplyr::group_by(.data$ID) |>
       tidyr::fill(
         dplyr::everything(),
         .direction = "downup"
       )
     if(is.null(t_obs)) {
       ## TODO: could be made somewhat smarter, based on e.g. original dataset or
-      t_max <- max(sim_data$TIME) + round(diff(tail(sim_data$TIME, 2)))
+      t_max <- max(sim_data$TIME) + round(diff(utils::tail(sim_data$TIME, 2)))
       t_obs <- seq(0, t_max, 4)
     }
   } else {
@@ -195,10 +200,10 @@ run_sim <- function(
     )
     ## remove old obs and add new
     sim_data <- sim_data |>
-      dplyr::filter(EVID != 0) |>
+      dplyr::filter(.data$EVID != 0) |>
       dplyr::bind_rows(obs) |>
-      dplyr::arrange(.regimen, ID, TIME, EVID) |>
-      dplyr::group_by(ID) |>
+      dplyr::arrange(.data$.regimen, .data$ID, .data$TIME, .data$EVID) |>
+      dplyr::group_by(.data$ID) |>
       tidyr::fill(
         dplyr::everything(),
         .direction = "downup"
@@ -214,8 +219,8 @@ run_sim <- function(
 
     ## grab data for regimen
     sim_data_regimen <- sim_data |>
-      dplyr::filter(.regimen == reg_label) |>
-      dplyr::select(-.regimen)
+      dplyr::filter(.data$.regimen == reg_label) |>
+      dplyr::select(-".regimen")
 
     ## Set simulation, and set sim dataset:
     if(verbose) cli::cli_alert_info("Changing model to simulation model")
@@ -291,6 +296,7 @@ run_sim <- function(
 #' Calculate some basic PK variables from simulated or observed data
 #'
 #' @param data data.frame in NONMEM format
+#' @param dictionary TODO
 #' @inheritParams run_sim
 #'
 #' @returns data.frame
@@ -305,30 +311,25 @@ calc_pk_variables <- function(
     data <- data |>
       dplyr::group_by(.data$ID) |>
       dplyr::mutate(CMAX_OBS = max(.data$DV)) |>
-      dplyr::mutate(TMAX_OBS = TIME[match(CMAX_OBS[1], DV)][1])
+      dplyr::mutate(TMAX_OBS = .data$TIME[match(.data$CMAX_OBS[1], .data$DV)][1])
 
     ## Find Cmin for each ID, for last interval
     tmp_data <- data |>
       dplyr::group_by(.data$ID) |>
-      dplyr::mutate(.dose_id = cumsum(EVID == 1))
+      dplyr::mutate(.dose_id = cumsum(.data$EVID == 1))
     last_obs_dose_id <- tmp_data |>
-      dplyr::filter(EVID == 0) |>
-      dplyr::pull(.dose_id) |>
-      tail(1)
+      dplyr::filter(.data$EVID == 0) |>
+      dplyr::pull(".dose_id") |>
+      utils::tail(1)
     cmin_data <- tmp_data |>
       dplyr::mutate(.dose_cmin = max(c(1, last_obs_dose_id))) |> # last full interval (before last dose)
-      dplyr::filter(.dose_id == .dose_cmin & EVID == 0) |>
-      dplyr::summarise(CMIN_OBS = min(DV))
-    data <- dplyr::left_join(
-      data,
-      cmin_data,
-      by = "ID"
-    )
+      dplyr::filter(.data$.dose_id == .data$.dose_cmin & .data$EVID == 0) |>
+      dplyr::summarise(CMIN_OBS = min(.data$DV))
+    data <- dplyr::left_join(data, cmin_data, by = "ID")
 
     ## Add AUC_SS as CL/dose, if we're simulating a specific regimen
     if(!is.null(regimen) && "CL" %in% names(data)) {
-      data <- data |>
-        dplyr::mutate(AUC_SS = tail(regimen$dose, 1) / .data$CL)
+      data <- dplyr::mutate(data, AUC_SS = utils::tail(regimen$dose, 1) / .data$CL)
     }
   }
 
@@ -338,6 +339,12 @@ calc_pk_variables <- function(
 #' Create dosing records, given a specified regimen as a data frame with
 #' potentially multiple regimens and varying dosing times / doses
 #'
+#' @param regimen TODO
+#' @param data TODO
+#' @param n_subjects TODO
+#' @param dictionary TODO
+#' @param advan TODO
+#' 
 create_dosing_records <- function(
     regimen,
     data,
@@ -391,6 +398,10 @@ create_dosing_records <- function(
 
 #' Create observation records, given a specified t_obs vector
 #'
+#' @param data TODO
+#' @param t_obs TODO
+#' @param n_subjects TODO
+#' @param dictionary TODO
 create_obs_records <- function(
     data,
     t_obs,
@@ -400,9 +411,9 @@ create_obs_records <- function(
   unq_reg <- unique(data[[".regimen"]])
   ## create a template row
   cmt <- data |>
-    dplyr::filter(ID == 1 & EVID == 0) |>
+    dplyr::filter(.data$ID == 1 & .data$EVID == 0) |>
     dplyr::slice(1) |>
-    dplyr::pull(CMT)
+    dplyr::pull("CMT")
   if(is.null(cmt)) cmt <- 1
   obs <- data.frame(
     ID = 1,

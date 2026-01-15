@@ -55,6 +55,11 @@ If specified as a list object, it should contain the IIV magnitude (on SD
 scale) for parameters and potential correlations specified using a tilde,
 e.g. \code{list("CL" = 0.2, "V" = 0.3, "CL~V" = 0.1)}.}
 
+\item{iiv_type}{either \code{character} or \code{list}. If character, one of
+\code{c("exp", "add", "prop", "log", "re_log")}. If \code{list}, should specify for
+each parameter the effect type, e.g. \code{list(CL = "add", V = "exp")}. Default
+is \code{"exp"} for all.}
+
 \item{ruv}{one of \code{proportional}, \code{additive}, or \code{combined}.}
 
 \item{covariates}{list of parameter-covariate effects, e.g.
@@ -114,11 +119,6 @@ method.}
 TBD}
 
 \item{verbose}{verbose output?}
-
-\item{iiv_effect}{either \code{character} or \code{list}. If character, one of
-\code{c("exp", "add", "prop", "log", "re_log")}. If \code{list}, should specify for
-each parameter the effect type, e.g. \code{list(CL = "add", V = "exp")}. Default
-is \code{"exp"} for all.}
 }
 \description{
 This is essentially a wrapper around the model-creation and -modification

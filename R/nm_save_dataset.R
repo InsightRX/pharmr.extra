@@ -10,7 +10,7 @@ nm_save_dataset <- function(
 ) {
   tool <- match.arg(tool)
   if(tool == "nonmem") {  ## Remove NAs for NONMEM, and replace with ".". Not for nlmixr
-    for(key in names(dat)) {
+    for(key in names(data)) {
       data[[key]] <- as.character(data[[key]])
       data[[key]][is.na(data[[key]])] <- "."
     }

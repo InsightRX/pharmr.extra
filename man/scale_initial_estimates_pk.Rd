@@ -9,6 +9,8 @@ scale_initial_estimates_pk(model, scale)
 \arguments{
 \item{model}{pharmpy model object or NONMEM model code (character) or path
 to NONMEM model file.}
+
+\item{scale}{TODO}
 }
 \value{
 Pharmpy model object

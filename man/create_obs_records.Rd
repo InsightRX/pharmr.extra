@@ -6,6 +6,15 @@
 \usage{
 create_obs_records(data, t_obs, n_subjects, dictionary)
 }
+\arguments{
+\item{data}{TODO}
+
+\item{t_obs}{TODO}
+
+\item{n_subjects}{TODO}
+
+\item{dictionary}{TODO}
+}
 \description{
 Create observation records, given a specified t_obs vector
 }

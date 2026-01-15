@@ -10,6 +10,11 @@ get_defined_pk_parameters(
     "K31")
 )
 }
+\arguments{
+\item{mod}{TODO}
+
+\item{possible}{TODO}
+}
 \description{
 Get all parameters that are defined (from a predefined vector of possible parameters)
 }

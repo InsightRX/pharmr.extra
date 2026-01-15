@@ -27,6 +27,7 @@ get_condition_number_for_fit <- function(
 
 #' Calculate the condition number given a matrix
 #'
+#' @param mat TODO
 calc_condition_number <- function(mat) {
   e <- eigen(mat)$values
   max(e) / min(e)
