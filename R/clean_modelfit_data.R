@@ -52,6 +52,7 @@ clean_modelfit_data <- function(
             }
           } else {
             if(verbose)
+              # TODO: This warning is misleading since it actually removes the column
               cli::cli_alert_warning("Detected character column ({key}), setting to 0.")
             data[[key]] <- NULL
           }
@@ -82,6 +83,8 @@ clean_modelfit_data <- function(
     }
 
     ## Save dataset
+    # TODO: pharmr::set_dataset() accepts a data.frame, so why are we saving
+    # to a temporary csv? We should simplify.
     dataset_file <- tempfile(pattern = "data", fileext = ".csv")
     write.csv(data, dataset_file, quote = F, row.names = F)
 
