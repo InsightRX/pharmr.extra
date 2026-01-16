@@ -4,7 +4,7 @@
 #' purposes
 #' 
 #' @export
-create_model_nlmixr <- function(...) {
+create_model_nlmixr <- function(...) { # nocov start
   mod <- function() {
     ini({
       # --- THETAS ---
@@ -47,4 +47,4 @@ create_model_nlmixr <- function(...) {
     })
   }
   mod 
-}
+} # nocov end
