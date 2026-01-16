@@ -24,7 +24,7 @@ create_regimen(
 \item{route}{TODO}
 }
 \description{
-The resulting data.frame can be passed to \code{luna::run_sim()} as the \code{regimen}
+The resulting data.frame can be passed to \code{\link[=run_sim]{run_sim()}} as the \code{regimen}
 argument.
 }
 \examples{
@@ -36,7 +36,7 @@ reg1 <- create_regimen(
   n = 10,
   route = "oral"
 )
-luna::run_sim(..., regimen = reg1)
+run_sim(..., regimen = reg1)
 }
 
 }

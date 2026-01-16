@@ -1,6 +1,6 @@
 #' Create a single regimen
 #'
-#' The resulting data.frame can be passed to `luna::run_sim()` as the `regimen`
+#' The resulting data.frame can be passed to [run_sim()] as the `regimen`
 #' argument.
 #'
 #' @param dose TODO
@@ -18,7 +18,7 @@
 #'   n = 10,
 #'   route = "oral"
 #' )
-#' luna::run_sim(..., regimen = reg1)
+#' run_sim(..., regimen = reg1)
 #' }
 #'
 #' @export
