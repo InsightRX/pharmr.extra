@@ -32,3 +32,13 @@ You can install the development version of pharmr.extra from
 # install.packages("pak")
 pak::pak("InsightRX/pharmr.extra")
 ```
+
+## Documentation
+
+See at
+[`https://insightrx.github.io/pharmr.extra/`](https://insightrx.github.io/pharmr.extra/reference/index.html)
+and also in the installed package: `help(package = "pharmr.extra")`.
+
+## License
+
+MIT © InsightRX
