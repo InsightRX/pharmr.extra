@@ -43,7 +43,7 @@ run_sim <- function(
     fit = NULL,
     data = NULL,
     model = NULL,
-    id = luna::get_random_id("sim_"), # TODO: export from luna
+    id = luna:::get_random_id("sim_"), # TODO: export from luna
     force = FALSE,
     t_obs = NULL,
     dictionary = list(

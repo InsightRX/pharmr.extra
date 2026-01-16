@@ -70,7 +70,7 @@ run_nlme <- function(
   id,
   path = getwd(),
   method = c("nmfe", "pharmpy", "psn"),
-  nmfe = luna::get_nmfe_location_for_run(), # TODO: export from luna
+  nmfe = luna:::get_nmfe_location_for_run(), # TODO: export from luna
   force = NULL,
   console = FALSE,
   save_fit = TRUE,
@@ -88,7 +88,7 @@ run_nlme <- function(
   model <- validate_model(model)
   method <- match.arg(method)
   if(is.null(force)) {
-    force <- luna::get_flag_from_config( # TODO: export from luna
+    force <- luna:::get_flag_from_config( # TODO: export from luna
       flag = c("tools", "modelfit", "force"),
       FALSE
     )
@@ -119,7 +119,7 @@ run_nlme <- function(
   }
 
   ## Make sure data is clean for modelfit
-  obj <- luna::prepare_run_folder( # TODO: export from luna
+  obj <- luna:::prepare_run_folder( # TODO: export from luna
     id = id,
     model = model,
     path = path,
@@ -227,7 +227,7 @@ run_nlme <- function(
             path = obj$fit_folder,
             obj$output_file
           )
-          luna::log_add( # TODO: export from luna
+          luna:::log_add( # TODO: export from luna
             event = "error",
             action = "modelfit",
             id = id,
