@@ -8,6 +8,8 @@ save_model_code <- function(
   model,
   path
 ) {
+  # TODO: review output for this function (see tests); I don't think the current
+  # output is what is desired.
   
   ## Works for nlmixr2 models. Will need to adapt for NONMEM models
   md <- paste(
