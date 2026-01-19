@@ -13,14 +13,17 @@ remove_table_from_model <- function(
     firstonly = FALSE,
     file
 ) {
+  # TODO: consider renaming function since it adds tables and doesn't remove them...
   tool <- get_tool_from_model(model)
   if(tool == "nonmem") {
     existing_tables <- get_tables_in_model_code(model$code)
     if(file %in% existing_tables) {
+      # TODO: use cli::cli_warn()
       warning("Table file already in a $TABLE record in model.")
       return(model)
     }
     if(is.null(variables) || length(variables) == 0) {
+      # TODO: use cli::cli_warn()
       warning("No variables to add to $TABLE, skipping.")
       return(model)
     }
@@ -38,5 +41,5 @@ remove_table_from_model <- function(
   } else {
     ## Adding tables can only be done for NONMEM datasets
   }
-  return(model)
+  model
 }
