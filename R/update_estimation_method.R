@@ -11,9 +11,9 @@ update_estimation_method <- function(
     verbose = TRUE
 ) {
   estimation_method <- toupper(estimation_method)
-  allowed <- c("FO", "FOCE", "ITS", "LAPLACE", "IMPMAP", "IMP", "SAEM")
+  allowed <- c("FO", "FOCE", "ITS", "IMPMAP", "IMP", "SAEM") # FIXME: "LAPLACE" not allowed
   if(length(estimation_method) > 1) {
-    cli::cli_alert_warning("Currently setting estimation methods supports only a single estimation method. Using {estimation_method[1]}")
+    cli::cli_warn("Currently setting estimation methods supports only a single estimation method. Using {estimation_method[1]}")
     estimation_method <- estimation_method[1]
   }
   if(any(! estimation_method %in% allowed)) {
