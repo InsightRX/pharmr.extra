@@ -48,3 +48,15 @@ create_model_nlmixr <- function(...) { # nocov start
   }
   mod 
 } # nocov end
+
+# R CMD check gets confused about the rxode2 syntax, this is to suppress R CMD
+# check NOTEs about "no visible binding for global variable"
+utils::globalVariables(
+  c(
+    "ETA_1",
+    "ETA_2",
+    "ETA_3",
+    "A_CENTRAL",
+    "f<-"
+  )
+)
