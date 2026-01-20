@@ -74,8 +74,9 @@
 #' @param tool output model type, either `nonmem` or `nlmixr`
 #' @param verbose verbose output?
 #'
+#' @returns TODO
+#' 
 #' @export
-#'
 create_model <- function(
     route = c("auto", "oral", "iv"),
     lag_time = FALSE,

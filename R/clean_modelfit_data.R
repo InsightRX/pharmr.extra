@@ -5,8 +5,9 @@
 #' into numeric columns? If `FALSE` will just set all values to 0 (but
 #' retain column to avoid issues).
 #'
+#' @returns TODO
+#' 
 #' @export
-#'
 clean_modelfit_data <- function(
   model,
   try_make_numeric = TRUE,

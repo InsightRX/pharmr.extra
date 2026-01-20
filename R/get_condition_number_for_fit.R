@@ -3,6 +3,8 @@
 #'
 #' @param fit pharmpy fit object
 #'
+#' @returns TODO
+#' 
 #' @export
 get_condition_number_for_fit <- function(
     fit

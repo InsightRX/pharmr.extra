@@ -4,8 +4,9 @@
 #' @param file remove only a specific table defined as FILE=<file>. `file` can
 #' also specify only the start of a filename, e.g. `patab`
 #'
+#' @returns TODO
+#' 
 #' @export
-#'
 remove_tables_from_model <- function(
   model,
   file = NULL

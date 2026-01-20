@@ -3,8 +3,9 @@
 #' @inheritParams call_nmfe
 #' @param clean TODO
 #'
-#' @export
+#' @returns TODO
 #'
+#' @export
 call_pharmpy_fit <- function(
     model_file,
     path,

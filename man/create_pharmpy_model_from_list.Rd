@@ -10,6 +10,9 @@ create_pharmpy_model_from_list(model_obj)
 \arguments{
 \item{model_obj}{list object with entries \code{code} and \code{dataset}}
 }
+\value{
+(Model) Pharmpy model object
+}
 \description{
 Create a model object from the model code and dataset stored as a list
 object.

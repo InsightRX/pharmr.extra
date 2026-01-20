@@ -26,6 +26,9 @@ subsequent run.}
 
 \item{verbose}{verbose output?}
 }
+\value{
+TODO
+}
 \description{
 Clean pharmpy run folders like modelfit1 etc
 }

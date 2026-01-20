@@ -2,6 +2,9 @@
 #' Linear absorption without lagtime
 #'
 #' @importFrom rxode2 ini model
+#' 
+#' @returns An nlmixr2 model.
+#' 
 #' @export
 nlmixr2_pk_1cmt_oral_linear <- function() { #nocov start
   ini({
@@ -27,6 +30,8 @@ nlmixr2_pk_1cmt_oral_linear <- function() { #nocov start
 
 #' nlmixr2 model: 1-cmt linear model (oral)
 #' Linear absorption with lagtime
+#' 
+#' @returns An nlmixr2 model.
 #' 
 #' @export
 nlmixr2_pk_1cmt_oral_linear_lag <- function() { #nocov start
@@ -54,6 +59,8 @@ nlmixr2_pk_1cmt_oral_linear_lag <- function() { #nocov start
 
 #' nlmixr2 model: 1-cmt linear model (oral)
 #' Transit compartment absorption model
+#' 
+#' @returns An nlmixr2 model.
 #' 
 #' @export
 nlmixr2_pk_1cmt_oral_linear_transit <- function() { #nocov start
@@ -84,6 +91,8 @@ nlmixr2_pk_1cmt_oral_linear_transit <- function() { #nocov start
 
 #' nlmixr2 model: 2-cmt linear model (iv)
 #' 
+#' @returns An nlmixr2 model.
+#' 
 #' @export
 nlmixr2_pk_1cmt_iv_linear <- function() { #nocov start
   ini({
@@ -109,6 +118,8 @@ nlmixr2_pk_1cmt_iv_linear <- function() { #nocov start
 #########################################################
 
 #' nlmixr2 model: 2-cmt linear model (oral)
+#' 
+#' @returns An nlmixr2 model.
 #' 
 #' @export
 nlmixr2_pk_2cmt_oral_linear <- function() { #nocov start
@@ -141,6 +152,8 @@ nlmixr2_pk_2cmt_oral_linear <- function() { #nocov start
 
 #' nlmixr2 model: 2-cmt linear model (oral)
 #' Linear absorption with lagtime
+#' 
+#' @returns An nlmixr2 model.
 #' 
 #' @export
 nlmixr2_pk_2cmt_oral_linear_lag <- function() { #nocov start
@@ -175,6 +188,8 @@ nlmixr2_pk_2cmt_oral_linear_lag <- function() { #nocov start
 
 #' nlmixr2 model: 2-cmt linear model (oral)
 #' Transit compartment absorption model
+#' 
+#' @returns An nlmixr2 model.
 #' 
 #' @export
 nlmixr2_pk_2cmt_oral_linear_transit <- function() { #nocov start
@@ -211,6 +226,8 @@ nlmixr2_pk_2cmt_oral_linear_transit <- function() { #nocov start
 } #nocov end
 
 #' nlmixr2 model: 2-cmt linear model (iv)
+#' 
+#' @returns An nlmixr2 model.
 #' 
 #' @export
 nlmixr2_pk_2cmt_iv_linear <- function() { #nocov start

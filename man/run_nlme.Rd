@@ -96,6 +96,9 @@ correct, and \code{FALSE} if not. Will also attach stdout as \code{message} attr
 
 \item{verbose}{verbose output?}
 }
+\value{
+TODO
+}
 \description{
 Run the model directly using nmfe (not through pharmpy).
 This is a more reliable way of running NONMEM, and it is now possible to

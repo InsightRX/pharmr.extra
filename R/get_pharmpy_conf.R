@@ -3,7 +3,6 @@
 #' @export
 #'
 #' @returns a list object
-#'
 get_pharmpy_conf <- function() {
 
   ## Get path to config file

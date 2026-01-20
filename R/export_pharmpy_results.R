@@ -11,8 +11,9 @@
 #' @param results Pharmpy results object to save
 #' @param file JSON file to save to
 #'
-#' @export
+#' @returns TODO
 #' 
+#' @export
 export_pharmpy_results <- function(results, file) {
   if(inherits(results, "pharmpy.tools.modelsearch.tool.ModelSearchResults")) {
     out <- list(

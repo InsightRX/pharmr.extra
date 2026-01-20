@@ -11,6 +11,9 @@ get_tables_from_fit(model, path)
 
 \item{path}{path to model execution folder}
 }
+\value{
+TODO
+}
 \description{
 Read tables created in model run and return as a list of data.frames
 }

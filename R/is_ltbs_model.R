@@ -2,6 +2,8 @@
 #'
 #' @param model TODO
 #' 
+#' @returns TODO
+#' 
 #' @export
 is_ltbs_model <- function(model) {
   if(! "control_stream" %in% names(model$internals)) {

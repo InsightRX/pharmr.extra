@@ -15,6 +15,9 @@ Values in list need to match one of the effects allowed by pharmpy.}
 
 \item{data}{data.frame as input to NONMEM / nlmixr.}
 }
+\value{
+TODO
+}
 \description{
 Wrapper function to add covariates to a pharmpy model
 }

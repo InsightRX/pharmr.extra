@@ -12,6 +12,9 @@ to NONMEM model file.}
 
 \item{...}{passed to add_default_output_tables()}
 }
+\value{
+TODO
+}
 \description{
 E.g. useful to call after pharmr::add_peripheral_compartment() to update
 the $TABLE with parameter estimates

@@ -60,8 +60,9 @@
 #' correct, and `FALSE` if not. Will also attach stdout as `message` attribute.
 #' @param verbose verbose output?
 #'
+#' @returns TODO
+#' 
 #' @export
-#'
 run_nlme <- function(
   model,
   data = NULL,

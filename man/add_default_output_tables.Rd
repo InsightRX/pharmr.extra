@@ -31,6 +31,9 @@ included in the output tables? Default \code{FALSE}.}
 
 \item{verbose}{verbose output?}
 }
+\value{
+TODO
+}
 \description{
 Add one or more default output tables to a model,
 if they don't already exist in the model.

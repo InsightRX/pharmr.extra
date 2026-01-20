@@ -5,6 +5,8 @@
 #' separate lines (`FALSE`)
 #' @param code NONMEM code (alternative to specifying file name)
 #'
+#' @returns TODO
+#' 
 #' @export
 nm_read_model <- function(
     modelfile = NULL,

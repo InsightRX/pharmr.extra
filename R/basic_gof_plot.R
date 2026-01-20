@@ -4,11 +4,10 @@
 #' @param path if not NULL, path to save plot as file (file extension determines 
 #' the file format automatically).
 #' 
-#' @return plotly object. If `path` is specified, will not return anything, but
+#' @returns plotly object. If `path` is specified, will not return anything, but
 #'   plotly file will be saved at the requested path.
 #' 
 #' @export
-#' 
 basic_gof_plot <- function(
   fit,
   path = NULL

@@ -16,14 +16,14 @@
 #' @param nonmem_tab logical value indicating to the function whether the file is a
 #' table or a nonmem additional output file.
 #'
-#' @return A \code{data.frame}
+#' @returns A \code{data.frame}
+#' 
 #' @examples
 #' \dontrun{
 #' data <- read_table_nm(file = '../models/pk/sdtab101')
 #' }
 #'
 #' @export
-#'
 read_table_nm <- function(
   file = NULL,
   skip = NULL,

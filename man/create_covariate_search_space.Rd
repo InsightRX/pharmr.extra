@@ -31,6 +31,9 @@ be used as structural model elements, or as exploration space?}
 \item{struct_operation}{parameter-covariate model type (operation)
 for structural model}
 }
+\value{
+TODO
+}
 \description{
 See Pharmpy MFL documentation for more info:
 https://pharmpy.github.io/latest/covsearch.html

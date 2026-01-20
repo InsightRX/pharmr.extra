@@ -16,6 +16,9 @@ results object}
 
 \item{verbose}{TODO}
 }
+\value{
+TODO
+}
 \description{
 For a Pharmpy grid search, fetch the fit info and attach to object
 }

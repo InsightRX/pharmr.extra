@@ -37,6 +37,9 @@ to keep in the output dataset}
 
 \item{use_pharmpy}{TODO}
 }
+\value{
+TODO
+}
 \description{
 Run a simulation based on supplied parameters estimates,
 and combine into proper format for VPC

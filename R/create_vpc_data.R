@@ -14,6 +14,8 @@
 #' @param id TODO
 #' @param use_pharmpy TODO
 #'
+#' @returns TODO
+#' 
 #' @export
 create_vpc_data <- function(
   fit = NULL,

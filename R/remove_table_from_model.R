@@ -5,8 +5,9 @@
 #' @param firstonly add `FIRSTONLY` parameter to $TABLE record
 #' @param file path to file, e.g. `sdtab`
 #' 
-#' @export
+#' @returns TODO
 #' 
+#' @export
 remove_table_from_model <- function(
     model,
     variables,

@@ -45,6 +45,9 @@ takes precedence if both are specified.}
 
 \item{...}{arguments passed on to rxode2::rxSolve() function}
 }
+\value{
+TODO
+}
 \description{
 Using fit object from fit with nlmixr2.
 }

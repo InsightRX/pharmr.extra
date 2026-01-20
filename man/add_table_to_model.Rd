@@ -15,6 +15,9 @@ add_table_to_model(model, variables, firstonly = FALSE, file)
 
 \item{file}{path to file, e.g. \code{sdtab}}
 }
+\value{
+TODO
+}
 \description{
 Add new $TABLE record to output variables
 }

@@ -9,7 +9,9 @@
 #' starting the new encounter? Default is `TRUE`.
 #' @param time time column, `"TIME"` by default
 #' @param verbose verbose output
-#'
+#' 
+#' @returns TODO
+#' 
 #' @export
 stack_encounters <- function(
   data,

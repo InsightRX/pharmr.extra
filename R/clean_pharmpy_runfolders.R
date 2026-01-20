@@ -4,7 +4,9 @@
 #' @param folder TODO
 #' @param tool TODO
 #' @param remove TODO
-#'
+#' 
+#' @returns TODO
+#' 
 #' @export
 clean_pharmpy_runfolders <- function(
   id = NULL,

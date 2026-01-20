@@ -4,10 +4,10 @@
 #'
 #' @inheritParams attach_fit_info
 #' @param fix fix the estimates?
-#'
+#' 
+#' @returns TODO
+#' 
 #' @export
-#'
-#'
 update_parameters <- function(
     model,
     fit,

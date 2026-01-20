@@ -12,8 +12,9 @@
 #' @param path path to .rds file to save fit results to
 #' @param ... passed onto `run_nmfe()` function
 #'
+#' @returns TODO
+#' 
 #' @export
-#'
 fit_model <- function(model, data, tool = "nonmem", path, ...) {
   if(! "pharmpy.model.external.nonmem.model.Model" %in% class(model)) {
     cli::cli_abort("Needs a pharmpy model object to run.")

@@ -24,6 +24,9 @@ object (if specified as pharmpy model object).}
 
 \item{verbose}{verbose output?}
 }
+\value{
+TODO
+}
 \description{
 Clean / check the dataset before passing to model fitting tool
 }

@@ -6,8 +6,9 @@
 #' @param fit_folder TODO
 #' @param is_sim_model TODO
 #'
-#' @export
+#' @returns TODO
 #'
+#' @export
 attach_fit_info <- function(
   fit,
   model,

@@ -12,6 +12,8 @@
 #' @param n_cmt number of distribution / elimination compartments.
 #' @param scale_observations TODO
 #'
+#' @returns TODO
+#' 
 #' @export
 get_initial_estimates_from_data <- function(
   data,

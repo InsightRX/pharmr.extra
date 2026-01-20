@@ -7,6 +7,9 @@ Transit compartment absorption model}
 \usage{
 nlmixr2_pk_2cmt_oral_linear_transit()
 }
+\value{
+An nlmixr2 model.
+}
 \description{
 nlmixr2 model: 2-cmt linear model (oral)
 Transit compartment absorption model

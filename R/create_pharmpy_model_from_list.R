@@ -3,6 +3,7 @@
 #' 
 #' @param model_obj list object with entries `code` and `dataset`
 #' 
+#' @returns (Model) Pharmpy model object
 create_pharmpy_model_from_list <- function(model_obj) {
   ## Pharmpy bug: datainfo not updated when using pharmar::set_dataset()
   ## So need to make sure the dataset is on file when loading the model

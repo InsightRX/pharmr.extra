@@ -9,6 +9,9 @@ get_tool_from_model(model)
 \arguments{
 \item{model}{pharmpy model}
 }
+\value{
+TODO
+}
 \description{
 Get estimation/simulation engine from pharmpy model
 }

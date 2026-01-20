@@ -21,6 +21,9 @@ get_initial_estimates_from_data(data, n_cmt = 1, scale_observations = NULL)
 
 \item{scale_observations}{TODO}
 }
+\value{
+TODO
+}
 \description{
 Get a very crude estimate for V to serve as initial estimate
 for CL and V, without performing an NCA. The calculation is based on

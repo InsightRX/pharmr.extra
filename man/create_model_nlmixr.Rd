@@ -10,6 +10,9 @@ create_model_nlmixr(...)
 \item{...}{Any arguments to the function are just ignored, this is just for demo
 purposes}
 }
+\value{
+TODO
+}
 \description{
 Temporary function that returns a hardcoded nlmixr2 model
 }

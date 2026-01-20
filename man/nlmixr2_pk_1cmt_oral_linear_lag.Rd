@@ -7,6 +7,9 @@ Linear absorption with lagtime}
 \usage{
 nlmixr2_pk_1cmt_oral_linear_lag()
 }
+\value{
+An nlmixr2 model.
+}
 \description{
 nlmixr2 model: 1-cmt linear model (oral)
 Linear absorption with lagtime

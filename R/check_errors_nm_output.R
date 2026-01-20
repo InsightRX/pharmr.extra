@@ -2,6 +2,8 @@
 #' 
 #' @param output text outputted from NONMEM as a vector of lines.
 #' 
+#' @returns TODO
+#' 
 #' @export
 check_errors_nm_output <- function(output) {
   potential_errors <- c("DATA ERROR", "AN ERROR WAS FOUND")

@@ -120,6 +120,9 @@ TBD}
 
 \item{verbose}{verbose output?}
 }
+\value{
+TODO
+}
 \description{
 This is essentially a wrapper around the model-creation and -modification
 functionality in pharmr/Pharmpy.

@@ -28,6 +28,9 @@ to NONMEM model file.}
 
 \item{verbose}{verbose output?}
 }
+\value{
+TODO
+}
 \description{
 Attach fit info and tables to a fit object, e.g. from model fit or
 Pharmpy grid search final results

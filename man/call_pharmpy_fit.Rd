@@ -23,6 +23,9 @@ call_pharmpy_fit(
 
 \item{verbose}{verbose output?}
 }
+\value{
+TODO
+}
 \description{
 Run model with pharmpy
 }

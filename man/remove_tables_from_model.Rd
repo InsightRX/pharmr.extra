@@ -12,6 +12,9 @@ remove_tables_from_model(model, file = NULL)
 \item{file}{remove only a specific table defined as FILE=\if{html}{\out{<file>}}. \code{file} can
 also specify only the start of a filename, e.g. \code{patab}}
 }
+\value{
+TODO
+}
 \description{
 Remove all $TABLE records from a model
 }

@@ -7,6 +7,8 @@
 #'
 #' @param ... passed to add_default_output_tables()
 #'
+#' @returns TODO
+#' 
 #' @export
 update_pk_tables <- function(model, ...) {
   # figure out which pk parameters

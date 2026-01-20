@@ -13,6 +13,9 @@ get_fit_info(fit, path = NULL, output_file = "run.lst")
 
 \item{output_file}{NONMEM output file, default is \code{run.lst}}
 }
+\value{
+TODO
+}
 \description{
 Get fit info from NONMEM run
 }

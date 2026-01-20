@@ -13,6 +13,9 @@ nm_update_dataset(model_filename, dataset_filename, ...)
 
 \item{...}{parameters passed to \code{nm_save_model()}}
 }
+\value{
+TODO
+}
 \description{
 Update $DATA in NONMEM model with new dataset
 }

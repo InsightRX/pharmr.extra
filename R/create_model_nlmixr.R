@@ -3,6 +3,8 @@
 #' @param ... Any arguments to the function are just ignored, this is just for demo
 #' purposes
 #' 
+#' @returns TODO
+#' 
 #' @export
 create_model_nlmixr <- function(...) { # nocov start
   mod <- function() {

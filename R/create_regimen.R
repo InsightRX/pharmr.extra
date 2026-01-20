@@ -9,6 +9,8 @@
 #' @param t_inf TODO
 #' @param route TODO
 #'
+#' @returns TODO
+#' 
 #' @examples
 #'
 #' \dontrun{

@@ -4,6 +4,8 @@
 #' @param path path to run folder
 #' @param output_file NONMEM output file, default is `run.lst`
 #'
+#' @returns TODO
+#' 
 #' @export
 get_fit_info <- function(fit, path = NULL, output_file = "run.lst") {
   lst_file <- file.path(path, output_file)

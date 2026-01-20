@@ -12,8 +12,9 @@
 #' @param save_info save general run info as a csv file
 #' @param save_parameters save run parameters as a csv file
 #' 
-#' @export
+#' @returns TODO
 #' 
+#' @export
 compare_nlme_runs <- function(
     filter = "run",
     folder = ".",

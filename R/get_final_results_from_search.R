@@ -6,8 +6,9 @@
 #' results object
 #' @param verbose TODO
 #' 
-#' @export
+#' @returns TODO
 #' 
+#' @export
 get_final_results_from_search <- function(
   id,
   results,

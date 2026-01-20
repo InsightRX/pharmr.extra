@@ -5,8 +5,9 @@
 #' `c("--samples=100", "--dir="test")`
 #' @param tool TODO
 #'
+#' @returns TODO
+#' 
 #' @export
-#'
 call_psn <- function(
   model_file,
   output_file,

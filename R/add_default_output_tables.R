@@ -13,8 +13,9 @@
 #' @param remove_existing TODO
 #' @param verbose verbose output?
 #'
-#' @export
+#' @returns TODO
 #'
+#' @export
 add_default_output_tables <- function(
   model,
   iiv = NULL,

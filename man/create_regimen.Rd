@@ -23,6 +23,9 @@ create_regimen(
 
 \item{route}{TODO}
 }
+\value{
+TODO
+}
 \description{
 The resulting data.frame can be passed to \code{\link[=run_sim]{run_sim()}} as the \code{regimen}
 argument.

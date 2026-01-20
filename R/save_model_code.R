@@ -3,6 +3,8 @@
 #' @param model nlmixr2 model object
 #' @param path path to .md file to save model code to
 #' 
+#' @returns TODO
+#' 
 #' @export
 save_model_code <- function(
   model,

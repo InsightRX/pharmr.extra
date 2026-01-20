@@ -9,6 +9,9 @@ check_errors_nm_output(output)
 \arguments{
 \item{output}{text outputted from NONMEM as a vector of lines.}
 }
+\value{
+TODO
+}
 \description{
 Detect any errors in the output from NONMEM.
 }

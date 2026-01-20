@@ -2,6 +2,8 @@
 #' 
 #' @param model pharmpy model
 #' 
+#' @returns TODO
+#' 
 #' @export
 get_tool_from_model <- function(model) {
   # TODO: Should add some input validation. Currently you can pass pretty much
