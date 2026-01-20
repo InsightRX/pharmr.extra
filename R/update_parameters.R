@@ -14,7 +14,9 @@ update_parameters <- function(
     fix = FALSE,
     verbose = FALSE
 ) {
-  final_model <- attr(fit, "model")
+  # TODO: what's the purpose of final_model? We create the object but don't do
+  # anything with it.
+  final_model <- attr(fit, "model") 
   params <- fit$parameter_estimates
   if(is.null(params)) {
     cli::cli_abort("No parameter estimates found in fit object; cannot update model.")
