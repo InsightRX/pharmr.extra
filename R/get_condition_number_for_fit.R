@@ -6,9 +6,7 @@
 #' @returns TODO
 #' 
 #' @export
-get_condition_number_for_fit <- function(
-    fit
-) {
+get_condition_number_for_fit <- function(fit) {
   if(is.null(fit$correlation_matrix)) {
     cli::cli_alert_warning("Correlation matrix not available, cannot calculate condition number for fit.")
     return(NA)
