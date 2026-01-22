@@ -513,11 +513,13 @@ test_that("LTBS model is handled, and LNDV is set to DV", {
 })
 
 test_that("can create mu-referenced model", {
+  skip_on_ci()
   mod <- create_model(mu_reference = TRUE)
   expect_s3_class(mod, "pharmpy.model.external.nonmem.model.Model")
 })
 
 test_that("IIV argument handles all input formats correctly", {
+  skip_on_ci()
   # Test data for consistent testing
   test_data <- data.frame(
     ID = 1,

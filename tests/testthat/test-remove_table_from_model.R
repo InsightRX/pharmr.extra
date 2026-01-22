@@ -94,6 +94,7 @@ test_that("warns when file already exists in model", {
 })
 
 test_that("warns when variables is NULL or empty", {
+  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,

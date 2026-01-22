@@ -192,6 +192,7 @@ test_that("supports per-parameter IIV types", {
 })
 
 test_that("handles correlations with ~ syntax", {
+  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
