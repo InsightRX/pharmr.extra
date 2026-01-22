@@ -42,7 +42,8 @@ Suggests:
 Remotes:
     InsightRX/irxutils,
     InsightRX/luna,
-    InsightRX/PKPDsim
+    InsightRX/PKPDsim,
+    nlmixr2/rxode2
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
