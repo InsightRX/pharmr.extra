@@ -22,7 +22,7 @@ update_parameters <- function(
     cli::cli_abort("No parameter estimates found in fit object; cannot update model.")
   }
   if(all(is.nan(params))) {
-    cli::cli_alert_warning("No parameter estimates were available, not updating model.")
+    cli::cli_warn("No parameter estimates were available, not updating model.")
     return(invisible())
   }
   if(any(is.nan(params))) {
