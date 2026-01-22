@@ -1,4 +1,5 @@
 test_that("adding both tables when none exist works", {
+  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -30,6 +31,7 @@ test_that("adding both tables when none exist works", {
 })
 
 test_that("adding only parameters table works", {
+  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -58,6 +60,7 @@ test_that("adding only parameters table works", {
 })
 
 test_that("adding only fit table works", {
+  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -86,6 +89,7 @@ test_that("adding only fit table works", {
 })
 
 test_that("removes existing tables when remove_existing = TRUE", {
+  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,

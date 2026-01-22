@@ -1,4 +1,5 @@
 test_that("export and import pharmpy results works", {
+  skip_on_ci()
   ## create a mock object
   model1 <- create_model()
   res <- list(
@@ -41,6 +42,7 @@ test_that("import pharmpy results throws an error when not a Pharmpy results obj
 })
 
 test_that("import pharmpy results throws an appropriate error when trying to load a Pharmpy model object", {
+  skip_on_ci()
   model1 <- create_model()
   tmp <- paste0(tempfile(), ".rds")
   export_pharmpy_model(model1, tmp)

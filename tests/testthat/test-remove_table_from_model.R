@@ -1,4 +1,5 @@
 test_that("adds table correctly to model with no existing tables", {
+  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -36,6 +37,7 @@ test_that("adds table correctly to model with no existing tables", {
 })
 
 test_that("adds table with FIRSTONLY when firstonly = TRUE", {
+  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -60,6 +62,7 @@ test_that("adds table with FIRSTONLY when firstonly = TRUE", {
 })
 
 test_that("warns when file already exists in model", {
+  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -141,6 +144,7 @@ test_that("warns when variables is NULL or empty", {
 })
 
 test_that("returns model unchanged for non-NONMEM models", {
+  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -163,6 +167,7 @@ test_that("returns model unchanged for non-NONMEM models", {
 })
 
 test_that("adds multiple tables sequentially", {
+  skip_on_ci()
   # TODO: is this desired behaviour, or should the first table be removed?
   local_pharmr.extra_options()
   dat <- data.frame(

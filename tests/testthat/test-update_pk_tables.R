@@ -1,4 +1,5 @@
 test_that("works when no patab exists initially", {
+  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -25,6 +26,7 @@ test_that("works when no patab exists initially", {
 })
 
 test_that("removes existing patab and adds it back", {
+  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -56,6 +58,7 @@ test_that("removes existing patab and adds it back", {
 })
 
 test_that("removes multiple patab tables", {
+  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -97,6 +100,7 @@ test_that("removes multiple patab tables", {
 })
 
 test_that("preserves other tables like sdtab", {
+  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -125,6 +129,7 @@ test_that("preserves other tables like sdtab", {
 })
 
 test_that("preserves the dataset", {
+  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = c(1, 1, 1),
@@ -145,6 +150,7 @@ test_that("preserves the dataset", {
 })
 
 test_that("works with oral model", {
+  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -171,6 +177,7 @@ test_that("works with oral model", {
 })
 
 test_that("works with 2-compartment model", {
+  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,

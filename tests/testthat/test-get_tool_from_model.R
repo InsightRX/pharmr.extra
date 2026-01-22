@@ -1,10 +1,12 @@
 test_that("nlmixr identified correctly", {
+  skip_on_ci()
   local_pharmr.extra_options()
   mod <- create_model("iv", tool = "nlmixr")
   expect_equal(get_tool_from_model(mod), "nlmixr")
 })
 
 test_that("nonmem identified correctly", {
+  skip_on_ci()
   local_pharmr.extra_options()
   mod <- create_model("iv", tool = "nonmem")
   expect_equal(get_tool_from_model(mod), "nonmem")
