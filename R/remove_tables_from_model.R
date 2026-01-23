@@ -4,8 +4,9 @@
 #' @param file remove only a specific table defined as FILE=<file>. `file` can
 #' also specify only the start of a filename, e.g. `patab`
 #'
+#' @returns TODO
+#' 
 #' @export
-#'
 remove_tables_from_model <- function(
   model,
   file = NULL
@@ -21,6 +22,7 @@ remove_tables_from_model <- function(
 
     ## workaround for dataset needed to circumvent issues re-reading the model file
     data <- model$dataset
+    # TODO: use data.frame instead of creating and passing a csv
     temp_csv <- paste0(tempfile(), ".csv")
     write.csv(data, temp_csv, quote=F, row.names=F)
     model <- pharmr::set_dataset(model, temp_csv)
@@ -51,6 +53,8 @@ remove_data_section <- function(text) {
 
 #' Function to remove all $TABLE sections
 #'
+#' @param text TODO
+#' @param file TODO
 remove_table_sections <- function(text, file = NULL) {
   if(!is.null(file)) {
     if(length(file) != 1) {

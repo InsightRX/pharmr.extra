@@ -8,9 +8,9 @@ nm_save_dataset <- function(
   filename, 
   tool = c("nonmem", "nlmixr")
 ) {
-  tool <- match.arg(tool)
+  tool <- rlang::arg_match(tool)
   if(tool == "nonmem") {  ## Remove NAs for NONMEM, and replace with ".". Not for nlmixr
-    for(key in names(dat)) {
+    for(key in names(data)) {
       data[[key]] <- as.character(data[[key]])
       data[[key]][is.na(data[[key]])] <- "."
     }

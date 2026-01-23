@@ -7,6 +7,8 @@
 set_covariance(model, covariance)
 }
 \arguments{
+\item{model}{TODO}
+
 \item{covariance}{character vector specifying the parameters and initial
 value for the correlation between the respective parameters, e.g.
 \code{c("CL~V" = 0.1, "Q~V2" = 0.2)}.}

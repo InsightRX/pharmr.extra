@@ -10,10 +10,12 @@
 #' to add, options are `fit` and `parameters`.
 #' @param full_tables For the default tables, should all input columns from be
 #' included in the output tables? Default `FALSE`.
+#' @param remove_existing TODO
 #' @param verbose verbose output?
 #'
-#' @export
+#' @returns TODO
 #'
+#' @export
 add_default_output_tables <- function(
   model,
   iiv = NULL,

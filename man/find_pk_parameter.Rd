@@ -12,6 +12,9 @@ find_pk_parameter(parameter, model)
 \item{model}{pharmpy model object or NONMEM model code (character) or path
 to NONMEM model file.}
 }
+\value{
+TODO
+}
 \description{
 E.g. a user may request \code{pharmr::remove_iiv("V")}, to remove
 IIV on the central volume. But if in the model the central volume is actually

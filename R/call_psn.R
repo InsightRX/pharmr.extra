@@ -3,9 +3,11 @@
 #' @inheritParams call_nmfe
 #' @param options a vector of arguments to pass to the PsN tool, e.g.
 #' `c("--samples=100", "--dir="test")`
+#' @param tool TODO
 #'
+#' @returns TODO
+#' 
 #' @export
-#'
 call_psn <- function(
   model_file,
   output_file,
@@ -36,7 +38,7 @@ call_psn <- function(
     stderr <- file.path(path, "stderr")
   }
 
-  psn_args <- parse_psn_args(options)
+  psn_args <- luna:::parse_psn_args(options) # TODO: export from luna
   if(verbose) {
     cli::cli_alert_info("Running: {tool} {model_file} {psn_args}")
   }

@@ -3,10 +3,10 @@
 #'
 #' @param fit pharmpy fit object
 #'
+#' @returns TODO
+#' 
 #' @export
-get_condition_number_for_fit <- function(
-    fit
-) {
+get_condition_number_for_fit <- function(fit) {
   if(is.null(fit$correlation_matrix)) {
     cli::cli_alert_warning("Correlation matrix not available, cannot calculate condition number for fit.")
     return(NA)
@@ -27,6 +27,7 @@ get_condition_number_for_fit <- function(
 
 #' Calculate the condition number given a matrix
 #'
+#' @param mat TODO
 calc_condition_number <- function(mat) {
   e <- eigen(mat)$values
   max(e) / min(e)

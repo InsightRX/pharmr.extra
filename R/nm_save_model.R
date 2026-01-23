@@ -4,6 +4,8 @@
 #' @param modelfile NONMEM model filename
 #' @param overwrite overwrite model file if exists?
 #'
+#' @returns TODO
+#' 
 #' @export
 nm_save_model <- function(
     model = NULL,

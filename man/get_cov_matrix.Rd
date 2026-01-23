@@ -22,6 +22,8 @@ even if they do not have a correlation with other parameters?}
 \item{triangle}{return the lower triangle as a vector instead of a
 matrix object?}
 
+\item{nonmem}{TODO}
+
 \item{limit}{lower limit, to avoid becoming zero, which is not allowed by
 NONMEM (\verb{A COVARIANCE IS ZERO, BUT THE BLOCK IS NOT A BAND MATRIX.})}
 }

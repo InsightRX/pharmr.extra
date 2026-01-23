@@ -9,6 +9,9 @@ clean_nonmem_folder(path)
 \arguments{
 \item{path}{path to NONMEM run folder}
 }
+\value{
+TODO
+}
 \description{
 Remove temporary files from NONMEM run
 }

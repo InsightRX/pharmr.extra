@@ -6,6 +6,9 @@
 \usage{
 read_ini(fn)
 }
+\arguments{
+\item{fn}{TODO}
+}
 \description{
 Read ini file core function
 }

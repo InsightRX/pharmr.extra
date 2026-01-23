@@ -16,14 +16,14 @@
 #' @param nonmem_tab logical value indicating to the function whether the file is a
 #' table or a nonmem additional output file.
 #'
-#' @return A \code{data.frame}
+#' @returns A \code{data.frame}
+#' 
 #' @examples
 #' \dontrun{
 #' data <- read_table_nm(file = '../models/pk/sdtab101')
 #' }
 #'
 #' @export
-#'
 read_table_nm <- function(
   file = NULL,
   skip = NULL,
@@ -55,10 +55,12 @@ read_table_nm <- function(
     tab_file <- do.call('cbind', lapply(file, readr::read_table,
                                         skip = skip, col_names = header))
 
-    tab_file <- as.data.frame(apply(tab_file, MARGIN = 2, FUN = as.numeric))
+    tab_file <- suppressWarnings(
+      as.data.frame(apply(tab_file, MARGIN = 2, FUN = as.numeric))
+    )
 
     # Drop rows with NA (in simtab)
-    tab_file <- na.omit(tab_file)
+    tab_file <- stats::na.omit(tab_file)
 
     # Correct bug in the headers
     if(header) {
@@ -71,7 +73,7 @@ read_table_nm <- function(
     skip     <- max(grep('TABLE NO', readLines(file[1])))
 
     # Import all files
-    tab_file <- do.call('cbind', lapply(file, read.table, skip = skip,
+    tab_file <- do.call('cbind', lapply(file, utils::read.table, skip = skip,
                                         header = FALSE, fill = TRUE, as.is = TRUE))
     colnames(tab_file) <- tab_file[1, ]
     tab_file <- suppressWarnings(as.data.frame(apply(tab_file[-1, ], 2, as.numeric)))

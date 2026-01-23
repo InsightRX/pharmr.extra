@@ -23,6 +23,9 @@ create_pkmodel_search_space(
 
 \item{lagtime}{lagtime options}
 }
+\value{
+TODO
+}
 \description{
 See Pharmpy MFL documentation for more info:
 https://pharmpy.github.io/latest/modelsearch.html

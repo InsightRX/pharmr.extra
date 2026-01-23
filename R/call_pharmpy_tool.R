@@ -1,13 +1,17 @@
 #' Generic function for running a pharmpy tool, like bootstrap,
 #' or modelsearch. A separate function is available for `fit()`
 #'
-#' @param model Pharmpy model object, preferably created using
-#' `luna::create_model()`.
 #' @param id model id. Optional. If not specified, will generate random modelfit
 #' id. The `id` will be used to create the run folder.
-#' @param verbose verbose output?
-#' @param clear if one or more run folders exists for the tool,
+#' @param model Pharmpy model object, preferably created using
+#' `luna::create_model()`.
+#' @param results TODO
+#' @param tool TODO
+#' @param folder TODO
+#' @param clean if one or more run folders exists for the tool,
 #' do we want to remove them first?
+#' @param verbose verbose output?
+#' @param force TODO
 #' @param options list of arguments pass on to `tool` as argument. Documentation
 #' for available arguments for each Pharmpy tool can be found here:
 #' https://pharmpy.github.io/latest/mfl.html.
@@ -15,7 +19,6 @@
 #' @return fit object
 #'
 #' @export
-#'
 call_pharmpy_tool <- function(
   id,
   model = NULL,
@@ -81,7 +84,7 @@ call_pharmpy_tool <- function(
     if(verbose)
       cli::cli_alert_info("Making sure model is a simulation model")
     model <- model |>
-      pharmr::set_simulation(n = ifelse0(options$n, 1)) |>
+      pharmr::set_simulation(n = luna::ifelse0(options$n, 1)) |>
       pharmr::set_name("sim")
     options$n <- NULL
   }
@@ -121,7 +124,7 @@ call_pharmpy_tool <- function(
       folder = folder,
       tool = tool
     )
-    full_table_path <- file.path(run_folder, tail(pharmpy_runfolders, 1), "models", "sim")
+    full_table_path <- file.path(run_folder, utils::tail(pharmpy_runfolders, 1), "models", "sim")
     tables <- get_tables_from_fit(
       model,
       path = full_table_path

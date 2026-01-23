@@ -2,3 +2,9 @@
 ^\.Rproj\.user$
 ^\.github$
 ^docker$
+^LICENSE\.md$
+^_pkgdown\.yml$
+^docs$
+^pkgdown$
+^codecov\.yml$
+^README\.Rmd$

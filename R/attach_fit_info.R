@@ -3,14 +3,17 @@
 #'
 #' @inheritParams run_nlme
 #' @inheritParams get_fit_info
+#' @param fit_folder TODO
+#' @param is_sim_model TODO
+#'
+#' @returns TODO
 #'
 #' @export
-#'
 attach_fit_info <- function(
   fit,
   model,
   fit_folder,
-  output_file = file.path(fit_folder, "model.lst"),
+  output_file = "run.lst",
   is_sim_model = FALSE,
   verbose = TRUE
 ) {

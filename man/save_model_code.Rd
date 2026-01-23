@@ -11,6 +11,9 @@ save_model_code(model, path)
 
 \item{path}{path to .md file to save model code to}
 }
+\value{
+TODO
+}
 \description{
 Save model code to a markdown file
 }

@@ -27,7 +27,12 @@ to add, options are \code{fit} and \code{parameters}.}
 \item{full_tables}{For the default tables, should all input columns from be
 included in the output tables? Default \code{FALSE}.}
 
+\item{remove_existing}{TODO}
+
 \item{verbose}{verbose output?}
+}
+\value{
+TODO
 }
 \description{
 Add one or more default output tables to a model,

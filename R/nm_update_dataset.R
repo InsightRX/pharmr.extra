@@ -4,8 +4,9 @@
 #' @param dataset_filename dataset filename
 #' @param ... parameters passed to `nm_save_model()`
 #' 
-#' @export
+#' @returns TODO
 #' 
+#' @export
 nm_update_dataset <- function(model_filename, dataset_filename, ...) {
   mod <- nm_read_model(model_filename)
   data <- mod$DATA

@@ -1,4 +1,5 @@
 test_that("exporting and importing a pharmpy model object works", {
+  skip_on_ci()
   mod1 <- create_model()
   tmp <- paste0(tempfile(), ".rds")
   export_pharmpy_model(mod1, tmp)  

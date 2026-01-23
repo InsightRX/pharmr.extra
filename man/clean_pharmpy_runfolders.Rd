@@ -18,9 +18,16 @@ model is run. If no folder is specified, it will create a folder \code{run1} in
 the current working directory, and will increment the run number for each
 subsequent run.}
 
-\item{verbose}{verbose output?}
+\item{folder}{TODO}
 
-\item{clean}{should folders really be removed (\code{TRUE}), or just show a warning (\code{FALSE})}
+\item{tool}{TODO}
+
+\item{remove}{TODO}
+
+\item{verbose}{verbose output?}
+}
+\value{
+TODO
 }
 \description{
 Clean pharmpy run folders like modelfit1 etc

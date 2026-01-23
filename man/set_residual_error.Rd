@@ -6,6 +6,11 @@
 \usage{
 set_residual_error(mod, ruv)
 }
+\arguments{
+\item{mod}{TODO}
+
+\item{ruv}{TODO}
+}
 \description{
 Logic to set the residual error model structure for the model
 }

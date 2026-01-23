@@ -6,6 +6,11 @@
 \usage{
 get_initial_estimates_from_individual_data(data, ...)
 }
+\arguments{
+\item{data}{TODO}
+
+\item{...}{TODO}
+}
 \description{
 Core function to get parameter estimates from individual data
 }

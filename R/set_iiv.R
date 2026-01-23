@@ -56,9 +56,9 @@ set_iiv <- function(mod, iiv, iiv_type = "exp") {
       name = c(to_add, to_reset),
       reset = c(rep(FALSE, length(to_add)), rep(TRUE, length(to_reset)))
     ) |>
-      dplyr::mutate(parameter = name) |>
-      dplyr::mutate(correlation = name %in% has_corr) |>
-      dplyr::arrange(reset, correlation) # make sure to first do the parameters that don't need a reset, to avoid creating DUMMYOMEGA
+      dplyr::mutate(parameter = .data$name) |>
+      dplyr::mutate(correlation = .data$name %in% has_corr) |>
+      dplyr::arrange(.data$reset, .data$correlation) # make sure to first do the parameters that don't need a reset, to avoid creating DUMMYOMEGA
     for(i in seq_along(map$name)) {
       key <- map$name[i]
       if(key == "V" && (! "V" %in% all_params) && "V1" %in% all_params) {
@@ -156,6 +156,7 @@ set_iiv_block <- function(
 
 #' Get a character vector with all parameters on which IIV is present
 #'
+#' @param mod TODO
 get_parameters_with_iiv <- function(mod) {
   pars <- mod$random_variables$variance_parameters
   idx <- grep("IIV_", pars)
@@ -169,6 +170,8 @@ get_parameters_with_iiv <- function(mod) {
 
 #' Get all parameters that are defined (from a predefined vector of possible parameters)
 #'
+#' @param mod TODO
+#' @param possible TODO
 get_defined_pk_parameters <- function(
     mod,
     possible = c("CL", "V", "V1", "V2", "V3", "Q", "Q2", "Q3", "K10", "K12", "K21", "K13", "K31")
@@ -192,7 +195,7 @@ get_defined_pk_parameters <- function(
 #' One caveat is that it will remove any existing covariances, since currently
 #' there is no feature in pharmr/pharmpy to extract the covariance info.
 #'
-#' @inheritParams set_iiv
+#' @param model TODO
 #' @param covariance character vector specifying the parameters and initial
 #' value for the correlation between the respective parameters, e.g.
 #' `c("CL~V" = 0.1, "Q~V2" = 0.2)`.
@@ -207,7 +210,7 @@ set_covariance <- function(model, covariance) {
   om_names <- omegas$names |>
     stringr::str_replace_all("IIV_", "")
   om_values <- lapply(omegas$inits, "sqrt") |>
-    setNames(om_names)
+    stats::setNames(om_names)
   ## remove existing covariance entries
   idx_cov <- !grepl("^OMEGA_", om_names)
   om_names <- om_names[idx_cov]

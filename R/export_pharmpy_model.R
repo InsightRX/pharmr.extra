@@ -8,8 +8,9 @@
 #' @param model Pharmpy model object to save
 #' @param file RDS file to save to
 #'
-#' @export
+#' @returns TODO
 #' 
+#' @export
 export_pharmpy_model <- function(
   model,
   file

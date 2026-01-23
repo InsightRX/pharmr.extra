@@ -27,6 +27,9 @@ starting the new encounter? Default is \code{TRUE}.}
 
 \item{verbose}{verbose output}
 }
+\value{
+TODO
+}
 \description{
 Stack encounters when data from multiple encounters is available for the
 same ID, and TIME is starting at 0 for each encounter.

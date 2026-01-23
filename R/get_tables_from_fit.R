@@ -3,8 +3,9 @@
 #' @param model pharmpy model object
 #' @param path path to model execution folder
 #'
+#' @returns TODO
+#' 
 #' @export
-#'
 get_tables_from_fit <- function(model, path) {
   table_names <- get_tables_in_model_code(model$code)
   tables <- get_tables_from_folder(

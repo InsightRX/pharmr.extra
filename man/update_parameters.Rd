@@ -16,6 +16,9 @@ to NONMEM model file.}
 
 \item{verbose}{verbose output?}
 }
+\value{
+TODO
+}
 \description{
 For example for using model in simulations.
 }

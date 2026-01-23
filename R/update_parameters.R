@@ -4,23 +4,25 @@
 #'
 #' @inheritParams attach_fit_info
 #' @param fix fix the estimates?
-#'
+#' 
+#' @returns TODO
+#' 
 #' @export
-#'
-#'
 update_parameters <- function(
     model,
     fit,
     fix = FALSE,
     verbose = FALSE
 ) {
-  final_model <- attr(fit, "model")
+  # TODO: what's the purpose of final_model? We create the object but don't do
+  # anything with it.
+  final_model <- attr(fit, "model") 
   params <- fit$parameter_estimates
   if(is.null(params)) {
     cli::cli_abort("No parameter estimates found in fit object; cannot update model.")
   }
   if(all(is.nan(params))) {
-    cli::cli_alert_warning("No parameter estimates were available, not updating model.")
+    cli::cli_warn("No parameter estimates were available, not updating model.")
     return(invisible())
   }
   if(any(is.nan(params))) {

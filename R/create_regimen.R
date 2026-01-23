@@ -1,8 +1,16 @@
 #' Create a single regimen
 #'
-#' The resulting data.frame can be passed to `luna::run_sim()` as the `regimen`
+#' The resulting data.frame can be passed to [run_sim()] as the `regimen`
 #' argument.
 #'
+#' @param dose TODO
+#' @param interval TODO
+#' @param n TODO
+#' @param t_inf TODO
+#' @param route TODO
+#'
+#' @returns TODO
+#' 
 #' @examples
 #'
 #' \dontrun{
@@ -12,7 +20,7 @@
 #'   n = 10,
 #'   route = "oral"
 #' )
-#' luna::run_sim(..., regimen = reg1)
+#' run_sim(..., regimen = reg1)
 #' }
 #'
 #' @export
@@ -104,7 +112,7 @@ combine_regimens <- function(...) {
         dplyr::mutate(time = time + t_last) |>
         dplyr::mutate(regimen = key)
       comb <- dplyr::bind_rows(comb, tmp)
-      t_last <- max(tmp$time) + tail(tmp$interval, 1)
+      t_last <- max(tmp$time) + utils::tail(tmp$interval, 1)
     }
   }
   comb

@@ -6,6 +6,9 @@
 \usage{
 calc_condition_number(mat)
 }
+\arguments{
+\item{mat}{TODO}
+}
 \description{
 Calculate the condition number given a matrix
 }

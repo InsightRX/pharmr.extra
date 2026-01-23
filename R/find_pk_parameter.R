@@ -11,8 +11,9 @@
 #' @param parameter name of the parameter to find
 #' @inheritParams run_nlme
 #'
+#' @returns TODO
+#' 
 #' @export
-#'
 find_pk_parameter <- function(parameter, model) {
   ## first try if parameter exist as-is
   model_params <- pharmr::get_pk_parameters(model)

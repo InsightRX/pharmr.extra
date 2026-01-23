@@ -14,6 +14,9 @@ separate lines (\code{FALSE})}
 
 \item{code}{NONMEM code (alternative to specifying file name)}
 }
+\value{
+TODO
+}
 \description{
 Parse NONMEM model file into a list containing blocks of code
 }

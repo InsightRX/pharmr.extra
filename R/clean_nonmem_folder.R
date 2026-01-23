@@ -2,6 +2,8 @@
 #' 
 #' @param path path to NONMEM run folder
 #' 
+#' @returns TODO
+#' 
 #' @export
 clean_nonmem_folder <- function(path) {
   files <- dir(path)

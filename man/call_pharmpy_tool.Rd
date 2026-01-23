@@ -24,14 +24,22 @@ id. The \code{id} will be used to create the run folder.}
 \item{model}{Pharmpy model object, preferably created using
 \code{luna::create_model()}.}
 
+\item{results}{TODO}
+
+\item{tool}{TODO}
+
+\item{folder}{TODO}
+
+\item{clean}{if one or more run folders exists for the tool,
+do we want to remove them first?}
+
 \item{verbose}{verbose output?}
+
+\item{force}{TODO}
 
 \item{options}{list of arguments pass on to \code{tool} as argument. Documentation
 for available arguments for each Pharmpy tool can be found here:
 https://pharmpy.github.io/latest/mfl.html.}
-
-\item{clear}{if one or more run folders exists for the tool,
-do we want to remove them first?}
 }
 \value{
 fit object

@@ -15,6 +15,9 @@ remove_table_from_model(model, variables, firstonly = FALSE, file)
 
 \item{file}{path to file, e.g. \code{sdtab}}
 }
+\value{
+TODO
+}
 \description{
 Remove all $TABLE records from a model
 }

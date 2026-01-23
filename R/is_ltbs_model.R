@@ -1,9 +1,10 @@
 #' Is the residual error model "log-transform both-sides"?
 #'
-#' @inheritParams create_model
-#'
+#' @param model TODO
+#' 
+#' @returns TODO
+#' 
 #' @export
-#'
 is_ltbs_model <- function(model) {
   if(! "control_stream" %in% names(model$internals)) {
     ## TODO: not yet implemented for nlmixr2!

@@ -3,6 +3,8 @@
 #' 
 #' @param code a character string with NONMEM model code
 #' 
+#' @returns TODO
+#' 
 #' @export
 get_tables_in_model_code <- function(code) {
   txt <- stringr::str_replace_all(code, "\\n", " ")

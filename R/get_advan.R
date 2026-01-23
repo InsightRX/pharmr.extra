@@ -5,7 +5,6 @@
 #' @returns integer (advan number)
 #'
 #' @export
-#'
 get_advan <- function(model) {
   tmp <- model$internals$control_stream$records
   idx <- lapply(seq_along(tmp), function(i) {

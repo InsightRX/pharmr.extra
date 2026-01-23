@@ -4,9 +4,11 @@
 #' @param results Pharmpy results object from grid search
 #' @param tool Pharmpy search tool. If `NULL`, will try to infer from class of
 #' results object
+#' @param verbose TODO
+#' 
+#' @returns TODO
 #' 
 #' @export
-#' 
 get_final_results_from_search <- function(
   id,
   results,

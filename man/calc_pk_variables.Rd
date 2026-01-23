@@ -19,6 +19,8 @@ specified all dosing times (\code{dose}, \code{time} columns) and \code{route} a
 \code{rate}. The data.frame may also optionally contain a \code{regimen} column that
 specifies a name for the regimen. This can be used to simulate multiple
 regimens.}
+
+\item{dictionary}{TODO}
 }
 \value{
 data.frame

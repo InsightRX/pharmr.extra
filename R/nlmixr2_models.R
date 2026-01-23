@@ -2,8 +2,11 @@
 #' Linear absorption without lagtime
 #'
 #' @importFrom rxode2 ini model
+#' 
+#' @returns An nlmixr2 model.
+#' 
 #' @export
-nlmixr2_pk_1cmt_oral_linear <- function() {
+nlmixr2_pk_1cmt_oral_linear <- function() { #nocov start
   ini({
     tka     <- log(0.25)
     tCL     <- log(5) 
@@ -23,13 +26,15 @@ nlmixr2_pk_1cmt_oral_linear <- function() {
     # Cp ~ prop(prop_sd)
     linCmt() ~ prop(prop_sd)
   })
-}
+} #nocov end
 
 #' nlmixr2 model: 1-cmt linear model (oral)
 #' Linear absorption with lagtime
 #' 
+#' @returns An nlmixr2 model.
+#' 
 #' @export
-nlmixr2_pk_1cmt_oral_linear_lag <- function() {
+nlmixr2_pk_1cmt_oral_linear_lag <- function() { #nocov start
   ini({
     tka     <- log(0.25)
     tCL     <- log(5) 
@@ -50,13 +55,15 @@ nlmixr2_pk_1cmt_oral_linear_lag <- function() {
     Cp = A2 / V
     Cp ~ prop(prop_sd)
   })
-}
+} #nocov end
 
 #' nlmixr2 model: 1-cmt linear model (oral)
 #' Transit compartment absorption model
 #' 
+#' @returns An nlmixr2 model.
+#' 
 #' @export
-nlmixr2_pk_1cmt_oral_linear_transit <- function() {
+nlmixr2_pk_1cmt_oral_linear_transit <- function() { #nocov start
   ini({
     tka     <- log(0.25)
     tCL     <- log(5) 
@@ -80,12 +87,14 @@ nlmixr2_pk_1cmt_oral_linear_transit <- function() {
     Cp = A2 / V
     Cp ~ prop(prop_sd)
   })
-}
+} #nocov end
 
 #' nlmixr2 model: 2-cmt linear model (iv)
 #' 
+#' @returns An nlmixr2 model.
+#' 
 #' @export
-nlmixr2_pk_1cmt_iv_linear <- function() {
+nlmixr2_pk_1cmt_iv_linear <- function() { #nocov start
   ini({
     tCL     <- log(5) 
     tV      <- log(50)
@@ -102,7 +111,7 @@ nlmixr2_pk_1cmt_iv_linear <- function() {
     # Cp ~ prop(prop_sd) + add(add_sd)
     linCmt() ~ prop(prop_sd)
   })
-}
+} #nocov end
 
 #########################################################
 ## 2-cmt models
@@ -110,8 +119,10 @@ nlmixr2_pk_1cmt_iv_linear <- function() {
 
 #' nlmixr2 model: 2-cmt linear model (oral)
 #' 
+#' @returns An nlmixr2 model.
+#' 
 #' @export
-nlmixr2_pk_2cmt_oral_linear <- function() {
+nlmixr2_pk_2cmt_oral_linear <- function() { #nocov start
   ini({
     tka     <- log(0.5)
     tCL     <- log(5) 
@@ -137,13 +148,15 @@ nlmixr2_pk_2cmt_oral_linear <- function() {
     # Cp ~ prop(prop_sd) + add(add_sd)
     linCmt() ~ prop(prop_sd)
   })
-}
+} #nocov end
 
 #' nlmixr2 model: 2-cmt linear model (oral)
 #' Linear absorption with lagtime
 #' 
+#' @returns An nlmixr2 model.
+#' 
 #' @export
-nlmixr2_pk_2cmt_oral_linear_lag <- function() {
+nlmixr2_pk_2cmt_oral_linear_lag <- function() { #nocov start
   ini({
     tka     <- log(0.5)
     tCL     <- log(5) 
@@ -171,13 +184,15 @@ nlmixr2_pk_2cmt_oral_linear_lag <- function() {
     Cp = A2 / V
     Cp ~ prop(prop_sd)
   })
-}
+} #nocov end
 
 #' nlmixr2 model: 2-cmt linear model (oral)
 #' Transit compartment absorption model
 #' 
+#' @returns An nlmixr2 model.
+#' 
 #' @export
-nlmixr2_pk_2cmt_oral_linear_transit <- function() {
+nlmixr2_pk_2cmt_oral_linear_transit <- function() { #nocov start
   ini({
     tka     <- log(0.5)
     tCL     <- log(5) 
@@ -208,12 +223,14 @@ nlmixr2_pk_2cmt_oral_linear_transit <- function() {
     Cp = A2 / V
     Cp ~ prop(prop_sd)
   })
-}
+} #nocov end
 
 #' nlmixr2 model: 2-cmt linear model (iv)
 #' 
+#' @returns An nlmixr2 model.
+#' 
 #' @export
-nlmixr2_pk_2cmt_iv_linear <- function() {
+nlmixr2_pk_2cmt_iv_linear <- function() { #nocov start
   ini({
     tCL     <- log(5) 
     tV      <- log(50)
@@ -236,7 +253,7 @@ nlmixr2_pk_2cmt_iv_linear <- function() {
     # Cp ~ prop(prop_sd) + add(add_sd)
     linCmt() ~ prop(prop_sd)
   })
-}
+} #nocov end
 
 # R CMD check gets confused about the rxode2 syntax, this is to suppress R CMD
 # check NOTEs about "no visible binding for global variable"

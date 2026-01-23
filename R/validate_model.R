@@ -1,5 +1,6 @@
 #' Validate the specified model, ensure it's valid Pharmpy model
 #'
+#' @param model TODO
 validate_model <- function(
   model
 ) {

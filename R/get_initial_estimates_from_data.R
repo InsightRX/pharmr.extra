@@ -10,7 +10,10 @@
 #'
 #' @param data NONMEM-style dataset
 #' @param n_cmt number of distribution / elimination compartments.
+#' @param scale_observations TODO
 #'
+#' @returns TODO
+#' 
 #' @export
 get_initial_estimates_from_data <- function(
   data,
@@ -53,35 +56,37 @@ get_initial_estimates_from_data <- function(
 
 #' Core function to get parameter estimates from individual data
 #'
+#' @param data TODO
+#' @param ... TODO
 get_initial_estimates_from_individual_data <- function(data, ...) {
 
   suppressWarnings(
     dat <- data |>
       dplyr::mutate(
-        dosenr = cumsum(EVID),
-        DV = as.numeric(DV),
-        TIME = as.numeric(TIME)
+        dosenr = cumsum(.data$EVID),
+        DV = as.numeric(.data$DV),
+        TIME = as.numeric(.data$TIME)
       )
   )
 
   ## Get first dose number for which more than two samples are available.
   dose_nr <- dat |>
-    dplyr::filter(EVID == 0) |>
-    dplyr::group_by(dosenr) |>
-    dplyr::summarise(n_obs = length(TIME)) |>
-    dplyr::filter(n_obs >= 2) |>
+    dplyr::filter(.data$EVID == 0) |>
+    dplyr::group_by(.data$dosenr) |>
+    dplyr::summarise(n_obs = length(.data$TIME)) |>
+    dplyr::filter(.data$n_obs >= 2) |>
     dplyr::slice(1) |>
-    dplyr::pull(dosenr)
+    dplyr::pull("dosenr")
 
   if(length(dose_nr) == 0) {
     ## take first observation for which at least one obs is available
     dose_nr <- dat |>
-      dplyr::filter(EVID == 0) |>
-      dplyr::group_by(dosenr) |>
-      dplyr::summarise(n_obs = length(TIME)) |>
-      dplyr::filter(n_obs == 1) |>
+      dplyr::filter(.data$EVID == 0) |>
+      dplyr::group_by(.data$dosenr) |>
+      dplyr::summarise(n_obs = length(.data$TIME)) |>
+      dplyr::filter(.data$n_obs == 1) |>
       dplyr::slice(1) |>
-      dplyr::pull(dosenr)
+      dplyr::pull("dosenr")
   }
   if(length(dose_nr) == 0) { # no observations in data
     return()
@@ -89,11 +94,13 @@ get_initial_estimates_from_individual_data <- function(data, ...) {
 
   ## get peak value. This leads to estimate for V
   tmp <- dat |>
-    dplyr::filter(dosenr == dose_nr & EVID == 0 & !is.na(DV) & DV != 0) |>
-    dplyr::slice(unique(c(which.max(DV), which.min(DV))))
+    dplyr::filter(
+      .data$dosenr == dose_nr & .data$EVID == 0 & !is.na(.data$DV) & .data$DV != 0
+    ) |>
+    dplyr::slice(unique(c(which.max(.data$DV), which.min(.data$DV))))
   dose <- dat |>
-    dplyr::filter(dosenr == dose_nr & EVID == 1) |>
-    dplyr::pull(AMT)
+    dplyr::filter(.data$dosenr == dose_nr & .data$EVID == 1) |>
+    dplyr::pull("AMT")
   est <- c()
   if(inherits(tmp$TIME, "numeric") && nrow(tmp) > 1) { # two datapoints at least
     KEL <- (log(max(tmp$DV)) - log(min(tmp$DV))) / abs(diff(tmp$TIME))

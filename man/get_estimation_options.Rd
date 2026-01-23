@@ -7,6 +7,13 @@ and ensure correct format.}
 \usage{
 get_estimation_options(tool, estimation_method, estimation_options)
 }
+\arguments{
+\item{tool}{TODO}
+
+\item{estimation_method}{TODO}
+
+\item{estimation_options}{TODO}
+}
 \description{
 Helper function to combine default estimation options with user-specified,
 and ensure correct format.

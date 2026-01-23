@@ -32,6 +32,13 @@ to keep in the output dataset}
 \item{n}{number of simulation iterations to generate}
 
 \item{verbose}{verbose output?}
+
+\item{id}{TODO}
+
+\item{use_pharmpy}{TODO}
+}
+\value{
+TODO
 }
 \description{
 Run a simulation based on supplied parameters estimates,

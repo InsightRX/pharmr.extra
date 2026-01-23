@@ -8,6 +8,11 @@ then assume IV administration, else oral absorption (or sc, im, etc).}
 \usage{
 get_route_from_data(data, default = "iv")
 }
+\arguments{
+\item{data}{TODO}
+
+\item{default}{TODO}
+}
 \description{
 Get route from data.
 If dose and observation events all happen in the same compartment,

@@ -6,6 +6,11 @@
 \usage{
 extract(regexp, x)
 }
+\arguments{
+\item{regexp}{TODO}
+
+\item{x}{TODO}
+}
 \description{
 Helper function for read_ini
 }

@@ -13,6 +13,9 @@ nm_save_model(model = NULL, modelfile = NULL, overwrite = FALSE)
 
 \item{overwrite}{overwrite model file if exists?}
 }
+\value{
+TODO
+}
 \description{
 Write a NONMEM model object to file
 }

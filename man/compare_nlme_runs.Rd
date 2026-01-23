@@ -23,6 +23,9 @@ compare_nlme_runs(
 
 \item{save_parameters}{save run parameters as a csv file}
 }
+\value{
+TODO
+}
 \description{
 The function will scan through the folder and look for
 modelfit folders (using \code{filter}). It will then order these

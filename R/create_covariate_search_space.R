@@ -13,8 +13,9 @@
 #' @param struct_operation parameter-covariate model type (operation)
 #' for structural model
 #'
+#' @returns TODO
+#' 
 #' @export
-#'
 create_covariate_search_space <- function(
   parameters,
   covariates,

@@ -7,6 +7,9 @@ It's usually up one folder from nmfe, then in tr/NMTRAN.exe}
 \usage{
 get_nmtran_from_nmfe(nmfe)
 }
+\arguments{
+\item{nmfe}{TODO}
+}
 \description{
 Get the location of NM-TRAN based on the location of nmfe
 It's usually up one folder from nmfe, then in tr/NMTRAN.exe

@@ -11,6 +11,9 @@ export_pharmpy_model(model, file)
 
 \item{file}{RDS file to save to}
 }
+\value{
+TODO
+}
 \description{
 Pharmpy model objects loaded in R cannot be stored and
 retrieved currently using native Pharmpy code. This is a

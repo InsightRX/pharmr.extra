@@ -3,11 +3,10 @@
 #' @export
 #'
 #' @returns a list object
-#'
 get_pharmpy_conf <- function() {
 
   ## Get path to config file
-  pharmpy_conf <- pharmr::get_config_path()
+  pharmpy_conf <- get_config_path() # Need to use @importFrom version so we can mock in tests
   pharmpy_stop_msg <- "Cannot find Pharmpy configuration file. Please check your Pharmpy / pharmr installation."
   if(is.null(pharmpy_conf)) {
     cli::cli_abort(pharmpy_stop_msg)
@@ -28,12 +27,16 @@ get_pharmpy_conf <- function() {
 }
 
 #' Helper function for read_ini
+#'
+#' @param regexp TODO
+#' @param x TODO
 extract <- function(regexp, x) {
   regmatches(x, regexec(regexp, x))[[1]][2]
 }
 
 #' Read ini file core function
 #'
+#' @param fn TODO
 read_ini <- function(fn) {
   blank = "^\\s*$"
   header = "^\\[(.*)\\]$"

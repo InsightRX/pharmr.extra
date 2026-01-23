@@ -6,7 +6,13 @@
 \usage{
 create_model_nlmixr(...)
 }
+\arguments{
+\item{...}{Any arguments to the function are just ignored, this is just for demo
+purposes}
+}
+\value{
+TODO
+}
 \description{
-Any arguments to the function are just ignored, this is just for demo
-purposes
+Temporary function that returns a hardcoded nlmixr2 model
 }

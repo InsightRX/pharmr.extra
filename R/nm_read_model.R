@@ -5,11 +5,17 @@
 #' separate lines (`FALSE`)
 #' @param code NONMEM code (alternative to specifying file name)
 #'
+#' @returns TODO
+#' 
 #' @export
 nm_read_model <- function(
     modelfile = NULL,
     as_block = FALSE,
-    code = NULL) {
+    code = NULL
+) {
+  # TODO: consider consolidating `modelfile` and `code` arguments into a single
+  # argument (e.g., `model`). We can just check if the input is a path to
+  # determine whether a file or code is being passed in.
   if(is.null(modelfile)) {
     if(is.null(code)) {
       cli::cli_abort("Please specify a NONMEM modelfile or NONMEM code.")
@@ -32,6 +38,8 @@ nm_read_model <- function(
   # get block indices:
   block_idx <- c(1:length(nm_lines))[stringr::str_detect(nm_lines, "^\\$")]
   if(length(block_idx) == 0) {
+    # TODO: is printing necessary here? If the idea was to show the input, we
+    # should include it in the error message rather than printing separately.
     print(nm_lines)
     cli::cli_abort("Sorry, no code blocks detected in NONMEM file.")
   }

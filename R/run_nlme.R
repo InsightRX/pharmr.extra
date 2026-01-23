@@ -60,8 +60,9 @@
 #' correct, and `FALSE` if not. Will also attach stdout as `message` attribute.
 #' @param verbose verbose output?
 #'
+#' @returns TODO
+#' 
 #' @export
-#'
 run_nlme <- function(
   model,
   data = NULL,
@@ -70,7 +71,7 @@ run_nlme <- function(
   id,
   path = getwd(),
   method = c("nmfe", "pharmpy", "psn"),
-  nmfe = get_nmfe_location_for_run(),
+  nmfe = luna:::get_nmfe_location_for_run(), # TODO: export from luna
   force = NULL,
   console = FALSE,
   save_fit = TRUE,
@@ -88,7 +89,7 @@ run_nlme <- function(
   model <- validate_model(model)
   method <- match.arg(method)
   if(is.null(force)) {
-    force <- get_flag_from_config(
+    force <- luna:::get_flag_from_config( # TODO: export from luna
       flag = c("tools", "modelfit", "force"),
       FALSE
     )
@@ -119,7 +120,7 @@ run_nlme <- function(
   }
 
   ## Make sure data is clean for modelfit
-  obj <- prepare_run_folder(
+  obj <- luna:::prepare_run_folder( # TODO: export from luna
     id = id,
     model = model,
     path = path,
@@ -207,7 +208,7 @@ run_nlme <- function(
 
   ## Check if sim / eval model only
   is_sim_model <- pharmr::is_simulation_model(model)
-  is_eval_model <- is_maxeval_zero(model)
+  is_eval_model <- luna::is_maxeval_zero(model)
   if(is_sim_model || is_eval_model) {
     fit <- list(
       ## just return empty list for now
@@ -227,7 +228,7 @@ run_nlme <- function(
             path = obj$fit_folder,
             obj$output_file
           )
-          log_add(
+          luna:::log_add( # TODO: export from luna
             event = "error",
             action = "modelfit",
             id = id,
@@ -447,6 +448,8 @@ call_nmfe <- function(
 
 #' Get the location of NM-TRAN based on the location of nmfe
 #' It's usually up one folder from nmfe, then in tr/NMTRAN.exe
+#'
+#' @param nmfe TODO
 get_nmtran_from_nmfe <- function(nmfe) {
   nm_folder <- dirname(dirname(nmfe))
   nmtran <- file.path(nm_folder, "tr", "NMTRAN.exe")
@@ -490,13 +493,13 @@ print_nmfe_output <- function(
   }
   if(length(nmfe_output$stdout) > 0) {
     cli::cli_alert_warning("stdout (last 10 lines): ")
-    cat(paste0(tail(nmfe_output$stdout, 10), collapse = "\n"), "\n\n")
+    cat(paste0(utils::tail(nmfe_output$stdout, 10), collapse = "\n"), "\n\n")
   } else {
     cli::cli_alert_warning("stdout: <empty>")
   }
   if(length(nmfe_output$results_file) > 0) {
     cli::cli_alert_warning("results file (last 10 lines): ")
-    cat(paste0(tail(nmfe_output$results_file, 10), collapse = "\n"), "\n\n")
+    cat(paste0(utils::tail(nmfe_output$results_file, 10), collapse = "\n"), "\n\n")
   } else {
     cli::cli_alert_warning("results_file: <empty>")
   }

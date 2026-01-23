@@ -9,8 +9,9 @@
 #' @param transits transit model options
 #' @param lagtime lagtime options
 #'
+#' @returns TODO
+#' 
 #' @export
-#'
 create_pkmodel_search_space <- function(
   absorption = c("FO", "ZO"),
   elimination = c("FO", "MM"),

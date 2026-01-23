@@ -9,6 +9,10 @@ get_pharmpy_runfolders(id = NULL, folder = NULL, tool)
 \arguments{
 \item{id}{model id. Optional. If not specified, will generate random modelfit
 id. The \code{id} will be used to create the run folder.}
+
+\item{folder}{TODO}
+
+\item{tool}{TODO}
 }
 \description{
 Find last pharmpy run folder

@@ -12,7 +12,7 @@ run_nlme(
   id,
   path = getwd(),
   method = c("nmfe", "pharmpy", "psn"),
-  nmfe = get_nmfe_location_for_run(),
+  nmfe = luna:::get_nmfe_location_for_run(),
   force = NULL,
   console = FALSE,
   save_fit = TRUE,
@@ -95,6 +95,9 @@ of NONMEM), but not run the model. Will return \code{TRUE} if model syntax is
 correct, and \code{FALSE} if not. Will also attach stdout as \code{message} attribute.}
 
 \item{verbose}{verbose output?}
+}
+\value{
+TODO
 }
 \description{
 Run the model directly using nmfe (not through pharmpy).

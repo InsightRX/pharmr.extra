@@ -17,6 +17,9 @@ fit_model(model, data, tool = "nonmem", path, ...)
 
 \item{...}{passed onto \code{run_nmfe()} function}
 }
+\value{
+TODO
+}
 \description{
 Takes a pharmpy-loaded NONMEM model as input, and returns a pharmpy model
 results object. So essentially this function is a drop-in replacement for the

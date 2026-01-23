@@ -7,9 +7,10 @@
 #'
 #' @param ... passed to add_default_output_tables()
 #'
+#' @returns TODO
+#' 
 #' @export
 update_pk_tables <- function(model, ...) {
-
   # figure out which pk parameters
   pk_params <- get_defined_pk_parameters(model)
   tables <- get_tables_in_model_code(model$code)
@@ -20,8 +21,7 @@ update_pk_tables <- function(model, ...) {
   model <- remove_tables_from_model(model, file = "patab")
 
   ## Re-add dataset
-  new_model <- model |>
-    pharmr::set_dataset(data)
+  new_model <- pharmr::set_dataset(model, data)
 
   ## add back parameter table
   new_model <- add_default_output_tables(

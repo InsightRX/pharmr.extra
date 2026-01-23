@@ -9,7 +9,7 @@ attach_fit_info(
   fit,
   model,
   fit_folder,
-  output_file = file.path(fit_folder, "model.lst"),
+  output_file = "run.lst",
   is_sim_model = FALSE,
   verbose = TRUE
 )
@@ -20,9 +20,16 @@ attach_fit_info(
 \item{model}{pharmpy model object or NONMEM model code (character) or path
 to NONMEM model file.}
 
+\item{fit_folder}{TODO}
+
 \item{output_file}{NONMEM output file, default is \code{run.lst}}
 
+\item{is_sim_model}{TODO}
+
 \item{verbose}{verbose output?}
+}
+\value{
+TODO
 }
 \description{
 Attach fit info and tables to a fit object, e.g. from model fit or

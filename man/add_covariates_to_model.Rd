@@ -7,11 +7,16 @@
 add_covariates_to_model(model, covariates, data = NULL)
 }
 \arguments{
+\item{model}{TODO}
+
 \item{covariates}{list of parameter-covariate effects, e.g.
 \verb{list(CL = list(WT = "pow", CRCL = "lin"), V = list(WT = "pow")}
 Values in list need to match one of the effects allowed by pharmpy.}
 
 \item{data}{data.frame as input to NONMEM / nlmixr.}
+}
+\value{
+TODO
 }
 \description{
 Wrapper function to add covariates to a pharmpy model

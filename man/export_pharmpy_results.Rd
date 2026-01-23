@@ -11,6 +11,9 @@ export_pharmpy_results(results, file)
 
 \item{file}{JSON file to save to}
 }
+\value{
+TODO
+}
 \description{
 Currently, pharmr/pharmpy is not able to export results objects from grid
 searches or model fits. This function aims to work around that until it does.

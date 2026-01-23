@@ -31,6 +31,8 @@ get_shrinkage_summary <- function(path = NULL, fit = NULL) {
 
 #' Get shrinkage values from a single line in NONMEM output
 #'
+#' @param txt TODO
+#' @param type TODO
 get_shrinkage_values <- function(
     txt,
     type = "ETASHRINKSD"

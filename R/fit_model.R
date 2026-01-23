@@ -1,3 +1,5 @@
+# TODO: The functions here should be considered for deprecation since the main fitting function going forward is run_nlme()
+
 #' Fit model using NONMEM or nlmixr2
 #'
 #' Takes a pharmpy-loaded NONMEM model as input, and returns a pharmpy model
@@ -10,8 +12,9 @@
 #' @param path path to .rds file to save fit results to
 #' @param ... passed onto `run_nmfe()` function
 #'
+#' @returns TODO
+#' 
 #' @export
-#'
 fit_model <- function(model, data, tool = "nonmem", path, ...) {
   if(! "pharmpy.model.external.nonmem.model.Model" %in% class(model)) {
     cli::cli_abort("Needs a pharmpy model object to run.")
@@ -61,7 +64,7 @@ fit_model_nlmixr <- function(model, data = NULL, ...) {
 fit_model_nonmem <- function(model, data = NULL, ...) {
 
   ## Create temp folder
-  folder <- file.path(tempdir(), paste0(model$name, "_", get_datetime_string(), "_", random_string(6)))
+  folder <- file.path(tempdir(), paste0(model$name, "_", irxutils::get_datetime_string(), "_", irxutils::random_string(6)))
   dir.create(folder)
   dataset_filename <- file.path(folder, "nm_data.csv")
   model_filename <- file.path(folder, "run1.mod")

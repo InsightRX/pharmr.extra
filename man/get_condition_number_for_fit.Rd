@@ -10,6 +10,9 @@ get_condition_number_for_fit(fit)
 \arguments{
 \item{fit}{pharmpy fit object}
 }
+\value{
+TODO
+}
 \description{
 Calculate the condition number for a model fit object
 Performs some safety checks

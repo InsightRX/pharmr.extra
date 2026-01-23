@@ -16,8 +16,9 @@
 #' @param path path to file to store output object from fit.
 #' @param ... arguments passed on to rxode2::rxSolve() function
 #' 
-#' @export
+#' @returns TODO
 #' 
+#' @export
 run_simulation <- function(
     obj,
     dose,
