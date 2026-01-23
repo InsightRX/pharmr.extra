@@ -1,5 +1,4 @@
 test_that("returns parameter when it exists as-is in model", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
