@@ -1,5 +1,4 @@
 test_that("get_obs_compartment() works for advan1", {
-  skip_on_ci()
   advan1 <- create_model(route = "iv", n_cmt = 1)
   expect_equal(
     get_advan(advan1),
@@ -16,7 +15,6 @@ test_that("get_obs_compartment() works for advan1", {
 })
 
 test_that("get_obs_compartment() works for advan2", {
-  skip_on_ci()
   advan2 <- create_model(route = "oral", n_cmt = 1)
   expect_equal(
     get_advan(advan2),
@@ -33,7 +31,6 @@ test_that("get_obs_compartment() works for advan2", {
 })
 
 test_that("get_obs_compartment() works for advan1", {
-  skip_on_ci()
   advan3 <- create_model(route = "iv", n_cmt = 2)
   expect_equal(
     get_advan(advan3),
@@ -50,7 +47,6 @@ test_that("get_obs_compartment() works for advan1", {
 })
 
 test_that("get_obs_compartment() works for advan4", {
-  skip_on_ci()
   advan4 <- create_model(route = "oral", n_cmt = 2)
   expect_equal(
     get_advan(advan4),
@@ -67,7 +63,6 @@ test_that("get_obs_compartment() works for advan4", {
 })
 
 test_that("get_obs_compartment() works for advan6", {
-  skip_on_ci()
   advan6 <- create_model(
     route = "oral", n_cmt = 2,
     elimination = "michaelis-menten"

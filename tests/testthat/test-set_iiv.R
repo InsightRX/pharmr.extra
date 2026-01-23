@@ -1,6 +1,5 @@
 # set_iiv() -------------------------------------------------------------------
 test_that("'all' adds IIV to all parameters", {
-  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -25,8 +24,6 @@ test_that("'all' adds IIV to all parameters", {
 })
 
 test_that("'basic' adds IIV to CL and V/V2", {
-  skip_on_ci()
-  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -54,7 +51,6 @@ test_that("'basic' adds IIV to CL and V/V2", {
 })
 
 test_that("character vector adds IIV to specified parameters", {
-  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -80,7 +76,6 @@ test_that("character vector adds IIV to specified parameters", {
 })
 
 test_that("list uses specified SD values", {
-  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -101,7 +96,6 @@ test_that("list uses specified SD values", {
 })
 
 test_that("removes existing IIV before adding new", {
-  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -128,7 +122,6 @@ test_that("removes existing IIV before adding new", {
 })
 
 test_that("supports different IIV types", {
-  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -163,7 +156,6 @@ test_that("supports different IIV types", {
 })
 
 test_that("supports per-parameter IIV types", {
-  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -192,7 +184,6 @@ test_that("supports per-parameter IIV types", {
 })
 
 test_that("handles correlations with ~ syntax", {
-  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -215,7 +206,6 @@ test_that("handles correlations with ~ syntax", {
 })
 
 test_that("handles 2-compartment model parameters correctly", {
-  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -242,7 +232,6 @@ test_that("handles 2-compartment model parameters correctly", {
 })
 
 test_that("works with oral models", {
-  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -263,7 +252,6 @@ test_that("works with oral models", {
 })
 
 test_that("preserves model structure", {
-  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -289,7 +277,6 @@ test_that("preserves model structure", {
 })
 
 test_that("handles updating existing IIV values", {
-  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -314,7 +301,6 @@ test_that("handles updating existing IIV values", {
 })
 
 test_that("errors on invalid iiv input type", {
-  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -336,7 +322,6 @@ test_that("errors on invalid iiv input type", {
 
 # get_parameters_with_iiv() ---------------------------------------------------
 test_that("get_parameters_with_iiv returns empty vector when no IIV", {
-  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -357,7 +342,6 @@ test_that("get_parameters_with_iiv returns empty vector when no IIV", {
 })
 
 test_that("get_parameters_with_iiv correctly extracts IIV parameters", {
-  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),

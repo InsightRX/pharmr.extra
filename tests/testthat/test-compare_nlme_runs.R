@@ -1,5 +1,4 @@
 test_that("finds and compares run folders", {
-  skip_on_ci()
   local_pharmr.extra_options()
   # Create multiple run folders using fixtures:
   tmp_dir <- withr::local_tempdir()
@@ -25,7 +24,6 @@ test_that("finds and compares run folders", {
 })
 
 test_that("selects last n runs by creation time", {
-  skip_on_ci()
   local_pharmr.extra_options()
   tmp_dir <- withr::local_tempdir()
   fixture_mod <- test_path("fixtures", "run_folder", "run.mod")
@@ -47,7 +45,6 @@ test_that("selects last n runs by creation time", {
 })
 
 test_that("filters folders correctly", {
-  skip_on_ci()
   local_pharmr.extra_options()
   tmp_dir <- withr::local_tempdir()
   fixture_mod <- test_path("fixtures", "run_folder", "run.mod")
@@ -72,7 +69,6 @@ test_that("filters folders correctly", {
 })
 
 test_that("can save info to csv", {
-  skip_on_ci()
   local_pharmr.extra_options()
   tmp_dir <- withr::local_tempdir()
   fixture_mod <- test_path("fixtures", "run_folder", "run.mod")
@@ -101,7 +97,6 @@ test_that("can save info to csv", {
 })
 
 test_that("can save parameters to csv", {
-  skip_on_ci()
   local_pharmr.extra_options()
   tmp_dir <- withr::local_tempdir()
   fixture_mod <- test_path("fixtures", "run_folder", "run.mod")

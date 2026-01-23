@@ -1,5 +1,4 @@
 test_that("removes all tables from model with multiple tables", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -31,7 +30,6 @@ test_that("removes all tables from model with multiple tables", {
 })
 
 test_that("removes specific table when file is specified", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -64,7 +62,6 @@ test_that("removes specific table when file is specified", {
 })
 
 test_that("removes table by partial filename match", {
-  skip_on_ci()
   # TODO: consider whether this is desirable behaviour (probably not)
   local_pharmr.extra_options()
   dat <- data.frame(
@@ -95,7 +92,6 @@ test_that("removes table by partial filename match", {
 })
 
 test_that("handles model with custom tables", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -188,7 +184,6 @@ test_that("removes only matching table when file is specified", {
 })
 
 test_that("returns model unchanged when no tables exist", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -205,7 +200,6 @@ test_that("returns model unchanged when no tables exist", {
 })
 
 test_that("returns model unchanged for non-NONMEM models", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -222,7 +216,6 @@ test_that("returns model unchanged for non-NONMEM models", {
 })
 
 test_that("preserves dataset when removing tables", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = c(1, 1, 1, 2, 2, 2),

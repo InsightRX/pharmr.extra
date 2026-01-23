@@ -1,5 +1,4 @@
 test_that("updates estimation method for all valid methods", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -27,7 +26,6 @@ test_that("updates estimation method for all valid methods", {
 })
 
 test_that("input is not case sensitive", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -52,7 +50,6 @@ test_that("input is not case sensitive", {
 })
 
 test_that("updates estimation method when model already has one", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -81,7 +78,6 @@ test_that("updates estimation method when model already has one", {
 })
 
 test_that("works with different route types", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -107,7 +103,6 @@ test_that("works with different route types", {
 })
 
 test_that("warns and uses first method when multiple methods provided", {
-  skip_on_ci()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -136,7 +131,6 @@ test_that("warns and uses first method when multiple methods provided", {
 })
 
 test_that("errors on invalid estimation method", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,

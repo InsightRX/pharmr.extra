@@ -1,5 +1,4 @@
 test_that("validates and returns valid NONMEM pharmpy model object", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -27,7 +26,6 @@ test_that("handles single character string as model code", {
 })
 
 test_that("errors when pharmpy model object is not NONMEM", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
