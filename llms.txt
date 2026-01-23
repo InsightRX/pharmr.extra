@@ -1,0 +1,386 @@
+# pharmr.extra
+
+`pharmar.extra` is an R package that acts as an extension to `pharmr` (R
+wrapper for Pharmpy). Pharmpy is a solid toolkit for automated model
+development. It is developed at Uppsala University.
+
+The goal of `pharmar.extra` is:
+
+- to provide some functions that are (currently) still missing in
+  pharmr. If they get added in the future in Pharmpy natively, they will
+  be removed from this package.
+- to provide stable and more user-friendly wrapper functions for
+  performing certain tasks, such as running a model
+  ([`run_nlme()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme.md))
+  or exporting Pharmpy models and results.
+
+## Installation
+
+You can install the development version of pharmr.extra from
+[GitHub](https://github.com/) with:
+
+``` r
+# install.packages("pak")
+pak::pak("InsightRX/pharmr.extra")
+```
+
+## Documentation
+
+See at
+[`https://insightrx.github.io/pharmr.extra/`](https://insightrx.github.io/pharmr.extra/reference/index.html)
+and also in the installed package:
+[`help(package = "pharmr.extra")`](https://rdrr.io/pkg/pharmr.extra/man).
+
+## License
+
+MIT © InsightRX
+
+# Package index
+
+## All functions
+
+- [`add_covariates_to_model()`](https://insightrx.github.io/pharmr.extra/reference/add_covariates_to_model.md)
+  : Wrapper function to add covariates to a pharmpy model
+
+- [`add_default_output_tables()`](https://insightrx.github.io/pharmr.extra/reference/add_default_output_tables.md)
+  : Add one or more default output tables to a model, if they don't
+  already exist in the model.
+
+- [`add_table_to_model()`](https://insightrx.github.io/pharmr.extra/reference/add_table_to_model.md)
+  : Add new \$TABLE record to output variables
+
+- [`attach_fit_info()`](https://insightrx.github.io/pharmr.extra/reference/attach_fit_info.md)
+  : Attach fit info and tables to a fit object, e.g. from model fit or
+  Pharmpy grid search final results
+
+- [`basic_gof_plot()`](https://insightrx.github.io/pharmr.extra/reference/basic_gof_plot.md)
+  : Create basic goodness of fit plots based on nlmixr2 fit
+
+- [`calc_condition_number()`](https://insightrx.github.io/pharmr.extra/reference/calc_condition_number.md)
+  : Calculate the condition number given a matrix
+
+- [`calc_pk_variables()`](https://insightrx.github.io/pharmr.extra/reference/calc_pk_variables.md)
+  : Calculate some basic PK variables from simulated or observed data
+
+- [`call_nmfe()`](https://insightrx.github.io/pharmr.extra/reference/call_nmfe.md)
+  : Call nmfe
+
+- [`call_pharmpy_fit()`](https://insightrx.github.io/pharmr.extra/reference/call_pharmpy_fit.md)
+  : Run model with pharmpy
+
+- [`call_pharmpy_tool()`](https://insightrx.github.io/pharmr.extra/reference/call_pharmpy_tool.md)
+  :
+
+  Generic function for running a pharmpy tool, like bootstrap, or
+  modelsearch. A separate function is available for `fit()`
+
+- [`call_psn()`](https://insightrx.github.io/pharmr.extra/reference/call_psn.md)
+  : Call PsN
+
+- [`change_nonmem_dataset()`](https://insightrx.github.io/pharmr.extra/reference/change_nonmem_dataset.md)
+  : Change \$DATA in NONMEM model code
+
+- [`check_errors_nm_output()`](https://insightrx.github.io/pharmr.extra/reference/check_errors_nm_output.md)
+  : Detect any errors in the output from NONMEM.
+
+- [`clean_modelfit_data()`](https://insightrx.github.io/pharmr.extra/reference/clean_modelfit_data.md)
+  : Clean / check the dataset before passing to model fitting tool
+
+- [`clean_nonmem_folder()`](https://insightrx.github.io/pharmr.extra/reference/clean_nonmem_folder.md)
+  : Remove temporary files from NONMEM run
+
+- [`clean_pharmpy_runfolders()`](https://insightrx.github.io/pharmr.extra/reference/clean_pharmpy_runfolders.md)
+  : Clean pharmpy run folders like modelfit1 etc
+
+- [`combine_regimens()`](https://insightrx.github.io/pharmr.extra/reference/combine_regimens.md)
+  :
+
+  Combine several regimens into a single data.frame, which can be passed
+  into
+  [`luna::run_sim()`](https://insightrx.github.io/luna/reference/run_sim.html)
+  as `regimen` argument.
+
+- [`compare_nlme_runs()`](https://insightrx.github.io/pharmr.extra/reference/compare_nlme_runs.md)
+  : Compare NLME output from last n runs
+
+- [`create_covariate_search_space()`](https://insightrx.github.io/pharmr.extra/reference/create_covariate_search_space.md)
+  :
+
+  Create covariate search space definition for pharmpy `covsearch`
+
+- [`create_dosing_records()`](https://insightrx.github.io/pharmr.extra/reference/create_dosing_records.md)
+  : Create dosing records, given a specified regimen as a data frame
+  with potentially multiple regimens and varying dosing times / doses
+
+- [`create_model()`](https://insightrx.github.io/pharmr.extra/reference/create_model.md)
+  : Create model
+
+- [`create_model_nlmixr()`](https://insightrx.github.io/pharmr.extra/reference/create_model_nlmixr.md)
+  : Temporary function that returns a hardcoded nlmixr2 model
+
+- [`create_modelfit_info_table()`](https://insightrx.github.io/pharmr.extra/reference/create_modelfit_info_table.md)
+  : Create a data.frame with basic model fit info
+
+- [`create_modelfit_parameter_table()`](https://insightrx.github.io/pharmr.extra/reference/create_modelfit_parameter_table.md)
+  : Create a data.frame with parameter estimates
+
+- [`create_obs_records()`](https://insightrx.github.io/pharmr.extra/reference/create_obs_records.md)
+  : Create observation records, given a specified t_obs vector
+
+- [`create_pharmpy_model_from_list()`](https://insightrx.github.io/pharmr.extra/reference/create_pharmpy_model_from_list.md)
+  : Create a model object from the model code and dataset stored as a
+  list object.
+
+- [`create_pkmodel_search_space()`](https://insightrx.github.io/pharmr.extra/reference/create_pkmodel_search_space.md)
+  :
+
+  Create PK mmodel search space definition for pharmpy `modelsearch`
+
+- [`create_regimen()`](https://insightrx.github.io/pharmr.extra/reference/create_regimen.md)
+  : Create a single regimen
+
+- [`create_run_folder()`](https://insightrx.github.io/pharmr.extra/reference/create_run_folder.md)
+  : Create a folder for a run
+
+- [`create_vpc_data()`](https://insightrx.github.io/pharmr.extra/reference/create_vpc_data.md)
+  : Run a simulation based on supplied parameters estimates, and combine
+  into proper format for VPC
+
+- [`estimation_options_defaults`](https://insightrx.github.io/pharmr.extra/reference/estimation_options_defaults.md)
+  : List of default options for estimation method.
+
+- [`export_pharmpy_model()`](https://insightrx.github.io/pharmr.extra/reference/export_pharmpy_model.md)
+  : Export a pharmpy model object.
+
+- [`export_pharmpy_results()`](https://insightrx.github.io/pharmr.extra/reference/export_pharmpy_results.md)
+  : Export a pharmpy model object
+
+- [`extract()`](https://insightrx.github.io/pharmr.extra/reference/extract.md)
+  : Helper function for read_ini
+
+- [`find_pk_parameter()`](https://insightrx.github.io/pharmr.extra/reference/find_pk_parameter.md)
+  : Find / match PK parameter based on generic name.
+
+- [`fit_model()`](https://insightrx.github.io/pharmr.extra/reference/fit_model.md)
+  : Fit model using NONMEM or nlmixr2
+
+- [`fit_model_nlmixr()`](https://insightrx.github.io/pharmr.extra/reference/fit_model_nlmixr.md)
+  : Fit model using nlmixr2
+
+- [`fit_model_nonmem()`](https://insightrx.github.io/pharmr.extra/reference/fit_model_nonmem.md)
+  : Fit model using NONMEM
+
+- [`get_advan()`](https://insightrx.github.io/pharmr.extra/reference/get_advan.md)
+  : Get ADVAN number for model
+
+- [`get_compartment_scale()`](https://insightrx.github.io/pharmr.extra/reference/get_compartment_scale.md)
+  : Get compartment scale definition
+
+- [`get_condition_number_for_fit()`](https://insightrx.github.io/pharmr.extra/reference/get_condition_number_for_fit.md)
+  : Calculate the condition number for a model fit object Performs some
+  safety checks
+
+- [`get_cov_matrix()`](https://insightrx.github.io/pharmr.extra/reference/get_cov_matrix.md)
+  : Create a covariance block matrix
+
+- [`get_defined_pk_parameters()`](https://insightrx.github.io/pharmr.extra/reference/get_defined_pk_parameters.md)
+  : Get all parameters that are defined (from a predefined vector of
+  possible parameters)
+
+- [`get_estimation_options()`](https://insightrx.github.io/pharmr.extra/reference/get_estimation_options.md)
+  : Helper function to combine default estimation options with
+  user-specified, and ensure correct format.
+
+- [`get_final_results_from_search()`](https://insightrx.github.io/pharmr.extra/reference/get_final_results_from_search.md)
+  : For a Pharmpy grid search, fetch the fit info and attach to object
+
+- [`get_fit_info()`](https://insightrx.github.io/pharmr.extra/reference/get_fit_info.md)
+  : Get fit info from NONMEM run
+
+- [`get_initial_estimates_from_data()`](https://insightrx.github.io/pharmr.extra/reference/get_initial_estimates_from_data.md)
+  : Get a very crude estimate for V to serve as initial estimate for CL
+  and V, without performing an NCA. The calculation is based on the
+  assumption that often in clinical trial data, there is at least a peak
+  and a trough (and likely other samples) taken, hence it's possible to
+  get a crude estimate for CL and V from that. For 2-compartment models
+  we just set Q and V to half and twice the size of CL and V, which is
+  often a good starting point. In most scenarios this is sufficiently
+  close to the final estimates that estimation methods will be able to
+  find the global minimum.
+
+- [`get_initial_estimates_from_individual_data()`](https://insightrx.github.io/pharmr.extra/reference/get_initial_estimates_from_individual_data.md)
+  : Core function to get parameter estimates from individual data
+
+- [`get_new_run_number()`](https://insightrx.github.io/pharmr.extra/reference/get_new_run_number.md)
+  : Get new run number for model fit
+
+- [`get_nmfe_output()`](https://insightrx.github.io/pharmr.extra/reference/get_nmfe_output.md)
+  : Get output from NMFE
+
+- [`get_nmtran_from_nmfe()`](https://insightrx.github.io/pharmr.extra/reference/get_nmtran_from_nmfe.md)
+  : Get the location of NM-TRAN based on the location of nmfe It's
+  usually up one folder from nmfe, then in tr/NMTRAN.exe
+
+- [`get_obs_compartment()`](https://insightrx.github.io/pharmr.extra/reference/get_obs_compartment.md)
+  : Get observation compartment number from model
+
+- [`get_ode_size()`](https://insightrx.github.io/pharmr.extra/reference/get_ode_size.md)
+  : Get size of ODE system in \$DES
+
+- [`get_parameters_with_iiv()`](https://insightrx.github.io/pharmr.extra/reference/get_parameters_with_iiv.md)
+  : Get a character vector with all parameters on which IIV is present
+
+- [`get_pharmpy_conf()`](https://insightrx.github.io/pharmr.extra/reference/get_pharmpy_conf.md)
+  : Get pharmpy configuration, as an R object (list)
+
+- [`get_pharmpy_runfolders()`](https://insightrx.github.io/pharmr.extra/reference/get_pharmpy_runfolders.md)
+  : Find last pharmpy run folder
+
+- [`get_route_from_data()`](https://insightrx.github.io/pharmr.extra/reference/get_route_from_data.md)
+  : Get route from data. If dose and observation events all happen in
+  the same compartment, then assume IV administration, else oral
+  absorption (or sc, im, etc).
+
+- [`get_shrinkage_summary()`](https://insightrx.github.io/pharmr.extra/reference/get_shrinkage_summary.md)
+  : Parses a NONMEM output file and extracts shrinkage
+
+- [`get_shrinkage_values()`](https://insightrx.github.io/pharmr.extra/reference/get_shrinkage_values.md)
+  : Get shrinkage values from a single line in NONMEM output
+
+- [`get_tables_from_fit()`](https://insightrx.github.io/pharmr.extra/reference/get_tables_from_fit.md)
+  : Read tables created in model run and return as a list of data.frames
+
+- [`get_tables_from_folder()`](https://insightrx.github.io/pharmr.extra/reference/get_tables_from_folder.md)
+  : Get tables from a folder, by table_names
+
+- [`get_tables_in_model_code()`](https://insightrx.github.io/pharmr.extra/reference/get_tables_in_model_code.md)
+  : extract FILE names from \$TABLE using simple regex. For some reason
+  the tables are not (yet?) available in pharmpy
+
+- [`get_tool_from_model()`](https://insightrx.github.io/pharmr.extra/reference/get_tool_from_model.md)
+  : Get estimation/simulation engine from pharmpy model
+
+- [`import_pharmpy_model()`](https://insightrx.github.io/pharmr.extra/reference/import_pharmpy_model.md)
+  :
+
+  Import a pharmpy model stored using `export_pharmpy_model`
+
+- [`import_pharmpy_results()`](https://insightrx.github.io/pharmr.extra/reference/import_pharmpy_results.md)
+  : Import pharmpy model results object
+
+- [`is_ltbs_model()`](https://insightrx.github.io/pharmr.extra/reference/is_ltbs_model.md)
+  : Is the residual error model "log-transform both-sides"?
+
+- [`nlmixr2_pk_1cmt_iv_linear()`](https://insightrx.github.io/pharmr.extra/reference/nlmixr2_pk_1cmt_iv_linear.md)
+  : nlmixr2 model: 2-cmt linear model (iv)
+
+- [`nlmixr2_pk_1cmt_oral_linear()`](https://insightrx.github.io/pharmr.extra/reference/nlmixr2_pk_1cmt_oral_linear.md)
+  : nlmixr2 model: 1-cmt linear model (oral) Linear absorption without
+  lagtime
+
+- [`nlmixr2_pk_1cmt_oral_linear_lag()`](https://insightrx.github.io/pharmr.extra/reference/nlmixr2_pk_1cmt_oral_linear_lag.md)
+  : nlmixr2 model: 1-cmt linear model (oral) Linear absorption with
+  lagtime
+
+- [`nlmixr2_pk_1cmt_oral_linear_transit()`](https://insightrx.github.io/pharmr.extra/reference/nlmixr2_pk_1cmt_oral_linear_transit.md)
+  : nlmixr2 model: 1-cmt linear model (oral) Transit compartment
+  absorption model
+
+- [`nlmixr2_pk_2cmt_iv_linear()`](https://insightrx.github.io/pharmr.extra/reference/nlmixr2_pk_2cmt_iv_linear.md)
+  : nlmixr2 model: 2-cmt linear model (iv)
+
+- [`nlmixr2_pk_2cmt_oral_linear()`](https://insightrx.github.io/pharmr.extra/reference/nlmixr2_pk_2cmt_oral_linear.md)
+  : nlmixr2 model: 2-cmt linear model (oral)
+
+- [`nlmixr2_pk_2cmt_oral_linear_lag()`](https://insightrx.github.io/pharmr.extra/reference/nlmixr2_pk_2cmt_oral_linear_lag.md)
+  : nlmixr2 model: 2-cmt linear model (oral) Linear absorption with
+  lagtime
+
+- [`nlmixr2_pk_2cmt_oral_linear_transit()`](https://insightrx.github.io/pharmr.extra/reference/nlmixr2_pk_2cmt_oral_linear_transit.md)
+  : nlmixr2 model: 2-cmt linear model (oral) Transit compartment
+  absorption model
+
+- [`nm_read_model()`](https://insightrx.github.io/pharmr.extra/reference/nm_read_model.md)
+  : Parse NONMEM model file into a list containing blocks of code
+
+- [`nm_save_dataset()`](https://insightrx.github.io/pharmr.extra/reference/nm_save_dataset.md)
+  : Save an R data.frame to a NONMEM-style dataset as CSV
+
+- [`nm_save_model()`](https://insightrx.github.io/pharmr.extra/reference/nm_save_model.md)
+  : Write a NONMEM model object to file
+
+- [`nm_update_dataset()`](https://insightrx.github.io/pharmr.extra/reference/nm_update_dataset.md)
+  : Update \$DATA in NONMEM model with new dataset
+
+- [`print(`*`<pharmpy.workflows.results.ModelfitResults>`*`)`](https://insightrx.github.io/pharmr.extra/reference/print.pharmpy.workflows.results.ModelfitResults.md)
+  : Print function that provides basic run information for a pharmpy
+  modelfit
+
+- [`print_nmfe_output()`](https://insightrx.github.io/pharmr.extra/reference/print_nmfe_output.md)
+  : Print nmfe output (stdout and stderr) from a run folder
+
+- [`read_ini()`](https://insightrx.github.io/pharmr.extra/reference/read_ini.md)
+  : Read ini file core function
+
+- [`read_table_nm()`](https://insightrx.github.io/pharmr.extra/reference/read_table_nm.md)
+  : NONMEM output table import function
+
+- [`remove_data_section()`](https://insightrx.github.io/pharmr.extra/reference/remove_data_section.md)
+  : Remove \$DATA from a NONMEM model
+
+- [`remove_table_from_model()`](https://insightrx.github.io/pharmr.extra/reference/remove_table_from_model.md)
+  : Remove all \$TABLE records from a model
+
+- [`remove_table_sections()`](https://insightrx.github.io/pharmr.extra/reference/remove_table_sections.md)
+  : Function to remove all \$TABLE sections
+
+- [`remove_tables_from_model()`](https://insightrx.github.io/pharmr.extra/reference/remove_tables_from_model.md)
+  : Remove all \$TABLE records from a model
+
+- [`run_nlme()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme.md)
+  : Run model in NONMEM
+
+- [`run_psn()`](https://insightrx.github.io/pharmr.extra/reference/run_psn.md)
+  : Run a PsN tool
+
+- [`run_sim()`](https://insightrx.github.io/pharmr.extra/reference/run_sim.md)
+  : Run simulations
+
+- [`run_simulation()`](https://insightrx.github.io/pharmr.extra/reference/run_simulation.md)
+  : Run simulation from a fitted object
+
+- [`save_model_code()`](https://insightrx.github.io/pharmr.extra/reference/save_model_code.md)
+  : Save model code to a markdown file
+
+- [`scale_initial_estimates_pk()`](https://insightrx.github.io/pharmr.extra/reference/scale_initial_estimates_pk.md)
+  : Only applies to PK parameters, not all parameters
+
+- [`set_compartment_scale()`](https://insightrx.github.io/pharmr.extra/reference/set_compartment_scale.md)
+  : Set scaling for certain compartments, e.g. dose and observation
+  compartments.
+
+- [`set_covariance()`](https://insightrx.github.io/pharmr.extra/reference/set_covariance.md)
+  : Function to set covariance between parameters in the omega block
+
+- [`set_iiv()`](https://insightrx.github.io/pharmr.extra/reference/set_iiv.md)
+  : Set inter-individual variability on parameters
+
+- [`set_residual_error()`](https://insightrx.github.io/pharmr.extra/reference/set_residual_error.md)
+  : Logic to set the residual error model structure for the model
+
+- [`stack_encounters()`](https://insightrx.github.io/pharmr.extra/reference/stack_encounters.md)
+  : Stack encounters when data from multiple encounters is available for
+  the same ID, and TIME is starting at 0 for each encounter.
+
+- [`update_estimation_method()`](https://insightrx.github.io/pharmr.extra/reference/update_estimation_method.md)
+  : Wrapper around pharmr's functions to set/add estimation methods
+
+- [`update_parameters()`](https://insightrx.github.io/pharmr.extra/reference/update_parameters.md)
+  : Update parameter estimates (and fix)
+
+- [`update_pk_tables()`](https://insightrx.github.io/pharmr.extra/reference/update_pk_tables.md)
+  : Updates PK parameter tables (patab)
+
+- [`validate_model()`](https://insightrx.github.io/pharmr.extra/reference/validate_model.md)
+  : Validate the specified model, ensure it's valid Pharmpy model
+
