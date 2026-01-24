@@ -1,5 +1,4 @@
 test_that("updates parameters from fit object with fix = FALSE", {
-  skip_on_ci()
   local_pharmr.extra_options()
   mod <- pharmr::load_example_model("pheno")
   fit <- pharmr::load_example_modelfit_results("pheno")
@@ -11,7 +10,6 @@ test_that("updates parameters from fit object with fix = FALSE", {
 })
 
 test_that("updates parameters from fit object with fix = TRUE", {
-  skip_on_ci()
   local_pharmr.extra_options()
   mod <- pharmr::load_example_model("pheno")
   fit <- pharmr::load_example_modelfit_results("pheno")

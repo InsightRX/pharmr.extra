@@ -1,5 +1,4 @@
 test_that("adding single covariate works", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -21,7 +20,6 @@ test_that("adding single covariate works", {
 })
 
 test_that("adding multiple covariates works", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -47,7 +45,6 @@ test_that("adding multiple covariates works", {
 
 
 test_that("adding covariates to multiple parameters works", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -78,7 +75,6 @@ test_that("adding covariates to multiple parameters works", {
 
 
 test_that("all effect types work", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -118,7 +114,6 @@ test_that("all effect types work", {
 
 
 test_that("warn and skip when covariate missing in data", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -142,7 +137,6 @@ test_that("warn and skip when covariate missing in data", {
 
 
 test_that("warn and skip when effect type is not valid", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,

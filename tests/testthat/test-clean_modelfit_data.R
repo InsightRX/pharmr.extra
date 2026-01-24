@@ -6,7 +6,6 @@
 # LTBS models with LNDV columns.
 
 test_that("works with basic model and data set", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -26,7 +25,6 @@ test_that("works with basic model and data set", {
 })
 
 test_that("converts character columns to numeric when try_make_numeric = TRUE", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -45,7 +43,6 @@ test_that("converts character columns to numeric when try_make_numeric = TRUE", 
 })
 
 test_that("removes character columns when try_make_numeric = FALSE", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -64,7 +61,6 @@ test_that("removes character columns when try_make_numeric = FALSE", {
 })
 
 test_that("handles BLQ data with < in DV column", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -86,7 +82,6 @@ test_that("handles BLQ data with < in DV column", {
 })
 
 test_that("handles character DV with non-BLQ values", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -106,7 +101,6 @@ test_that("handles character DV with non-BLQ values", {
 })
 
 test_that("converts NAs to 0s", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -127,7 +121,6 @@ test_that("converts NAs to 0s", {
 })
 
 test_that("handles LTBS model with LNDV column", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -149,7 +142,6 @@ test_that("handles LTBS model with LNDV column", {
 })
 
 test_that("handles LTBS model without LNDV column", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -169,7 +161,6 @@ test_that("handles LTBS model without LNDV column", {
 })
 
 test_that("accepts data as separate argument", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat1 <- data.frame(
     ID = 1,
@@ -198,7 +189,6 @@ test_that("accepts data as separate argument", {
 })
 
 test_that("handles multiple character columns", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -222,7 +212,6 @@ test_that("handles multiple character columns", {
 })
 
 test_that("handles character columns that cannot be converted to numeric", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,

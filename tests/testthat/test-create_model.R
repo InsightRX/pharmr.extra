@@ -1,11 +1,9 @@
 test_that("create_model call without arguments works", {
-  skip_on_ci()
   mod <- create_model()
   expect_s3_class(mod, "pharmpy.model.external.nonmem.model.Model")
 })
 
 test_that("create_model basic functionality works", {
-  skip_on_ci()
   # Create minimal test dataset
   test_data <- data.frame(
     ID = 1,
@@ -42,7 +40,6 @@ test_that("create_model basic functionality works", {
 })
 
 test_that("model features are correctly added", {
-  skip_on_ci()
   test_data <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -96,7 +93,6 @@ test_that("model features are correctly added", {
 })
 
 test_that("estimation methods are correctly set", {
-  skip_on_ci()
   test_data <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -130,7 +126,6 @@ test_that("estimation methods are correctly set", {
 })
 
 test_that("error handling works correctly", {
-  skip_on_ci()
   test_data <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -162,7 +157,6 @@ test_that("error handling works correctly", {
 })
 
 test_that("IIV settings work as expected", {
-  skip_on_ci()
   # Test default IIV settings
   mod <- create_model()
   expect_true("ETA_CL" %in% mod$random_variables$names)
@@ -198,7 +192,6 @@ test_that("IIV settings work as expected", {
 })
 
 test_that("IIV argument works with multi-compartment models", {
-  skip_on_ci()
   test_data <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -271,7 +264,6 @@ test_that("IIV argument works with multi-compartment models", {
 })
 
 test_that("IIV argument handles edge cases correctly", {
-  skip_on_ci()
   test_data <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -314,7 +306,6 @@ test_that("IIV argument handles edge cases correctly", {
 })
 
 test_that("IIV argument works with bioavailability parameter", {
-  skip_on_ci()
   test_data <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -339,7 +330,6 @@ test_that("IIV argument works with bioavailability parameter", {
 })
 
 test_that("IIV argument works with Michaelis-Menten elimination", {
-  skip_on_ci()
   test_data <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -364,7 +354,6 @@ test_that("IIV argument works with Michaelis-Menten elimination", {
 })
 
 test_that("IIV argument preserves parameter initial estimates correctly", {
-  skip_on_ci()
   test_data <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -396,7 +385,6 @@ test_that("IIV argument preserves parameter initial estimates correctly", {
 })
 
 test_that("IIV covariance works", {
-  skip_on_ci()
   model_pk <- create_model(
     route = "iv",
     n_cmt = 2,
@@ -433,7 +421,6 @@ test_that("IIV covariance works", {
 })
 
 test_that("IIV argument works with different tools", {
-  skip_on_ci()
   test_data <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -458,7 +445,6 @@ test_that("IIV argument works with different tools", {
 })
 
 test_that("RUV settings work as expected", {
-  skip_on_ci()
   # Test proportional error
   mod <- create_model(ruv = "proportional")
   expect_equal(
@@ -489,7 +475,6 @@ test_that("RUV settings work as expected", {
 })
 
 test_that("LTBS model is handled, and LNDV is set to DV", {
-  skip_on_ci()
   nm_data <- data.frame(
     ID = c(1, 1,1,1,1),
     AMT = c(100, 0,0,0,0),
@@ -513,13 +498,11 @@ test_that("LTBS model is handled, and LNDV is set to DV", {
 })
 
 test_that("can create mu-referenced model", {
-  skip_on_ci()
   mod <- create_model(mu_reference = TRUE)
   expect_s3_class(mod, "pharmpy.model.external.nonmem.model.Model")
 })
 
 test_that("IIV argument handles all input formats correctly", {
-  skip_on_ci()
   # Test data for consistent testing
   test_data <- data.frame(
     ID = 1,
@@ -586,7 +569,6 @@ test_that("IIV argument handles all input formats correctly", {
 })
 
 test_that("IIV argument works with different routes", {
-  skip_on_ci()
   test_data <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -620,7 +602,6 @@ test_that("IIV argument works with different routes", {
 })
 
 test_that("IIV argument works with multi-compartment models", {
-  skip_on_ci()
   test_data <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -661,7 +642,6 @@ test_that("IIV argument works with multi-compartment models", {
 })
 
 test_that("IIV argument works with different IIV types", {
-  skip_on_ci()
   test_data <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -718,7 +698,6 @@ test_that("IIV argument works with different IIV types", {
 })
 
 test_that("create_model with scaling works", {
-  skip_on_ci()
   # Create minimal test dataset
   test_data <- data.frame(
     ID = 1,
@@ -772,7 +751,6 @@ test_that("create_model with scaling works", {
 })
 
 test_that("create_model BLQ with LLOQ coded in DV works", {
-  skip_on_ci()
   # Create minimal test dataset
   test_data <- data.frame(
     ID = 1,

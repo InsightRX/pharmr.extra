@@ -179,7 +179,6 @@ test_that("scale_initial_estimates_pk handles all defined PK parameters", {
 # Tests for set_compartment_scale() ----
 
 test_that("set_compartment_scale infers compartment 2 for ADVAN 2, 4, 12", {
-  skip_on_ci()
   for (i in c(1,2,3)) {
     model <- create_model(
       n_cmt = i,
@@ -193,7 +192,6 @@ test_that("set_compartment_scale infers compartment 2 for ADVAN 2, 4, 12", {
 })
 
 test_that("set_compartment_scale infers compartment 1 for ADVAN 1, 3, 11", {
-  skip_on_ci()
   for (i in c(1,2,3)) {
     model <- create_model(
       n_cmt = i,
@@ -310,7 +308,6 @@ test_that("set_compartment_scale skips scaling when update_inits is FALSE", {
 
 ## End-to-end tests for set_comparmtent_scale() with pharmpy model
 test_that("set_compartment_scale works for pharmpy model", {
-  skip_on_ci()
   model1 <- create_model(n_cmt = 1, route = "oral") # advan2
   model2 <- set_compartment_scale(
     model1,
@@ -331,7 +328,6 @@ test_that("set_compartment_scale works for pharmpy model", {
 })
 
 test_that("Finds parameter by common name (e.g. 'V' when actually named 'V2'", {
-  skip_on_ci()
   model <- create_model(
     n_cmt = 2,
     route = "oral"

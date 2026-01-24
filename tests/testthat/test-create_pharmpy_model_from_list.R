@@ -1,5 +1,4 @@
 test_that("works with valid model code and dataset", {
-  skip_on_ci()
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
