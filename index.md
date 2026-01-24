@@ -29,7 +29,7 @@ pak::pak("InsightRX/pharmr.extra")
 See at
 [`https://insightrx.github.io/pharmr.extra/`](https://insightrx.github.io/pharmr.extra/reference/index.html)
 and also in the installed package:
-[`help(package = "pharmr.extra")`](https://rdrr.io/pkg/pharmr.extra/man).
+[`help(package = "pharmr.extra")`](https://insightrx.github.io/pharmr.extra/reference).
 
 ## License
 
