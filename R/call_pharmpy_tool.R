@@ -3,8 +3,7 @@
 #'
 #' @param id model id. Optional. If not specified, will generate random modelfit
 #' id. The `id` will be used to create the run folder.
-#' @param model Pharmpy model object, preferably created using
-#' `luna::create_model()`.
+#' @param model Pharmpy model object, preferably created using `create_model()`.
 #' @param results TODO
 #' @param tool TODO
 #' @param folder TODO
@@ -84,7 +83,7 @@ call_pharmpy_tool <- function(
     if(verbose)
       cli::cli_alert_info("Making sure model is a simulation model")
     model <- model |>
-      pharmr::set_simulation(n = luna::ifelse0(options$n, 1)) |>
+      pharmr::set_simulation(n = PKPDsim::ifelse0(options$n, 1)) |>
       pharmr::set_name("sim")
     options$n <- NULL
   }

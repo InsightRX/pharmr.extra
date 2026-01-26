@@ -78,7 +78,7 @@
 #' 
 #' @export
 create_model <- function(
-    route = c("auto", "oral", "iv"),
+    route = c("auto", "oral", "sc", "im", "extravascular", "iv"),
     lag_time = FALSE,
     n_transit_compartments = 0,
     bioavailability = FALSE,
@@ -86,6 +86,7 @@ create_model <- function(
     elimination = c("linear", "michaelis-menten"),
     iiv = "all",
     iiv_type = "exp",
+    tmdd_type = NULL,
     ruv = c("additive", "proportional", "combined", "ltbs"),
     covariates = NULL,
     scale_observations = NULL,
@@ -131,12 +132,10 @@ create_model <- function(
 
   ## Read base model
   if(verbose) cli::cli_alert_info("Reading base model")
-  # FIXME: This is an awkward dependency. Might make more sense to have this
-  # file in this package?
   mod <- pharmr::read_model(
     path = system.file(
-      paste0("models/nonmem/base_", route, ".mod"),
-      package = "luna"
+      paste0("models/nonmem/base_", ifelse(route == "iv", "iv", "oral"), ".mod"),
+      package = "pharmr.extra"
     )
   )
 
@@ -312,7 +311,18 @@ create_model <- function(
       try_make_numeric = TRUE
     )
   }
-
+  
+  ## Convert to TDMDD model?
+  if(!is.null(tmdd_type)) {
+    # allowed_tmdd_types <- c("full", "ib", "cr+ib", "cr", "qss", "mmapp")
+    # if(!tmdd_type %in% allowed_tmdd_types) {
+    #   cli::cli_abort("Specified `tmdd_type` not allowed, select one of: {allowed_tmdd_types}.")
+    # }
+    cli::cli_alert_info("Converting model into TMDD structure ({tmdd_type}).")
+    mod <- mod |>
+      pharmr::set_tmdd(type = tmdd_type)
+  }
+  
   ## Handle BLQ
   if(!is.null(blq_method)) {
     blq_method <- tolower(blq_method)

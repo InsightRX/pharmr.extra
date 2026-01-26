@@ -772,3 +772,112 @@ test_that("create_model BLQ with LLOQ coded in DV works", {
   expect_s3_class(mod_oral, "pharmpy.model.external.nonmem.model.Model")
   expect_equal(mod_oral$dataset$LLOQ, c(0, 0, 3))
 })
+
+describe("TMDD models", {
+  # Create minimal test dataset for tmdd
+  test_data <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0),
+    BW = 70
+  )
+  
+  test_that("create_model with TDMDD but unknown tmdd_type fails", {
+    expect_error({
+      mod_sc_tmdd <- create_model(
+        route = "oral",
+        data = test_data,
+        tmdd_type = "bla",
+        verbose = FALSE
+      )
+    })
+  })
+  
+  test_that("create_model basic TDMDD model (full) from 1-cmt sc model works", {
+    mod_sc_tmdd <- create_model(
+      route = "oral",
+      data = test_data,
+      tmdd_type = "full",
+      verbose = FALSE
+    )
+    expect_s3_class(mod_sc_tmdd, "pharmpy.model.external.nonmem.model.Model")
+    expect_true(grepl("POP_KA", mod_sc_tmdd$code))
+    expect_true(grepl("POP_R_0", mod_sc_tmdd$code))
+    expect_true("POP_R_0" %in% mod_sc_tmdd$parameters$names)
+  })
+
+  test_that("create_model basic TDMDD model (full) from 1-cmt iv model works", {
+    mod_iv_tmdd <- create_model(
+      route = "iv",
+      data = test_data,
+      tmdd_type = "full",
+      verbose = FALSE
+    )
+    expect_s3_class(mod_iv_tmdd, "pharmpy.model.external.nonmem.model.Model")
+    expect_false(grepl("POP_KA", mod_iv_tmdd$code))
+    expect_true(grepl("POP_R_0", mod_iv_tmdd$code))
+    expect_true("POP_R_0" %in% mod_iv_tmdd$parameters$names)
+    expect_true("POP_KON" %in% mod_iv_tmdd$parameters$names)
+  })
+  
+  test_that("create_model basic TDMDD model (CR) from 1-cmt iv model works", {
+    mod_iv_tmdd_cr <- create_model(
+      route = "iv",
+      data = test_data,
+      tmdd_type = "cr",
+      verbose = FALSE
+    )
+    expect_s3_class(mod_iv_tmdd_cr, "pharmpy.model.external.nonmem.model.Model")
+    expect_false(grepl("POP_KA", mod_iv_tmdd_cr$code))
+    expect_true(grepl("POP_R_0", mod_iv_tmdd_cr$code))
+    expect_true("POP_R_0" %in% mod_iv_tmdd_cr$parameters$names)
+    expect_true("POP_KON" %in% mod_iv_tmdd_cr$parameters$names)
+  })
+  
+  test_that("create_model basic TDMDD model (ib) from 1-cmt iv model works", {
+    mod_iv_tmdd_ib <- create_model(
+      route = "iv",
+      data = test_data,
+      tmdd_type = "ib",
+      verbose = FALSE
+    )
+    expect_s3_class(mod_iv_tmdd_ib, "pharmpy.model.external.nonmem.model.Model")
+    expect_false(grepl("POP_KA", mod_iv_tmdd_ib$code))
+    expect_true(grepl("POP_R_0", mod_iv_tmdd_ib$code))
+    expect_true("POP_R_0" %in% mod_iv_tmdd_ib$parameters$names)
+    expect_true("POP_KON" %in% mod_iv_tmdd_ib$parameters$names)
+  })
+
+  test_that("create_model basic TDMDD model (cr+ib) from 1-cmt iv model works", {
+    mod_iv_tmdd_crib <- create_model(
+      route = "iv",
+      data = test_data,
+      tmdd_type = "crib",
+      verbose = FALSE
+    )
+    expect_s3_class(mod_iv_tmdd_crib, "pharmpy.model.external.nonmem.model.Model")
+    expect_false(grepl("POP_KA", mod_iv_tmdd_crib$code))
+    expect_true(grepl("POP_R_0", mod_iv_tmdd_crib$code))
+    expect_true("POP_R_0" %in% mod_iv_tmdd_crib$parameters$names)
+    expect_true("POP_KON" %in% mod_iv_tmdd_crib$parameters$names)
+  })
+
+  test_that("create_model basic TDMDD model (QSS) from 1-cmt iv model works", {
+    mod_iv_tmdd_qss <- create_model(
+      route = "iv",
+      data = test_data,
+      tmdd_type = "qss",
+      verbose = FALSE
+    )
+    expect_s3_class(mod_iv_tmdd_crib, "pharmpy.model.external.nonmem.model.Model")
+    expect_false(grepl("POP_KA", mod_iv_tmdd_qss$code))
+    expect_true(grepl("POP_R_0", mod_iv_tmdd_qss$code))
+    expect_true("POP_R_0" %in% mod_iv_tmdd_qss$parameters$names)
+    expect_false("POP_KON" %in% mod_iv_tmdd_qss$parameters$names)
+  })
+  
+})
