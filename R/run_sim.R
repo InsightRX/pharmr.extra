@@ -1,7 +1,7 @@
 #' Run simulations
 #'
 #' @inheritParams run_nlme
-#' @param model either a Pharmpy model object, or a model code string. If the latter,
+#' @param model either a Pharmpy model object, or a string containing NONMEM model code. If the latter,
 #' `run_sim()` will attempt to load the model into Pharmpy.
 #' @param fit a Pharmpy modelfit object.
 #' @param regimen if specified, will replace the regimens for each subject with
