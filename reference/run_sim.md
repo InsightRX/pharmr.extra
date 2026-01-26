@@ -32,7 +32,7 @@ run_sim(
 
 - fit:
 
-  TODO
+  a Pharmpy modelfit object.
 
 - data:
 
@@ -41,8 +41,8 @@ run_sim(
 
 - model:
 
-  pharmpy model object or NONMEM model code (character) or path to
-  NONMEM model file.
+  either a Pharmpy model object, or a model code string. If the latter,
+  `run_sim()` will attempt to load the model into Pharmpy.
 
 - id:
 
@@ -63,7 +63,7 @@ run_sim(
 
 - dictionary:
 
-  TODO
+  a dataset dictionary.
 
 - regimen:
 
@@ -89,7 +89,7 @@ run_sim(
 
 - tool:
 
-  TODO
+  the tool to run the model in, either `nonmem`, or `nlmixr`.
 
 - n_subjects:
 
@@ -103,7 +103,7 @@ run_sim(
 
 - variables:
 
-  TODO
+  vector of variables to output.
 
 - add_pk_variables:
 

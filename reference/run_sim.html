@@ -66,7 +66,7 @@
 
 
 <dl><dt id="arg-fit">fit<a class="anchor" aria-label="anchor" href="#arg-fit"></a></dt>
-<dd><p>TODO</p></dd>
+<dd><p>a Pharmpy modelfit object.</p></dd>
 
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
@@ -75,8 +75,8 @@ object (if specified as pharmpy model object).</p></dd>
 
 
 <dt id="arg-model">model<a class="anchor" aria-label="anchor" href="#arg-model"></a></dt>
-<dd><p>pharmpy model object or NONMEM model code (character) or path
-to NONMEM model file.</p></dd>
+<dd><p>either a Pharmpy model object, or a model code string. If the latter,
+<code>run_sim()</code> will attempt to load the model into Pharmpy.</p></dd>
 
 
 <dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
@@ -97,7 +97,7 @@ the observations in each subject in the input dataset.</p></dd>
 
 
 <dt id="arg-dictionary">dictionary<a class="anchor" aria-label="anchor" href="#arg-dictionary"></a></dt>
-<dd><p>TODO</p></dd>
+<dd><p>a dataset dictionary.</p></dd>
 
 
 <dt id="arg-regimen">regimen<a class="anchor" aria-label="anchor" href="#arg-regimen"></a></dt>
@@ -122,7 +122,7 @@ it will be assumed covariates are not changing over time).</p></dd>
 
 
 <dt id="arg-tool">tool<a class="anchor" aria-label="anchor" href="#arg-tool"></a></dt>
-<dd><p>TODO</p></dd>
+<dd><p>the tool to run the model in, either <code>nonmem</code>, or <code>nlmixr</code>.</p></dd>
 
 
 <dt id="arg-n-subjects">n_subjects<a class="anchor" aria-label="anchor" href="#arg-n-subjects"></a></dt>
@@ -137,7 +137,7 @@ iterations.</p></dd>
 
 
 <dt id="arg-variables">variables<a class="anchor" aria-label="anchor" href="#arg-variables"></a></dt>
-<dd><p>TODO</p></dd>
+<dd><p>vector of variables to output.</p></dd>
 
 
 <dt id="arg-add-pk-variables">add_pk_variables<a class="anchor" aria-label="anchor" href="#arg-add-pk-variables"></a></dt>
