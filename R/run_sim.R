@@ -1,7 +1,9 @@
 #' Run simulations
 #'
 #' @inheritParams run_nlme
-#' @param fit TODO
+#' @param model either a Pharmpy model object, or a string containing NONMEM model code. If the latter,
+#' `run_sim()` will attempt to load the model into Pharmpy.
+#' @param fit a Pharmpy modelfit object.
 #' @param regimen if specified, will replace the regimens for each subject with
 #' a custom regimen. Can be specified in two ways. The simplest way is to just
 #' specify a list with elements `dose`, `interval`, `n`, and
@@ -19,7 +21,7 @@
 #' it will be assumed covariates are not changing over time).
 #' @param t_obs a vector of observations times. If specified, will override
 #' the observations in each subject in the input dataset.
-#' @param dictionary TODO
+#' @param dictionary a dataset dictionary.
 #' @param n_subjects number of subjects to simulate, when using sampled data
 #' (i.e. requires `covariates` argument)
 #' @param n_iterations number of iterations of the entire simulation to
@@ -31,8 +33,8 @@
 #'  `simtab` be created? This is default. If `FALSE`, it will leave $TABLEs as
 #' specifed in the model. However, in the return object, only the first table
 #' is returned back. If `FALSE`, the `add_pk_variables` argument will be ignored.
-#' @param tool TODO
-#' @param variables TODO
+#' @param tool the tool to run the model in, either `nonmem`, or `nlmixr`.
+#' @param variables vector of variables to output.
 #' @param output_file TODO
 #' @param seed TODO
 #'
@@ -76,6 +78,20 @@ run_sim <- function(
       model <- attr(fit, "final_model")
     } else {
       cli::cli_abort("No proper model object available. Need either a `model` object or a `fit` object with a model attached.")
+    }
+  } else {
+    if(inherits(model, "pharmpy.model.model.Model")) {
+      cli::cli_alert_info("Supplied `model` is a Pharmpy model object.")
+    } else {
+      cli::cli_alert_info("Supplied `model` is not a Pharmpy model object. Trying to load in Pharmpy.")
+      tryCatch({
+        model <- pharmr::read_model_from_string(model)
+      })
+      if(inherits(model, "pharmpy.model.model.Model")) {
+        cli::cli_alert_info("Model successfully imported as Pharmpy model object.")
+      } else {
+        cli::cli_abort("Could not load model into Pharmpy. Please check supplied model object or model code.")
+      }
     }
   }
   tool <- match.arg(tool)

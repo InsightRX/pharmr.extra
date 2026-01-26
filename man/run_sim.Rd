@@ -27,13 +27,13 @@ run_sim(
 )
 }
 \arguments{
-\item{fit}{TODO}
+\item{fit}{a Pharmpy modelfit object.}
 
 \item{data}{dataset (data.frame). Optional, can also be included in \code{model}
 object (if specified as pharmpy model object).}
 
-\item{model}{pharmpy model object or NONMEM model code (character) or path
-to NONMEM model file.}
+\item{model}{either a Pharmpy model object, or a model code string. If the latter,
+\code{run_sim()} will attempt to load the model into Pharmpy.}
 
 \item{id}{run id, e.g. \code{run1}. This will be the folder in which the NONMEM
 model is run. If no folder is specified, it will create a folder \code{run1} in
@@ -46,7 +46,7 @@ removed before rerunning NONMEM? Default \code{FALSE}.}
 \item{t_obs}{a vector of observations times. If specified, will override
 the observations in each subject in the input dataset.}
 
-\item{dictionary}{TODO}
+\item{dictionary}{a dataset dictionary.}
 
 \item{regimen}{if specified, will replace the regimens for each subject with
 a custom regimen. Can be specified in two ways. The simplest way is to just
@@ -65,7 +65,7 @@ exactly to any covariates included in the model. An \code{ID} column is required
 and for time-varying covariates, a \code{TIME} column is also required (otherwise
 it will be assumed covariates are not changing over time).}
 
-\item{tool}{TODO}
+\item{tool}{the tool to run the model in, either \code{nonmem}, or \code{nlmixr}.}
 
 \item{n_subjects}{number of subjects to simulate, when using sampled data
 (i.e. requires \code{covariates} argument)}
@@ -74,7 +74,7 @@ it will be assumed covariates are not changing over time).}
 perform. The dataset for the simulation will stay the same between each
 iterations.}
 
-\item{variables}{TODO}
+\item{variables}{vector of variables to output.}
 
 \item{add_pk_variables}{calculate basic PK variables that can be extracted
 in post-processing, such as CMAX_OBS, TMAX_OBS, AUC_SS.}
