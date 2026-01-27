@@ -873,7 +873,7 @@ describe("TMDD models", {
       tmdd_type = "qss",
       verbose = FALSE
     )
-    expect_s3_class(mod_iv_tmdd_crib, "pharmpy.model.external.nonmem.model.Model")
+    expect_s3_class(mod_iv_tmdd_qss, "pharmpy.model.external.nonmem.model.Model")
     expect_false(grepl("POP_KA", mod_iv_tmdd_qss$code))
     expect_true(grepl("POP_R_0", mod_iv_tmdd_qss$code))
     expect_true("POP_R_0" %in% mod_iv_tmdd_qss$parameters$names)

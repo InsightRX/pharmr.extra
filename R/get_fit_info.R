@@ -50,8 +50,8 @@ print.pharmpy.workflows.results.ModelfitResults <- function(x, ...) {
       "Run log" = c("Description", "Notes", "Tags"),
       "Value" = c(
         run$description,
-        luna::ifelse0(run$notes, ""),
-        paste0(luna::ifelse0(run$tags, ""), collapse = ", ")
+        PKPDsim::ifelse0(run$notes, ""),
+        paste0(PKPDsim::ifelse0(run$tags, ""), collapse = ", ")
       )
     ) |>
       dplyr::filter(.data$Value != "") |>
@@ -68,7 +68,7 @@ print.pharmpy.workflows.results.ModelfitResults <- function(x, ...) {
   print(knitr::kable(par_tab, row.names = FALSE))
 
 }
-
+  
 #' Create a data.frame with basic model fit info
 #'
 #' @param fit pharmpy fit object
@@ -102,15 +102,15 @@ create_modelfit_info_table <- function(fit) {
     c("Condition number:", condition_number),
     c("ETA Shrinkage: ", paste0(paste0(eta_shrinkage$ETA, ": ", eta_shrinkage$value, " %"), collapse=", ")),
     c("Run info:", ""),
-    c("- Estimation step(s): ", luna::ifelse0(paste0(est_steps$method, collapse = ", "), "NA")),
+    c("- Estimation step(s): ", PKPDsim::ifelse0(paste0(est_steps$method, collapse = ", "), "NA")),
     c("- Minimization success:", x$run_info$minimization_successful),
     c("- Covariance step success:", x$run_info$covstep_successful),
     c("- Evaluations: ", x$function_evaluations),
-    c("- Termination cause:", luna::ifelse0(x$run_info$termination_cause, "")),
+    c("- Termination cause:", PKPDsim::ifelse0(x$run_info$termination_cause, "")),
     c("- Warnings:", paste(x$run_info$warnings, collapse = " / ")),
     c("- Sign. digits:", x$run_info$significant_digits),
     c("- Run time:", paste0(x$runtime$estimation, " sec (estimation), ", x$runtime$total, " sec (total)")),
-    c("Tool folders:", luna::ifelse0(paste0(tools, collapse = ", "), "None"))
+    c("Tool folders:", PKPDsim::ifelse0(paste0(tools, collapse = ", "), "None"))
   ) |>
     t()
   colnames(info_tab) <- c("Result", "Value")

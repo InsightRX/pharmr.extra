@@ -5,7 +5,7 @@
 \title{Create model}
 \usage{
 create_model(
-  route = c("auto", "oral", "iv"),
+  route = c("auto", "oral", "sc", "im", "extravascular", "iv"),
   lag_time = FALSE,
   n_transit_compartments = 0,
   bioavailability = FALSE,
@@ -13,6 +13,7 @@ create_model(
   elimination = c("linear", "michaelis-menten"),
   iiv = "all",
   iiv_type = "exp",
+  tmdd_type = NULL,
   ruv = c("additive", "proportional", "combined", "ltbs"),
   covariates = NULL,
   scale_observations = NULL,

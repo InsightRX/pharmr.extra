@@ -106,8 +106,6 @@ create_model <- function(
     settings = list(), # TBD
     verbose = FALSE
 ) {
-  # Requires luna, see FIXME below:
-  rlang::check_installed("luna")
 
   ## Parse arguments
   route <- match.arg(route)

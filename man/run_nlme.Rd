@@ -12,7 +12,7 @@ run_nlme(
   id,
   path = getwd(),
   method = c("nmfe", "pharmpy", "psn"),
-  nmfe = luna:::get_nmfe_location_for_run(),
+  nmfe = get_nmfe_location(),
   force = NULL,
   console = FALSE,
   save_fit = TRUE,

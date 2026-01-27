@@ -1,5 +1,5 @@
 # TODO: Could not test this due to error: "Error in
-# `luna:::get_nmfe_location_for_run()`: ! Pharmpy is not configured to run
+# `get_nmfe_location()`: ! Pharmpy is not configured to run
 # NONMEM." Probably means we need to skip tests if NONMEM isn't installed. Should
 # write a skip_no_nonmem() helper.
 
@@ -31,7 +31,7 @@ test_that("create_vpc_data works with model and parameters", {
   )
   mod <- create_model(route = "iv", data = dat, verbose = FALSE)
   pars <- list(POP_CL = 5, POP_V = 10)
-  # FIXME: Error in `luna:::get_nmfe_location_for_run()`:
+  # FIXME: Error in `get_nmfe_location()`:
   # ! Pharmpy is not configured to run NONMEM.
   out <- create_vpc_data(model = mod, parameters = pars, n = 2, verbose = FALSE)
   

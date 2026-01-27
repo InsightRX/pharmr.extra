@@ -22,7 +22,7 @@ add_default_output_tables <- function(
   tables = c("fit", "parameters"),
   full_tables = FALSE,
   remove_existing = TRUE,
-  verbose = TRUE
+  verbose = FALSE
 ) {
   default_table_names <- list(
     "parameters" = "patab",
