@@ -8,7 +8,7 @@ run_sim(
   fit = NULL,
   data = NULL,
   model = NULL,
-  id = luna:::get_random_id("sim_"),
+  id = irxutils::get_random_id("sim_"),
   force = FALSE,
   t_obs = NULL,
   dictionary = list(ID = "ID", DV = "DV", EVID = "EVID", AMT = "AMT", CMT = "CMT", MDV =
@@ -32,7 +32,7 @@ run_sim(
 \item{data}{dataset (data.frame). Optional, can also be included in \code{model}
 object (if specified as pharmpy model object).}
 
-\item{model}{either a Pharmpy model object, or a model code string. If the latter,
+\item{model}{either a Pharmpy model object, or a string containing NONMEM model code. If the latter,
 \code{run_sim()} will attempt to load the model into Pharmpy.}
 
 \item{id}{run id, e.g. \code{run1}. This will be the folder in which the NONMEM

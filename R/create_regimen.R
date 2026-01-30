@@ -52,7 +52,7 @@ create_regimen <- function(
 }
 
 #' Combine several regimens into a single data.frame, which can be passed into
-#' `luna::run_sim()` as `regimen` argument.
+#' `run_sim()` as `regimen` argument.
 #'
 #' @details
 #' This allows both for combination of two or more phases, e.g. loading doses

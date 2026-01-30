@@ -38,7 +38,7 @@ call_psn <- function(
     stderr <- file.path(path, "stderr")
   }
 
-  psn_args <- luna:::parse_psn_args(options) # TODO: export from luna
+  psn_args <- parse_psn_args(options)
   if(verbose) {
     cli::cli_alert_info("Running: {tool} {model_file} {psn_args}")
   }

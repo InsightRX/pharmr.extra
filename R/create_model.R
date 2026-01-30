@@ -13,6 +13,9 @@
 #' @param n_cmt number of elimination and distribution compartments. Default is
 #' 1, i.e. no peripheral distributions.
 #' @param elimination elimination type, either `linear` or `michaelis-menten`.
+#' @param tmdd_type if a TMDD model structure is desired, can choose one of
+#' `full`, `ib`, `crib`, `cr`, `qss`, or `mmapp`. See Pharmpy/pharmr 
+#' documentation for details.
 #' @param iiv either `character` or a `list` object. If `character`, should be
 #' either "basic" (only CL and V parameters) or "all" (IIV on all parameters).
 #' If specified as a list object, it should contain the IIV magnitude (on SD
@@ -78,7 +81,7 @@
 #' 
 #' @export
 create_model <- function(
-    route = c("auto", "oral", "iv"),
+    route = c("auto", "oral", "sc", "im", "extravascular", "iv"),
     lag_time = FALSE,
     n_transit_compartments = 0,
     bioavailability = FALSE,
@@ -86,6 +89,7 @@ create_model <- function(
     elimination = c("linear", "michaelis-menten"),
     iiv = "all",
     iiv_type = "exp",
+    tmdd_type = NULL,
     ruv = c("additive", "proportional", "combined", "ltbs"),
     covariates = NULL,
     scale_observations = NULL,
@@ -105,8 +109,6 @@ create_model <- function(
     settings = list(), # TBD
     verbose = FALSE
 ) {
-  # Requires luna, see FIXME below:
-  rlang::check_installed("luna")
 
   ## Parse arguments
   route <- match.arg(route)
@@ -131,12 +133,10 @@ create_model <- function(
 
   ## Read base model
   if(verbose) cli::cli_alert_info("Reading base model")
-  # FIXME: This is an awkward dependency. Might make more sense to have this
-  # file in this package?
   mod <- pharmr::read_model(
     path = system.file(
-      paste0("models/nonmem/base_", route, ".mod"),
-      package = "luna"
+      paste0("models/nonmem/base_", ifelse(route == "iv", "iv", "oral"), ".mod"),
+      package = "pharmr.extra"
     )
   )
 
@@ -312,7 +312,18 @@ create_model <- function(
       try_make_numeric = TRUE
     )
   }
-
+  
+  ## Convert to TDMDD model?
+  if(!is.null(tmdd_type)) {
+    allowed_tmdd_types <- c("full", "ib", "crib", "cr", "qss", "mmapp")
+    if(!tmdd_type %in% allowed_tmdd_types) {
+      cli::cli_abort("Specified `tmdd_type` not allowed, select one of: {allowed_tmdd_types}.")
+    }
+    cli::cli_alert_info("Converting model into TMDD structure ({tmdd_type}).")
+    mod <- mod |>
+      pharmr::set_tmdd(type = tmdd_type)
+  }
+  
   ## Handle BLQ
   if(!is.null(blq_method)) {
     blq_method <- tolower(blq_method)

@@ -5,7 +5,7 @@
 \title{Create model}
 \usage{
 create_model(
-  route = c("auto", "oral", "iv"),
+  route = c("auto", "oral", "sc", "im", "extravascular", "iv"),
   lag_time = FALSE,
   n_transit_compartments = 0,
   bioavailability = FALSE,
@@ -13,6 +13,7 @@ create_model(
   elimination = c("linear", "michaelis-menten"),
   iiv = "all",
   iiv_type = "exp",
+  tmdd_type = NULL,
   ruv = c("additive", "proportional", "combined", "ltbs"),
   covariates = NULL,
   scale_observations = NULL,
@@ -59,6 +60,10 @@ e.g. \code{list("CL" = 0.2, "V" = 0.3, "CL~V" = 0.1)}.}
 \code{c("exp", "add", "prop", "log", "re_log")}. If \code{list}, should specify for
 each parameter the effect type, e.g. \code{list(CL = "add", V = "exp")}. Default
 is \code{"exp"} for all.}
+
+\item{tmdd_type}{if a TMDD model structure is desired, can choose one of
+\code{full}, \code{ib}, \code{crib}, \code{cr}, \code{qss}, or \code{mmapp}. See Pharmpy/pharmr
+documentation for details.}
 
 \item{ruv}{one of \code{proportional}, \code{additive}, or \code{combined}.}
 

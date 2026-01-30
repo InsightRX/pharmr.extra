@@ -22,7 +22,6 @@ Imports:
     irxutils,
     job,
     knitr,
-    luna,
     PKPDsim,
     plotly,
     readr,
@@ -41,7 +40,6 @@ Suggests:
     withr
 Remotes:
     InsightRX/irxutils,
-    InsightRX/luna,
     InsightRX/PKPDsim
 License: MIT + file LICENSE
 Encoding: UTF-8

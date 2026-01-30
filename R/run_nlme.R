@@ -71,7 +71,7 @@ run_nlme <- function(
   id,
   path = getwd(),
   method = c("nmfe", "pharmpy", "psn"),
-  nmfe = luna:::get_nmfe_location_for_run(), # TODO: export from luna
+  nmfe = get_nmfe_location(),
   force = NULL,
   console = FALSE,
   save_fit = TRUE,
@@ -88,12 +88,6 @@ run_nlme <- function(
   time_start <- Sys.time()
   model <- validate_model(model)
   method <- match.arg(method)
-  if(is.null(force)) {
-    force <- luna:::get_flag_from_config( # TODO: export from luna
-      flag = c("tools", "modelfit", "force"),
-      FALSE
-    )
-  }
 
   ## Set model name
   model <- pharmr::set_name(
@@ -120,7 +114,7 @@ run_nlme <- function(
   }
 
   ## Make sure data is clean for modelfit
-  obj <- luna:::prepare_run_folder( # TODO: export from luna
+  obj <- prepare_run_folder(
     id = id,
     model = model,
     path = path,
@@ -208,7 +202,7 @@ run_nlme <- function(
 
   ## Check if sim / eval model only
   is_sim_model <- pharmr::is_simulation_model(model)
-  is_eval_model <- luna::is_maxeval_zero(model)
+  is_eval_model <- is_maxeval_zero(model)
   if(is_sim_model || is_eval_model) {
     fit <- list(
       ## just return empty list for now
@@ -227,12 +221,6 @@ run_nlme <- function(
           nmfe_output <- get_nmfe_output(
             path = obj$fit_folder,
             obj$output_file
-          )
-          luna:::log_add( # TODO: export from luna
-            event = "error",
-            action = "modelfit",
-            id = id,
-            context = nmfe_output
           )
           print_nmfe_output(nmfe_output)
         }
