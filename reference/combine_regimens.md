@@ -1,8 +1,8 @@
-# Combine several regimens into a single data.frame, which can be passed into `luna::run_sim()` as `regimen` argument.
+# Combine several regimens into a single data.frame, which can be passed into `run_sim()` as `regimen` argument.
 
 Combine several regimens into a single data.frame, which can be passed
 into
-[`luna::run_sim()`](https://insightrx.github.io/luna/reference/run_sim.html)
+[`run_sim()`](https://insightrx.github.io/pharmr.extra/reference/run_sim.md)
 as `regimen` argument.
 
 ## Usage

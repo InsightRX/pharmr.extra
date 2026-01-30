@@ -92,13 +92,20 @@ MIT © InsightRX
 - [`clean_pharmpy_runfolders()`](https://insightrx.github.io/pharmr.extra/reference/clean_pharmpy_runfolders.md)
   : Clean pharmpy run folders like modelfit1 etc
 
+- [`combine_info_columns()`](https://insightrx.github.io/pharmr.extra/reference/combine_info_columns.md)
+  : Combine columns with run info into a data.frame and make sure that
+  rows match (e.g. parameters)
+
 - [`combine_regimens()`](https://insightrx.github.io/pharmr.extra/reference/combine_regimens.md)
   :
 
   Combine several regimens into a single data.frame, which can be passed
   into
-  [`luna::run_sim()`](https://insightrx.github.io/luna/reference/run_sim.html)
+  [`run_sim()`](https://insightrx.github.io/pharmr.extra/reference/run_sim.md)
   as `regimen` argument.
+
+- [`compare_nlme_fit()`](https://insightrx.github.io/pharmr.extra/reference/compare_nlme_fit.md)
+  : Compare fit of two or more NLME fits
 
 - [`compare_nlme_runs()`](https://insightrx.github.io/pharmr.extra/reference/compare_nlme_runs.md)
   : Compare NLME output from last n runs
@@ -145,6 +152,9 @@ MIT © InsightRX
 - [`create_vpc_data()`](https://insightrx.github.io/pharmr.extra/reference/create_vpc_data.md)
   : Run a simulation based on supplied parameters estimates, and combine
   into proper format for VPC
+
+- [`detect_nmfe_version()`](https://insightrx.github.io/pharmr.extra/reference/detect_nmfe_version.md)
+  : get nmfe file name from a NONMEM installation folder
 
 - [`estimation_options_defaults`](https://insightrx.github.io/pharmr.extra/reference/estimation_options_defaults.md)
   : List of default options for estimation method.
@@ -214,6 +224,10 @@ MIT © InsightRX
 - [`get_new_run_number()`](https://insightrx.github.io/pharmr.extra/reference/get_new_run_number.md)
   : Get new run number for model fit
 
+- [`get_nmfe_location()`](https://insightrx.github.io/pharmr.extra/reference/get_nmfe_location.md)
+  : Helper function to determine nmfe location from various sources The
+  order is as follows:
+
 - [`get_nmfe_output()`](https://insightrx.github.io/pharmr.extra/reference/get_nmfe_output.md)
   : Get output from NMFE
 
@@ -271,6 +285,9 @@ MIT © InsightRX
 - [`is_ltbs_model()`](https://insightrx.github.io/pharmr.extra/reference/is_ltbs_model.md)
   : Is the residual error model "log-transform both-sides"?
 
+- [`is_maxeval_zero()`](https://insightrx.github.io/pharmr.extra/reference/is_maxeval_zero.md)
+  : Does the last estimation method in a model have maxeval=0?
+
 - [`nlmixr2_pk_1cmt_iv_linear()`](https://insightrx.github.io/pharmr.extra/reference/nlmixr2_pk_1cmt_iv_linear.md)
   : nlmixr2 model: 2-cmt linear model (iv)
 
@@ -311,6 +328,12 @@ MIT © InsightRX
 
 - [`nm_update_dataset()`](https://insightrx.github.io/pharmr.extra/reference/nm_update_dataset.md)
   : Update \$DATA in NONMEM model with new dataset
+
+- [`parse_psn_args()`](https://insightrx.github.io/pharmr.extra/reference/parse_psn_args.md)
+  : Parse tool options specified in YAML into PsN commandline args
+
+- [`prepare_run_folder()`](https://insightrx.github.io/pharmr.extra/reference/prepare_run_folder.md)
+  : Create a folder for running model, with the model and dataset
 
 - [`print(`*`<pharmpy.workflows.results.ModelfitResults>`*`)`](https://insightrx.github.io/pharmr.extra/reference/print.pharmpy.workflows.results.ModelfitResults.md)
   : Print function that provides basic run information for a pharmpy

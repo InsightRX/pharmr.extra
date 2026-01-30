@@ -42,7 +42,7 @@
 <span>  fit <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  model <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  id <span class="op">=</span> <span class="fu">luna</span><span class="fu">:::</span><span class="fu"><a href="https://insightrx.github.io/luna/reference/get_random_id.html" class="external-link">get_random_id</a></span><span class="op">(</span><span class="st">"sim_"</span><span class="op">)</span>,</span>
+<span>  id <span class="op">=</span> <span class="fu">irxutils</span><span class="fu">::</span><span class="fu"><a href="https://insightrx.github.io/irxutils/reference/get_random_id.html" class="external-link">get_random_id</a></span><span class="op">(</span><span class="st">"sim_"</span><span class="op">)</span>,</span>
 <span>  force <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  t_obs <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  dictionary <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>ID <span class="op">=</span> <span class="st">"ID"</span>, DV <span class="op">=</span> <span class="st">"DV"</span>, EVID <span class="op">=</span> <span class="st">"EVID"</span>, AMT <span class="op">=</span> <span class="st">"AMT"</span>, CMT <span class="op">=</span> <span class="st">"CMT"</span>, MDV <span class="op">=</span></span>
@@ -75,7 +75,7 @@ object (if specified as pharmpy model object).</p></dd>
 
 
 <dt id="arg-model">model<a class="anchor" aria-label="anchor" href="#arg-model"></a></dt>
-<dd><p>either a Pharmpy model object, or a model code string. If the latter,
+<dd><p>either a Pharmpy model object, or a string containing NONMEM model code. If the latter,
 <code>run_sim()</code> will attempt to load the model into Pharmpy.</p></dd>
 
 

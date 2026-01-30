@@ -29,7 +29,7 @@ call_pharmpy_tool(
 - model:
 
   Pharmpy model object, preferably created using
-  [`luna::create_model()`](https://insightrx.github.io/luna/reference/create_model.html).
+  [`create_model()`](https://insightrx.github.io/pharmr.extra/reference/create_model.md).
 
 - results:
 

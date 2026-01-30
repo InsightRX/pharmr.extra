@@ -7,7 +7,7 @@ This is essentially a wrapper around the model-creation and
 
 ``` r
 create_model(
-  route = c("auto", "oral", "iv"),
+  route = c("auto", "oral", "sc", "im", "extravascular", "iv"),
   lag_time = FALSE,
   n_transit_compartments = 0,
   bioavailability = FALSE,
@@ -15,6 +15,7 @@ create_model(
   elimination = c("linear", "michaelis-menten"),
   iiv = "all",
   iiv_type = "exp",
+  tmdd_type = NULL,
   ruv = c("additive", "proportional", "combined", "ltbs"),
   covariates = NULL,
   scale_observations = NULL,
@@ -79,6 +80,12 @@ create_model(
   `c("exp", "add", "prop", "log", "re_log")`. If `list`, should specify
   for each parameter the effect type, e.g.
   `list(CL = "add", V = "exp")`. Default is `"exp"` for all.
+
+- tmdd_type:
+
+  if a TMDD model structure is desired, can choose one of `full`, `ib`,
+  `crib`, `cr`, `qss`, or `mmapp`. See Pharmpy/pharmr documentation for
+  details.
 
 - ruv:
 

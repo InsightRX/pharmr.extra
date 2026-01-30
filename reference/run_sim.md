@@ -9,7 +9,7 @@ run_sim(
   fit = NULL,
   data = NULL,
   model = NULL,
-  id = luna:::get_random_id("sim_"),
+  id = irxutils::get_random_id("sim_"),
   force = FALSE,
   t_obs = NULL,
   dictionary = list(ID = "ID", DV = "DV", EVID = "EVID", AMT = "AMT", CMT = "CMT", MDV =
@@ -41,8 +41,9 @@ run_sim(
 
 - model:
 
-  either a Pharmpy model object, or a model code string. If the latter,
-  `run_sim()` will attempt to load the model into Pharmpy.
+  either a Pharmpy model object, or a string containing NONMEM model
+  code. If the latter, `run_sim()` will attempt to load the model into
+  Pharmpy.
 
 - id:
 
