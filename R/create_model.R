@@ -13,6 +13,9 @@
 #' @param n_cmt number of elimination and distribution compartments. Default is
 #' 1, i.e. no peripheral distributions.
 #' @param elimination elimination type, either `linear` or `michaelis-menten`.
+#' @param tmdd_type if a TMDD model structure is desired, can choose one of
+#' `full`, `ib`, `crib`, `cr`, `qss`, or `mmapp`. See Pharmpy/pharmr 
+#' documentation for details.
 #' @param iiv either `character` or a `list` object. If `character`, should be
 #' either "basic" (only CL and V parameters) or "all" (IIV on all parameters).
 #' If specified as a list object, it should contain the IIV magnitude (on SD
@@ -312,10 +315,10 @@ create_model <- function(
   
   ## Convert to TDMDD model?
   if(!is.null(tmdd_type)) {
-    # allowed_tmdd_types <- c("full", "ib", "cr+ib", "cr", "qss", "mmapp")
-    # if(!tmdd_type %in% allowed_tmdd_types) {
-    #   cli::cli_abort("Specified `tmdd_type` not allowed, select one of: {allowed_tmdd_types}.")
-    # }
+    allowed_tmdd_types <- c("full", "ib", "crib", "cr", "qss", "mmapp")
+    if(!tmdd_type %in% allowed_tmdd_types) {
+      cli::cli_abort("Specified `tmdd_type` not allowed, select one of: {allowed_tmdd_types}.")
+    }
     cli::cli_alert_info("Converting model into TMDD structure ({tmdd_type}).")
     mod <- mod |>
       pharmr::set_tmdd(type = tmdd_type)

@@ -61,6 +61,10 @@ e.g. \code{list("CL" = 0.2, "V" = 0.3, "CL~V" = 0.1)}.}
 each parameter the effect type, e.g. \code{list(CL = "add", V = "exp")}. Default
 is \code{"exp"} for all.}
 
+\item{tmdd_type}{if a TMDD model structure is desired, can choose one of
+\code{full}, \code{ib}, \code{crib}, \code{cr}, \code{qss}, or \code{mmapp}. See Pharmpy/pharmr
+documentation for details.}
+
 \item{ruv}{one of \code{proportional}, \code{additive}, or \code{combined}.}
 
 \item{covariates}{list of parameter-covariate effects, e.g.

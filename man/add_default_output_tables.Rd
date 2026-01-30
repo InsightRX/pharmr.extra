@@ -11,7 +11,7 @@ add_default_output_tables(
   tables = c("fit", "parameters"),
   full_tables = FALSE,
   remove_existing = TRUE,
-  verbose = TRUE
+  verbose = FALSE
 )
 }
 \arguments{
