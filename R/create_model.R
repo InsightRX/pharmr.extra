@@ -16,6 +16,10 @@
 #' @param tmdd_type if a TMDD model structure is desired, can choose one of
 #' `full`, `ib`, `crib`, `cr`, `qss`, or `mmapp`. See Pharmpy/pharmr 
 #' documentation for details.
+#' @param metabolite should a metabolite compartment be added (with input
+#' from central using linear kinetics)? This will require a DVID column in the
+#' dataset / dictionary. DVID in the dataset should be set to 1 for the parent 
+#' compound and 2 for the metabolite.
 #' @param iiv either `character` or a `list` object. If `character`, should be
 #' either "basic" (only CL and V parameters) or "all" (IIV on all parameters).
 #' If specified as a list object, it should contain the IIV magnitude (on SD
@@ -90,6 +94,7 @@ create_model <- function(
     iiv = "all",
     iiv_type = "exp",
     tmdd_type = NULL,
+    metabolite = FALSE,
     ruv = c("additive", "proportional", "combined", "ltbs"),
     covariates = NULL,
     scale_observations = NULL,
@@ -322,6 +327,29 @@ create_model <- function(
     cli::cli_alert_info("Converting model into TMDD structure ({tmdd_type}).")
     mod <- mod |>
       pharmr::set_tmdd(type = tmdd_type)
+  }
+
+  ## Add metabolite compartment?
+  if(inherits(metabolite, "logical")) {
+    if(isTRUE(metabolite)) {
+      mod <- mod |>
+        pharmr::add_metabolite(
+          drug_dvid = 1, 
+          presystemic = FALSE
+        )
+    }
+  } else if(inherits(metabolite, "list")) {
+    if (! all(c("drug_dvid", "presystemic") %in% names(metabolite))) {
+      cli::cli_abort("When `metabolite` is specified as a list object, need elements `drug_dvid` and `presystemic`.")
+    }
+    if (route == "iv" && isTRUE(metabolite$presystemic)) {
+      cli::cli_abort("Cannot add presystemic metabolite to a model with route `iv`. Please synchronize `route` and `metabolite` arguments.")
+    }
+    mod <- mod |>
+      pharmr::add_metabolite(
+        drug_dvid = metabolite$drug_dvid,
+        presystemic = metabolite$presystemic
+      )
   }
   
   ## Handle BLQ

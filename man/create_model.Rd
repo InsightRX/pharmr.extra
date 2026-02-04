@@ -14,6 +14,7 @@ create_model(
   iiv = "all",
   iiv_type = "exp",
   tmdd_type = NULL,
+  metabolite = FALSE,
   ruv = c("additive", "proportional", "combined", "ltbs"),
   covariates = NULL,
   scale_observations = NULL,
@@ -64,6 +65,11 @@ is \code{"exp"} for all.}
 \item{tmdd_type}{if a TMDD model structure is desired, can choose one of
 \code{full}, \code{ib}, \code{crib}, \code{cr}, \code{qss}, or \code{mmapp}. See Pharmpy/pharmr
 documentation for details.}
+
+\item{metabolite}{should a metabolite compartment be added (with input
+from central using linear kinetics)? This will require a DVID column in the
+dataset / dictionary. DVID in the dataset should be set to 1 for the parent
+compound and 2 for the metabolite.}
 
 \item{ruv}{one of \code{proportional}, \code{additive}, or \code{combined}.}
 
