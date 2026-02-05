@@ -4,7 +4,7 @@
 \alias{create_obs_records}
 \title{Create observation records, given a specified t_obs vector}
 \usage{
-create_obs_records(data, t_obs, n_subjects, dictionary)
+create_obs_records(data, t_obs, n_subjects, dictionary, model)
 }
 \arguments{
 \item{data}{TODO}
