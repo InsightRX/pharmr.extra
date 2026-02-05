@@ -18,7 +18,7 @@
 #' documentation for details.
 #' @param metabolite either `TRUE`/`FALSE` or a `list`. If logical, determines 
 #' if a metabolite compartment be added (with input from central using linear 
-#' kinetics)? In this case, DVID in the dataset should be set to 1 for the 
+#' kinetics). In this case, DVID in the dataset should be set to 1 for the 
 #' parent compound and 2 for the metabolite. If argument is a `list` object,
 #' it will require list elements `dvid_drug` (integer) and `presystemic` 
 #' (logical) to be specified. `dvid_drug` specified the index number for 
