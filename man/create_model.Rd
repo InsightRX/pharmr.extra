@@ -14,6 +14,7 @@ create_model(
   iiv = "all",
   iiv_type = "exp",
   tmdd_type = NULL,
+  metabolite = FALSE,
   ruv = c("additive", "proportional", "combined", "ltbs"),
   covariates = NULL,
   scale_observations = NULL,
@@ -64,6 +65,16 @@ is \code{"exp"} for all.}
 \item{tmdd_type}{if a TMDD model structure is desired, can choose one of
 \code{full}, \code{ib}, \code{crib}, \code{cr}, \code{qss}, or \code{mmapp}. See Pharmpy/pharmr
 documentation for details.}
+
+\item{metabolite}{either \code{TRUE}/\code{FALSE} or a \code{list}. If logical, determines
+if a metabolite compartment be added (with input from central using linear
+kinetics). In this case, DVID in the dataset should be set to 1 for the
+parent compound and 2 for the metabolite. If argument is a \code{list} object,
+it will require list elements \code{dvid_drug} (integer) and \code{presystemic}
+(logical) to be specified. \code{dvid_drug} specified the index number for
+parent drug in the \code{DVID} column in the dataset. \code{presystemic} determines
+whether the metabolite is formed before absorption (\code{TRUE}), or after
+systemic absorption (\code{FALSE}).}
 
 \item{ruv}{one of \code{proportional}, \code{additive}, or \code{combined}.}
 

@@ -949,3 +949,120 @@ test_that("create_model basic TDMDD model (QSS) from 1-cmt iv model works", {
   expect_true("POP_R_0" %in% mod_iv_tmdd_qss$parameters$names)
   expect_false("POP_KON" %in% mod_iv_tmdd_qss$parameters$names)
 })
+
+## Metabolite models
+test_that("create_model can create metabolite model from iv", {
+  local_pharmr.extra_options()
+  test_data <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    DVID = c(0, 1, 2),
+    MDV = c(1, 0, 0),
+    BW = 70
+  )
+  mod_metab <- create_model(
+    route = "iv", 
+    n_cmt = 1,
+    data = test_data,
+    metabolite = TRUE,
+    verbose = FALSE
+  )
+  expect_s3_class(mod_metab, "pharmpy.model.external.nonmem.model.Model")
+  expect_true(grepl("\\$MODEL COMPARTMENT=\\(CENTRAL DEFDOSE\\) COMPARTMENT=\\(METABOLITE\\)", mod_metab$code))
+  expect_true(grepl("CLM = ", mod_metab$code))
+  expect_true(grepl("VM = ", mod_metab$code))
+  expect_true("POP_CLM" %in% mod_metab$parameters$names)
+  expect_true("POP_VM" %in% mod_metab$parameters$names)
+})
+
+test_that("create_model can create metabolite model from oral", {
+  local_pharmr.extra_options()
+  test_data <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    DVID = c(0, 1, 2),
+    MDV = c(1, 0, 0),
+    BW = 70
+  )
+  mod_metab_oral <- create_model(
+    route = "oral", 
+    n_cmt = 1,
+    data = test_data,
+    metabolite = TRUE,
+    verbose = FALSE
+  )
+  expect_s3_class(mod_metab_oral, "pharmpy.model.external.nonmem.model.Model")
+  expect_true(grepl("\\$MODEL COMPARTMENT=\\(DEPOT DEFDOSE\\) COMPARTMENT=\\(CENTRAL\\) COMPARTMENT=\\(METABOLITE\\)", mod_metab_oral$code))
+  expect_true(grepl("CLM = ", mod_metab_oral$code))
+  expect_true(grepl("VM = ", mod_metab_oral$code))
+  expect_true("POP_CLM" %in% mod_metab_oral$parameters$names)
+  expect_true("POP_VM" %in% mod_metab_oral$parameters$names)
+})
+
+test_that("create_model can create metabolite model with explicit arguments", {
+  local_pharmr.extra_options()
+  test_data <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    DVID = c(0, 1, 2),
+    MDV = c(1, 0, 0),
+    BW = 70
+  )
+  mod_metab_oral2 <- create_model(
+    route = "oral", 
+    n_cmt = 1,
+    data = test_data,
+    metabolite = list(drug_dvid = 1, presystemic = TRUE),
+    verbose = FALSE
+  )
+  expect_s3_class(mod_metab_oral2, "pharmpy.model.external.nonmem.model.Model")
+  expect_true(grepl("\\$MODEL COMPARTMENT=\\(DEPOT DEFDOSE\\) COMPARTMENT=\\(CENTRAL\\) COMPARTMENT=\\(METABOLITE\\)", mod_metab_oral2$code))
+  expect_true(grepl("K12 = TVKA\\*\\(1 - FPRE\\)", mod_metab_oral2$code))
+
+  ## now with presystemic set to FALSE
+  mod_metab_oral3 <- create_model(
+    route = "oral", 
+    n_cmt = 1,
+    data = test_data,
+    metabolite = list(drug_dvid = 1, presystemic = FALSE),
+    verbose = FALSE
+  )
+  expect_s3_class(mod_metab_oral3, "pharmpy.model.external.nonmem.model.Model")
+  expect_true(grepl("\\$MODEL COMPARTMENT=\\(DEPOT DEFDOSE\\) COMPARTMENT=\\(CENTRAL\\) COMPARTMENT=\\(METABOLITE\\)", mod_metab_oral3$code))
+  expect_false(grepl("K12 = TVKA\\*\\(1 - FPRE\\)", mod_metab_oral3$code))
+
+  ## missing arguments
+  expect_error(
+    create_model(
+      route = "oral", 
+      n_cmt = 1,
+      data = test_data,
+      metabolite = list(drug_dvid = 1, bla = FALSE),
+      verbose = FALSE
+    ),
+    "When `metabolite` is specified"
+  )
+  ## mismatched arguments
+  expect_error(
+    create_model(
+      route = "iv", 
+      n_cmt = 1,
+      data = test_data,
+      metabolite = list(drug_dvid = 1, presystemic = TRUE),
+      verbose = FALSE
+    ),
+    "Cannot add presystemic metabolite"
+  )
+})

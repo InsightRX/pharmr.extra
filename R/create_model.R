@@ -16,6 +16,15 @@
 #' @param tmdd_type if a TMDD model structure is desired, can choose one of
 #' `full`, `ib`, `crib`, `cr`, `qss`, or `mmapp`. See Pharmpy/pharmr 
 #' documentation for details.
+#' @param metabolite either `TRUE`/`FALSE` or a `list`. If logical, determines 
+#' if a metabolite compartment be added (with input from central using linear 
+#' kinetics). In this case, DVID in the dataset should be set to 1 for the 
+#' parent compound and 2 for the metabolite. If argument is a `list` object,
+#' it will require list elements `dvid_drug` (integer) and `presystemic` 
+#' (logical) to be specified. `dvid_drug` specified the index number for 
+#' parent drug in the `DVID` column in the dataset. `presystemic` determines
+#' whether the metabolite is formed before absorption (`TRUE`), or after
+#' systemic absorption (`FALSE`).
 #' @param iiv either `character` or a `list` object. If `character`, should be
 #' either "basic" (only CL and V parameters) or "all" (IIV on all parameters).
 #' If specified as a list object, it should contain the IIV magnitude (on SD
@@ -90,6 +99,7 @@ create_model <- function(
     iiv = "all",
     iiv_type = "exp",
     tmdd_type = NULL,
+    metabolite = FALSE,
     ruv = c("additive", "proportional", "combined", "ltbs"),
     covariates = NULL,
     scale_observations = NULL,
@@ -323,6 +333,9 @@ create_model <- function(
     mod <- mod |>
       pharmr::set_tmdd(type = tmdd_type)
   }
+
+  ## Add metabolite compartment?
+  mod <- add_metabolite_compartment(mod, metabolite, route)
   
   ## Handle BLQ
   if(!is.null(blq_method)) {
@@ -392,6 +405,41 @@ estimation_options_defaults <- list(
     )
   )
 )
+
+#' Add a metabolite compartment, if requested
+#' 
+add_metabolite_compartment <- function(
+  mod,
+  metabolite = FALSE,
+  route
+) {
+  if(inherits(metabolite, "logical")) {
+    if(isTRUE(metabolite)) {
+      cli::cli_alert_info("Adding metabolite compartment.")
+      mod <- mod |>
+        pharmr::add_metabolite(
+          drug_dvid = 1, 
+          presystemic = FALSE
+        )
+    }
+  } else if(inherits(metabolite, "list")) {
+    if (! all(c("drug_dvid", "presystemic") %in% names(metabolite))) {
+      cli::cli_abort("When `metabolite` is specified as a list object, need elements `drug_dvid` and `presystemic`.")
+    }
+    if (route == "iv" && isTRUE(metabolite$presystemic)) {
+      cli::cli_abort("Cannot add presystemic metabolite to a model with route `iv`. Please synchronize `route` and `metabolite` arguments.")
+    }
+    cli::cli_alert_info("Adding metabolite compartment.")
+    mod <- mod |>
+      pharmr::add_metabolite(
+        drug_dvid = metabolite$drug_dvid,
+        presystemic = metabolite$presystemic
+      )
+  } else {
+    cli::cli_abort("`metabolite` argument needs to be either logical or list object.")
+  }
+  mod
+}
 
 #' Logic to set the residual error model structure for the model
 #'
