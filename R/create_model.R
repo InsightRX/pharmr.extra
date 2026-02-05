@@ -16,10 +16,15 @@
 #' @param tmdd_type if a TMDD model structure is desired, can choose one of
 #' `full`, `ib`, `crib`, `cr`, `qss`, or `mmapp`. See Pharmpy/pharmr 
 #' documentation for details.
-#' @param metabolite should a metabolite compartment be added (with input
-#' from central using linear kinetics)? This will require a DVID column in the
-#' dataset / dictionary. DVID in the dataset should be set to 1 for the parent 
-#' compound and 2 for the metabolite.
+#' @param metabolite either `TRUE`/`FALSE` or a `list`. If logical, determines 
+#' if a metabolite compartment be added (with input from central using linear 
+#' kinetics)? In this case, DVID in the dataset should be set to 1 for the 
+#' parent compound and 2 for the metabolite. If argument is a `list` object,
+#' it will require list elements `dvid_drug` (integer) and `presystemic` 
+#' (logical) to be specified. `dvid_drug` specified the index number for 
+#' parent drug in the `DVID` column in the dataset. `presystemic` determines
+#' whether the metabolite is formed before absorption (`TRUE`), or after
+#' systemic absorption (`FALSE`).
 #' @param iiv either `character` or a `list` object. If `character`, should be
 #' either "basic" (only CL and V parameters) or "all" (IIV on all parameters).
 #' If specified as a list object, it should contain the IIV magnitude (on SD
@@ -37,7 +42,7 @@
 #' differences between dose and concentration. E.g. `scale_observations = 1000`
 #' will add `S1 = V/1000` (for a 1-compartment model) to NONMEM code.
 #' @param estimation_method estimation method.
-#' @param estimation_options options for estimation method, specified as list,
+#' @param estimation_options options for estimation method, specifiedgit as list,
 #'  e.g. `NITER` or `ISAMPLE`.
 #' @param uncertainty_method Compute uncertainty for parameter estimations.
 #' One of `sandwich` (default), `smat`, `fmat`, `efim`.
@@ -332,6 +337,7 @@ create_model <- function(
   ## Add metabolite compartment?
   if(inherits(metabolite, "logical")) {
     if(isTRUE(metabolite)) {
+      cli::cli_alert_info("Adding metabolite compartment.")
       mod <- mod |>
         pharmr::add_metabolite(
           drug_dvid = 1, 
@@ -345,11 +351,14 @@ create_model <- function(
     if (route == "iv" && isTRUE(metabolite$presystemic)) {
       cli::cli_abort("Cannot add presystemic metabolite to a model with route `iv`. Please synchronize `route` and `metabolite` arguments.")
     }
+    cli::cli_alert_info("Adding metabolite compartment.")
     mod <- mod |>
       pharmr::add_metabolite(
         drug_dvid = metabolite$drug_dvid,
         presystemic = metabolite$presystemic
       )
+  } else {
+    cli::cli_abort("`metabolite` argument needs to be either logical or list object.")
   }
   
   ## Handle BLQ

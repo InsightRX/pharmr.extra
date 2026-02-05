@@ -1051,7 +1051,8 @@ test_that("create_model can create metabolite model with explicit arguments", {
       data = test_data,
       metabolite = list(drug_dvid = 1, bla = FALSE),
       verbose = FALSE
-    )
+    ),
+    "When `metabolite` is specified"
   )
   ## mismatched arguments
   expect_error(
@@ -1061,6 +1062,7 @@ test_that("create_model can create metabolite model with explicit arguments", {
       data = test_data,
       metabolite = list(drug_dvid = 1, presystemic = TRUE),
       verbose = FALSE
-    )
+    ),
+    "Cannot add presystemic metabolite"
   )
 })
