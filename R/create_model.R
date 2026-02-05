@@ -42,7 +42,7 @@
 #' differences between dose and concentration. E.g. `scale_observations = 1000`
 #' will add `S1 = V/1000` (for a 1-compartment model) to NONMEM code.
 #' @param estimation_method estimation method.
-#' @param estimation_options options for estimation method, specifiedgit as list,
+#' @param estimation_options options for estimation method, specified as list,
 #'  e.g. `NITER` or `ISAMPLE`.
 #' @param uncertainty_method Compute uncertainty for parameter estimations.
 #' One of `sandwich` (default), `smat`, `fmat`, `efim`.
