@@ -335,31 +335,7 @@ create_model <- function(
   }
 
   ## Add metabolite compartment?
-  if(inherits(metabolite, "logical")) {
-    if(isTRUE(metabolite)) {
-      cli::cli_alert_info("Adding metabolite compartment.")
-      mod <- mod |>
-        pharmr::add_metabolite(
-          drug_dvid = 1, 
-          presystemic = FALSE
-        )
-    }
-  } else if(inherits(metabolite, "list")) {
-    if (! all(c("drug_dvid", "presystemic") %in% names(metabolite))) {
-      cli::cli_abort("When `metabolite` is specified as a list object, need elements `drug_dvid` and `presystemic`.")
-    }
-    if (route == "iv" && isTRUE(metabolite$presystemic)) {
-      cli::cli_abort("Cannot add presystemic metabolite to a model with route `iv`. Please synchronize `route` and `metabolite` arguments.")
-    }
-    cli::cli_alert_info("Adding metabolite compartment.")
-    mod <- mod |>
-      pharmr::add_metabolite(
-        drug_dvid = metabolite$drug_dvid,
-        presystemic = metabolite$presystemic
-      )
-  } else {
-    cli::cli_abort("`metabolite` argument needs to be either logical or list object.")
-  }
+  mod <- add_metabolite_compartment(mod, metabolite, route)
   
   ## Handle BLQ
   if(!is.null(blq_method)) {
@@ -429,6 +405,41 @@ estimation_options_defaults <- list(
     )
   )
 )
+
+#' Add a metabolite compartment, if requested
+#' 
+add_metabolite_compartment <- function(
+  mod,
+  metabolite = FALSE,
+  route
+) {
+  if(inherits(metabolite, "logical")) {
+    if(isTRUE(metabolite)) {
+      cli::cli_alert_info("Adding metabolite compartment.")
+      mod <- mod |>
+        pharmr::add_metabolite(
+          drug_dvid = 1, 
+          presystemic = FALSE
+        )
+    }
+  } else if(inherits(metabolite, "list")) {
+    if (! all(c("drug_dvid", "presystemic") %in% names(metabolite))) {
+      cli::cli_abort("When `metabolite` is specified as a list object, need elements `drug_dvid` and `presystemic`.")
+    }
+    if (route == "iv" && isTRUE(metabolite$presystemic)) {
+      cli::cli_abort("Cannot add presystemic metabolite to a model with route `iv`. Please synchronize `route` and `metabolite` arguments.")
+    }
+    cli::cli_alert_info("Adding metabolite compartment.")
+    mod <- mod |>
+      pharmr::add_metabolite(
+        drug_dvid = metabolite$drug_dvid,
+        presystemic = metabolite$presystemic
+      )
+  } else {
+    cli::cli_abort("`metabolite` argument needs to be either logical or list object.")
+  }
+  mod
+}
 
 #' Logic to set the residual error model structure for the model
 #'

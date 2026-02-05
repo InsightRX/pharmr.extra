@@ -68,7 +68,7 @@ documentation for details.}
 
 \item{metabolite}{either \code{TRUE}/\code{FALSE} or a \code{list}. If logical, determines
 if a metabolite compartment be added (with input from central using linear
-kinetics)? In this case, DVID in the dataset should be set to 1 for the
+kinetics). In this case, DVID in the dataset should be set to 1 for the
 parent compound and 2 for the metabolite. If argument is a \code{list} object,
 it will require list elements \code{dvid_drug} (integer) and \code{presystemic}
 (logical) to be specified. \code{dvid_drug} specified the index number for
@@ -92,7 +92,7 @@ will add \code{S1 = V/1000} (for a 1-compartment model) to NONMEM code.}
 
 \item{estimation_method}{estimation method.}
 
-\item{estimation_options}{options for estimation method, specifiedgit as list,
+\item{estimation_options}{options for estimation method, specified as list,
 e.g. \code{NITER} or \code{ISAMPLE}.}
 
 \item{uncertainty_method}{Compute uncertainty for parameter estimations.
