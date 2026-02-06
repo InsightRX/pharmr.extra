@@ -9,6 +9,9 @@
   : Add one or more default output tables to a model, if they don't
   already exist in the model.
 
+- [`add_metabolite_compartment()`](https://insightrx.github.io/pharmr.extra/reference/add_metabolite_compartment.md)
+  : Add a metabolite compartment, if requested
+
 - [`add_table_to_model()`](https://insightrx.github.io/pharmr.extra/reference/add_table_to_model.md)
   : Add new \$TABLE record to output variables
 

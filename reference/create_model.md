@@ -16,6 +16,7 @@ create_model(
   iiv = "all",
   iiv_type = "exp",
   tmdd_type = NULL,
+  metabolite = FALSE,
   ruv = c("additive", "proportional", "combined", "ltbs"),
   covariates = NULL,
   scale_observations = NULL,
@@ -86,6 +87,18 @@ create_model(
   if a TMDD model structure is desired, can choose one of `full`, `ib`,
   `crib`, `cr`, `qss`, or `mmapp`. See Pharmpy/pharmr documentation for
   details.
+
+- metabolite:
+
+  either `TRUE`/`FALSE` or a `list`. If logical, determines if a
+  metabolite compartment be added (with input from central using linear
+  kinetics). In this case, DVID in the dataset should be set to 1 for
+  the parent compound and 2 for the metabolite. If argument is a `list`
+  object, it will require list elements `dvid_drug` (integer) and
+  `presystemic` (logical) to be specified. `dvid_drug` specified the
+  index number for parent drug in the `DVID` column in the dataset.
+  `presystemic` determines whether the metabolite is formed before
+  absorption (`TRUE`), or after systemic absorption (`FALSE`).
 
 - ruv:
 

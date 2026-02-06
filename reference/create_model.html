@@ -51,6 +51,7 @@ functionality in pharmr/Pharmpy.</p>
 <span>  iiv <span class="op">=</span> <span class="st">"all"</span>,</span>
 <span>  iiv_type <span class="op">=</span> <span class="st">"exp"</span>,</span>
 <span>  tmdd_type <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  metabolite <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  ruv <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"additive"</span>, <span class="st">"proportional"</span>, <span class="st">"combined"</span>, <span class="st">"ltbs"</span><span class="op">)</span>,</span>
 <span>  covariates <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  scale_observations <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -122,6 +123,18 @@ is <code>"exp"</code> for all.</p></dd>
 <dd><p>if a TMDD model structure is desired, can choose one of
 <code>full</code>, <code>ib</code>, <code>crib</code>, <code>cr</code>, <code>qss</code>, or <code>mmapp</code>. See Pharmpy/pharmr
 documentation for details.</p></dd>
+
+
+<dt id="arg-metabolite">metabolite<a class="anchor" aria-label="anchor" href="#arg-metabolite"></a></dt>
+<dd><p>either <code>TRUE</code>/<code>FALSE</code> or a <code>list</code>. If logical, determines
+if a metabolite compartment be added (with input from central using linear
+kinetics). In this case, DVID in the dataset should be set to 1 for the
+parent compound and 2 for the metabolite. If argument is a <code>list</code> object,
+it will require list elements <code>dvid_drug</code> (integer) and <code>presystemic</code>
+(logical) to be specified. <code>dvid_drug</code> specified the index number for
+parent drug in the <code>DVID</code> column in the dataset. <code>presystemic</code> determines
+whether the metabolite is formed before absorption (<code>TRUE</code>), or after
+systemic absorption (<code>FALSE</code>).</p></dd>
 
 
 <dt id="arg-ruv">ruv<a class="anchor" aria-label="anchor" href="#arg-ruv"></a></dt>
