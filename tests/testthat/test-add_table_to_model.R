@@ -1,4 +1,4 @@
-test_that("add_table_to_model adds table correctly", {
+test_that("adds table correctly", {
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -33,7 +33,7 @@ test_that("add_table_to_model adds table correctly", {
   expect_true(grepl(expected_addition, result$code))
 })
 
-test_that("add_table_to_model warns on duplicate file", {
+test_that("warns on duplicate file", {
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -59,7 +59,7 @@ test_that("add_table_to_model warns on duplicate file", {
   )
 })
 
-test_that("add_table_to_model handles empty variables", {
+test_that("handles empty variables", {
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -81,4 +81,58 @@ test_that("add_table_to_model handles empty variables", {
     )
   )
   expect_equal(result$code, mod$code)
+})
+
+test_that("errors on invalid variables", {
+  dat <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0)
+  )
+  mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
+  
+  # Basic test:
+  expect_error(
+    add_table_to_model(
+      model = mod,
+      variables = c(
+        "ID", "TIME", "DV", "EVID", "IPRED", "PRED", # valid
+        "NOPE", "WRONG" # invalid
+      ),
+      firstonly = FALSE,
+      file = "patab"
+    ),
+    "NOPE and WRONG are not valid variables"
+  )
+  
+  # Basic ETAs test:
+  expect_error(
+    add_table_to_model(
+      model = mod,
+      variables = c(
+        "ID", "TIME", "DV", "EVID", "IPRED", "PRED", "ETA1", "ETA2", # valid
+        "ETA3" # invalid
+      ),
+      firstonly = FALSE,
+      file = "patab"
+    ),
+    "ETA3 is not a valid variable"
+  )
+  
+  expect_error(
+    add_table_to_model(
+      model = mod,
+      variables = c(
+        "ID", "TIME", "DV", "EVID", "IPRED", "PRED", "ETA(1)", "ETA(2)", # valid
+        "ETA(3)" # invalid
+      ),
+      firstonly = FALSE,
+      file = "patab"
+    ),
+    "ETA(3) is not a valid variable"
+  )
 })
