@@ -6,12 +6,15 @@ test_that("add_table_to_model adds table correctly", {
   )
   class(mock_model) <- c("list", "pharmpy.model.external.nonmem.model.Model")
   
-  # Mock the dependencies
-  mockery::stub(add_table_to_model, "get_tables_in_model", function(model) c("existing.txt"))
-  mockery::stub(add_table_to_model, "pharmr::read_model_from_string", function(code) {
-    list(code = code)
-  })
-
+  local_mocked_bindings(
+    get_tables_in_model_code = function(code) c("existing.txt"),
+    .package = "pharmr.extra"
+  )
+  local_mocked_bindings(
+    read_model_from_string = function(code) list(code = code),
+    .package = "pharmr"
+  )
+  
   # Test basic functionality
   result <- add_table_to_model(
     model = mock_model,
@@ -43,11 +46,14 @@ test_that("add_table_to_model warns on duplicate file", {
   )
   class(mock_model) <- c("list", "pharmpy.model.external.nonmem.model.Model")
   
-  # Mock get_tables_in_model to return our test file
-  mockery::stub(add_table_to_model, "get_tables_in_model", function(model) c("patab"))
-  mockery::stub(add_table_to_model, "pharmr::read_model_from_string", function(code) {
-    list(code = code)
-  })
+  local_mocked_bindings(
+    get_tables_in_model_code = function(code) c("patab"),
+    .package = "pharmr.extra"
+  )
+  local_mocked_bindings(
+    read_model_from_string = function(code) list(code = code),
+    .package = "pharmr"
+  )
   
   # Test warning is issued for duplicate file
   expect_warning(
@@ -69,11 +75,14 @@ test_that("add_table_to_model handles empty variables", {
   )
   class(mock_model) <- c("list", "pharmpy.model.external.nonmem.model.Model")
   
-  # Mock the dependencies
-  mockery::stub(add_table_to_model, "get_tables_in_model", function(model) character(0))
-  mockery::stub(add_table_to_model, "pharmr::read_model_from_string", function(code) {
-    list(code = code)
-  })
+  local_mocked_bindings(
+    get_tables_in_model_code = function(code) character(0),
+    .package = "pharmr.extra"
+  )
+  local_mocked_bindings(
+    read_model_from_string = function(code) list(code = code),
+    .package = "pharmr"
+  )
   
   # Test with empty variables vector
   expect_warning(
@@ -85,6 +94,4 @@ test_that("add_table_to_model handles empty variables", {
     )
   )
   expect_equal(result$code, mock_model$code)
-  
 })
-
