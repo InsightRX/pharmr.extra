@@ -1,23 +1,18 @@
 test_that("add_table_to_model adds table correctly", {
-  # Create a mock model object
-  mock_model <- list(
-    code = "$PROBLEM test\n$INPUT ID TIME DV\n$DATA test.csv",
-    tables = data.frame(file = "existing.txt")
+  dat <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0)
   )
-  class(mock_model) <- c("list", "pharmpy.model.external.nonmem.model.Model")
-  
-  local_mocked_bindings(
-    get_tables_in_model_code = function(code) c("existing.txt"),
-    .package = "pharmr.extra"
-  )
-  local_mocked_bindings(
-    read_model_from_string = function(code) list(code = code),
-    .package = "pharmr"
-  )
+  mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
   
   # Test basic functionality
   result <- add_table_to_model(
-    model = mock_model,
+    model = mod,
     variables = c("ID", "CL", "V"),
     firstonly = FALSE,
     file = "patab"
@@ -28,37 +23,34 @@ test_that("add_table_to_model adds table correctly", {
   
   # Test with firstonly = TRUE
   result <- add_table_to_model(
-    model = mock_model,
-    variables = c("ID", "CL", "KA"),
+    model = mod,
+    variables = c("ID", "CL", "V"),
     firstonly = TRUE,
     file = "patab"
   )
   
-  expected_addition <- "\\n\\$TABLE\\n  ID CL KA\\n  FIRSTONLY\\n  NOAPPEND NOPRINT\\n  FILE=patab\\n\\n"
+  expected_addition <- "\\n\\$TABLE\\n  ID CL V\\n  FIRSTONLY\\n  NOAPPEND NOPRINT\\n  FILE=patab\\n\\n"
   expect_true(grepl(expected_addition, result$code))
 })
 
 test_that("add_table_to_model warns on duplicate file", {
-  # Create a mock model object
-  mock_model <- list(
-    code = "$PROBLEM test\n$INPUT ID TIME DV\n$DATA test.csv $TABLE ID TIME FILE=patab",
-    tables = data.frame(file = "patab")
+  dat <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0)
   )
-  class(mock_model) <- c("list", "pharmpy.model.external.nonmem.model.Model")
-  
-  local_mocked_bindings(
-    get_tables_in_model_code = function(code) c("patab"),
-    .package = "pharmr.extra"
-  )
-  local_mocked_bindings(
-    read_model_from_string = function(code) list(code = code),
-    .package = "pharmr"
+  mod <- create_model(
+    route = "iv", data = dat, tables = "parameters", verbose = FALSE
   )
   
-  # Test warning is issued for duplicate file
+  # Test warning is issued for duplicate file (patab is already in model)
   expect_warning(
     add_table_to_model(
-      model = mock_model,
+      model = mod,
       variables = c("ID", "CL", "V"),
       firstonly = FALSE,
       file = "patab"
@@ -68,30 +60,25 @@ test_that("add_table_to_model warns on duplicate file", {
 })
 
 test_that("add_table_to_model handles empty variables", {
-  # Create a mock model object
-  mock_model <- list(
-    code = "$PROBLEM test\n$INPUT ID TIME DV\n$DATA test.csv",
-    tables = data.frame(file = character(0))
+  dat <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0)
   )
-  class(mock_model) <- c("list", "pharmpy.model.external.nonmem.model.Model")
-  
-  local_mocked_bindings(
-    get_tables_in_model_code = function(code) character(0),
-    .package = "pharmr.extra"
-  )
-  local_mocked_bindings(
-    read_model_from_string = function(code) list(code = code),
-    .package = "pharmr"
-  )
+  mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
   
   # Test with empty variables vector
   expect_warning(
     result <- add_table_to_model(
-      model = mock_model,
+      model = mod,
       variables = character(0),
       firstonly = FALSE,
       file = "patab"
     )
   )
-  expect_equal(result$code, mock_model$code)
+  expect_equal(result$code, mod$code)
 })
