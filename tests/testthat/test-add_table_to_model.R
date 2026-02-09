@@ -133,6 +133,6 @@ test_that("errors on invalid variables", {
       firstonly = FALSE,
       file = "patab"
     ),
-    "ETA(3) is not a valid variable"
+    "ETA\\(3\\) is not a valid variable"
   )
 })
