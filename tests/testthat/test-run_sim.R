@@ -3,6 +3,9 @@
 skip_on_ci()
 
 test_that("Basic simulation works (using `model` argument, not `fit`)", {
+  local_pharmr.extra_options()
+  withr::local_dir(tempdir())
+  
   mod <- pharmr::load_example_model("pheno")
   pharmr::load_dataset(mod)
   dat <- mod$dataset |>
@@ -21,6 +24,9 @@ test_that("Basic simulation works (using `model` argument, not `fit`)", {
 })
 
 test_that("Basic simulation works (using model code specified to )", {
+  local_pharmr.extra_options()
+  withr::local_dir(tempdir())
+  
   mod <- pharmr::load_example_model("pheno")
   model_code <- mod$code
   pharmr::load_dataset(mod)
@@ -37,4 +43,30 @@ test_that("Basic simulation works (using model code specified to )", {
     variables = c("ID", "TIME", "DV", "EVID", "CIPREDI", "PRED")
   )
   expect_equal(dim(out), c(744, 12))
+})
+
+test_that("Errors on invalid variables when update_table = TRUE", {
+  local_pharmr.extra_options()
+  withr::local_dir(tempdir())
+  
+  dat <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0)
+  )
+  mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
+  
+  expect_error(
+    run_sim(
+      model = mod, 
+      data = dat,
+      variables = c("ID", "TIME", "DV", "EVID", "CIPREDI", "PRED", "NOPE", "WRONG"),
+      update_table = TRUE
+    ),
+    "NOPE and WRONG are not valid variables"
+  )
 })
