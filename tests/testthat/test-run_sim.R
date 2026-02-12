@@ -4,6 +4,8 @@ skip_on_ci()
 
 test_that("Basic simulation works (using `model` argument, not `fit`)", {
   local_pharmr.extra_options()
+  withr::local_dir(tempdir())
+  
   mod <- pharmr::load_example_model("pheno")
   pharmr::load_dataset(mod)
   dat <- mod$dataset |>
@@ -23,6 +25,8 @@ test_that("Basic simulation works (using `model` argument, not `fit`)", {
 
 test_that("Basic simulation works (using model code specified to )", {
   local_pharmr.extra_options()
+  withr::local_dir(tempdir())
+  
   mod <- pharmr::load_example_model("pheno")
   model_code <- mod$code
   pharmr::load_dataset(mod)
@@ -43,6 +47,8 @@ test_that("Basic simulation works (using model code specified to )", {
 
 test_that("Errors on invalid variables when update_table = TRUE", {
   local_pharmr.extra_options()
+  withr::local_dir(tempdir())
+  
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
