@@ -23,10 +23,10 @@ test_that("Basic simulation works (using `model` argument, not `fit`)", {
   expect_equal(dim(out), c(744, 12))
 })
 
-test_that("Basic simulation works (using model code specified to )", {
+test_that("Basic simulation works (using model file specified to `model`)", {
   local_pharmr.extra_options()
   withr::local_dir(tempdir())
-  
+
   mod <- pharmr::load_example_model("pheno")
   model_code <- mod$code
   pharmr::load_dataset(mod)
@@ -37,12 +37,16 @@ test_that("Basic simulation works (using model code specified to )", {
       MDV = ifelse(DV == 0, 1, 0),
       CMT = 1
     )
+  # Write model code to a temp file (run_sim now expects a filename)
+  tmp_mod <- tempfile(fileext = ".mod")
+  writeLines(model_code, tmp_mod)
   out <- run_sim(
-    model = model_code, # !! code, not model object
+    model = tmp_mod, # !! filename, not model object
     data = dat,
     variables = c("ID", "TIME", "DV", "EVID", "CIPREDI", "PRED")
   )
   expect_equal(dim(out), c(744, 12))
+  unlink(tmp_mod)
 })
 
 test_that("Errors on invalid variables when update_table = TRUE", {
