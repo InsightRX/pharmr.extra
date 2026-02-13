@@ -1,8 +1,9 @@
 #' Run simulations
 #'
 #' @inheritParams run_nlme
-#' @param model either a Pharmpy model object, or a string containing NONMEM model code. If the latter,
-#' `run_sim()` will attempt to load the model into Pharmpy.
+#' @param model either a Pharmpy model object, or a filename (for a model
+#' with NONMEM model code). If the latter, `run_sim()` will attempt to load the 
+#' model into Pharmpy first.
 #' @param fit a Pharmpy modelfit object.
 #' @param regimen if specified, will replace the regimens for each subject with
 #' a custom regimen. Can be specified in two ways. The simplest way is to just
@@ -84,9 +85,7 @@ run_sim <- function(
       cli::cli_alert_info("Supplied `model` is a Pharmpy model object.")
     } else {
       cli::cli_alert_info("Supplied `model` is not a Pharmpy model object. Trying to load in Pharmpy.")
-      tryCatch({
-        model <- pharmr::read_model_from_string(model)
-      })
+      model <- create_model_from_file(model, data)
       if(inherits(model, "pharmpy.model.model.Model")) {
         cli::cli_alert_info("Model successfully imported as Pharmpy model object.")
       } else {
