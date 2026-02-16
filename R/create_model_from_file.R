@@ -21,6 +21,9 @@ create_model_from_file <- function(
     ## do nothing
   } else if (inherits(data, "character")) {
     data_file <- data
+    if (!file.exists(data_file)) {
+      cli::cli_abort("Data file {data_file} does not exist")
+    }
     data <- read.csv(data_file)
   }
   
