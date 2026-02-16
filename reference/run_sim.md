@@ -41,9 +41,9 @@ run_sim(
 
 - model:
 
-  either a Pharmpy model object, or a string containing NONMEM model
-  code. If the latter, `run_sim()` will attempt to load the model into
-  Pharmpy.
+  either a Pharmpy model object, or a filename (for a model with NONMEM
+  model code). If the latter, `run_sim()` will attempt to load the model
+  into Pharmpy first.
 
 - id:
 

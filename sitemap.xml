@@ -19,6 +19,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/call_psn.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/change_nonmem_dataset.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/check_errors_nm_output.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/check_nm_table_variables.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/clean_modelfit_data.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/clean_nonmem_folder.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/clean_pharmpy_runfolders.html</loc></url>
@@ -29,6 +30,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/create_covariate_search_space.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/create_dosing_records.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/create_model.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/create_model_from_file.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/create_model_nlmixr.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/create_modelfit_info_table.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/create_modelfit_parameter_table.html</loc></url>

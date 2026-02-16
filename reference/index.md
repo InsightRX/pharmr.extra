@@ -49,6 +49,9 @@
 - [`check_errors_nm_output()`](https://insightrx.github.io/pharmr.extra/reference/check_errors_nm_output.md)
   : Detect any errors in the output from NONMEM.
 
+- [`check_nm_table_variables()`](https://insightrx.github.io/pharmr.extra/reference/check_nm_table_variables.md)
+  : Check NONMEM table variables
+
 - [`clean_modelfit_data()`](https://insightrx.github.io/pharmr.extra/reference/clean_modelfit_data.md)
   : Clean / check the dataset before passing to model fitting tool
 
@@ -87,6 +90,10 @@
 
 - [`create_model()`](https://insightrx.github.io/pharmr.extra/reference/create_model.md)
   : Create model
+
+- [`create_model_from_file()`](https://insightrx.github.io/pharmr.extra/reference/create_model_from_file.md)
+  : Create a Pharmpy model object from a model file and dataset
+  (optional)
 
 - [`create_model_nlmixr()`](https://insightrx.github.io/pharmr.extra/reference/create_model_nlmixr.md)
   : Temporary function that returns a hardcoded nlmixr2 model
