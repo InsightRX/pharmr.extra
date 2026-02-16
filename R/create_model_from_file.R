@@ -31,7 +31,7 @@ create_model_from_file <- function(
   })
   
   if(!is.null(data)) {
-    model |> 
+    model <- model |> 
       pharmr::set_dataset(data)
   }
   
