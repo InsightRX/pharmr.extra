@@ -3,6 +3,8 @@
 #' @param model_file the model file (.mod) to read. If a file with the same
 #' base name but with extension .ext is present, will also read the final 
 #' estimates for the run, and update in new model.
+#' @param ext_file optional path to a .ext file containing final parameter 
+#'   estimates that will be used to update the initial estimates in the model.
 #' @param data the filename of the dataset (or an actual data.frame)
 #' 
 #' @returns a Pharmpy model object
@@ -42,7 +44,7 @@ create_model_from_file <- function(
       cli::cli_alert_info("Updating initial estimates for model using {ext_file}.")
       model_id <- basename(tools::file_path_sans_ext(model_file))
       tmp_dir <- tempdir()
-      file.copy(ext_file, file.path(tmp_dir, paste0(model_id, ".ext")))
+      file.copy(ext_file, file.path(tmp_dir, paste0(model_id , ".ext")))
       file.copy(model_file, file.path(tmp_dir, paste0(model_id, ".mod")))
       fit <- pharmr::read_modelfit_results(
         path = file.path(tmp_dir, paste0(model_id, ".mod"))
