@@ -41,7 +41,8 @@ create_model_from_file <- function(
     if(file.exists(ext_file)) {
       cli::cli_alert_info("Updating initial estimates for model using {ext_file}.")
       model_id <- basename(tools::file_path_sans_ext(model_file))
-      tmp_dir <- tempdir()
+      tmp_dir <- tempfile(pattern = paste0(model_id, "_"), tmpdir = tempdir())
+      dir.create(tmp_dir, showWarnings = FALSE, recursive = TRUE)
       file.copy(ext_file, file.path(tmp_dir, paste0(model_id, ".ext")))
       file.copy(model_file, file.path(tmp_dir, paste0(model_id, ".mod")))
       fit <- pharmr::read_modelfit_results(
