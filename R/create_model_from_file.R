@@ -43,10 +43,18 @@ create_model_from_file <- function(
       model_id <- basename(tools::file_path_sans_ext(model_file))
       tmp_dir <- tempfile(pattern = paste0(model_id, "_"), tmpdir = tempdir())
       dir.create(tmp_dir, showWarnings = FALSE, recursive = TRUE)
-      file.copy(ext_file, file.path(tmp_dir, paste0(model_id, ".ext")))
-      file.copy(model_file, file.path(tmp_dir, paste0(model_id, ".mod")))
+      ext_dest <- file.path(tmp_dir, paste0(model_id, ".ext"))
+      mod_dest <- file.path(tmp_dir, paste0(model_id, ".mod"))
+      copied_ext <- file.copy(ext_file, ext_dest)
+      if (!isTRUE(copied_ext)) {
+        cli::cli_abort("Failed to copy ext file from {ext_file} to {ext_dest}.")
+      }
+      copied_mod <- file.copy(model_file, mod_dest)
+      if (!isTRUE(copied_mod)) {
+        cli::cli_abort("Failed to copy model file from {model_file} to {mod_dest}.")
+      }
       fit <- pharmr::read_modelfit_results(
-        path = file.path(tmp_dir, paste0(model_id, ".mod"))
+        path = mod_dest
       )
       model <- model |>
         pharmr.extra::update_parameters(fit)
