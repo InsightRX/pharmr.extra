@@ -1,8 +1,6 @@
 #' Create a Pharmpy model object from a model file and dataset (optional)
 #' 
-#' @param model_file the model file (.mod) to read. If a file with the same
-#' base name but with extension .ext is present, will also read the final 
-#' estimates for the run, and update in new model.
+#' @param model_file the model file (.mod) to read.
 #' @param ext_file optional path to a .ext file containing final parameter 
 #'   estimates that will be used to update the initial estimates in the model.
 #' @param data the filename of the dataset (or an actual data.frame)

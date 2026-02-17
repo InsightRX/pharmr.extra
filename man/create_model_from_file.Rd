@@ -7,9 +7,7 @@
 create_model_from_file(model_file, ext_file = NULL, data = NULL)
 }
 \arguments{
-\item{model_file}{the model file (.mod) to read. If a file with the same
-base name but with extension .ext is present, will also read the final
-estimates for the run, and update in new model.}
+\item{model_file}{the model file (.mod) to read.}
 
 \item{ext_file}{optional path to a .ext file containing final parameter
 estimates that will be used to update the initial estimates in the model.}
