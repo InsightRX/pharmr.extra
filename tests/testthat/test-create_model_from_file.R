@@ -210,6 +210,63 @@ test_that("create_model_from_file returns model without data when data is NULL",
   unlink(tmp_mod)
 })
 
+# Tests using real fixture files (run.mod + run.ext from a completed NONMEM run)
+# Final estimates in run.ext: THETA1=1.32434, THETA2=27.9381, THETA3=181.119
+# Original inits in run.mod:  THETA1=0.5,     THETA2=6.52,    THETA3=116.0
+
+test_that("create_model_from_file reads model without ext_file using original inits", {
+  local_pharmr.extra_options()
+  mod_file <- testthat::test_path("fixtures", "run_with_ext", "run.mod")
+
+  result <- create_model_from_file(model_file = mod_file)
+
+  params <- result$parameters$to_dataframe()
+  expect_s3_class(result, "pharmpy.model.external.nonmem.model.Model")
+  expect_equal(params["POP_KA", "value"], 0.5,   tolerance = 1e-4)
+  expect_equal(params["POP_CL", "value"], 6.52,  tolerance = 1e-4)
+  expect_equal(params["POP_V",  "value"], 116.0, tolerance = 1e-4)
+})
+
+test_that("create_model_from_file updates initial estimates from ext_file", {
+  local_pharmr.extra_options()
+  mod_file <- testthat::test_path("fixtures", "run_with_ext", "run.mod")
+  ext_file <- testthat::test_path("fixtures", "run_with_ext", "run.ext")
+
+  result <- create_model_from_file(model_file = mod_file, ext_file = ext_file)
+
+  params <- result$parameters$to_dataframe()
+  expect_s3_class(result, "pharmpy.model.external.nonmem.model.Model")
+  expect_equal(params["POP_KA", "value"], 1.32434, tolerance = 1e-4)
+  expect_equal(params["POP_CL", "value"], 27.9381, tolerance = 1e-4)
+  expect_equal(params["POP_V",  "value"], 181.119, tolerance = 1e-3)
+})
+
+test_that("create_model_from_file ext_file produces different inits than no ext_file", {
+  local_pharmr.extra_options()
+  mod_file <- testthat::test_path("fixtures", "run_with_ext", "run.mod")
+  ext_file <- testthat::test_path("fixtures", "run_with_ext", "run.ext")
+
+  result_base    <- create_model_from_file(model_file = mod_file)
+  result_updated <- create_model_from_file(model_file = mod_file, ext_file = ext_file)
+
+  params_base    <- result_base$parameters$to_dataframe()
+  params_updated <- result_updated$parameters$to_dataframe()
+
+  expect_false(
+    isTRUE(all.equal(params_base$value, params_updated$value, tolerance = 1e-4))
+  )
+})
+
+test_that("create_model_from_file errors when ext_file does not exist", {
+  local_pharmr.extra_options()
+  mod_file <- testthat::test_path("fixtures", "run_with_ext", "run.mod")
+
+  expect_error(
+    create_model_from_file(model_file = mod_file, ext_file = "nonexistent.ext"),
+    "does not exist"
+  )
+})
+
 test_that("create_model_from_file works without data argument (default NULL)", {
   model_code <- c("$PROBLEM Test", "$PRED Y = THETA(1)", "$THETA 1")
   tmp_mod <- tempfile(fileext = ".mod")
