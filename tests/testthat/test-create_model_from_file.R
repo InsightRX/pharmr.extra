@@ -295,10 +295,10 @@ test_that("create_model_from_file works without data argument (default NULL)", {
   unlink(tmp_mod)
 })
 
-test_that("create_model_from_file circumvents bug in pharmpy with dummy_eta", {
+test_that("create_model_from_file circumvents bug in pharmpy with dummy_eta and can add peripheral comparment", {
   model <- create_model_from_file(test_path("fixtures", "model_with_dummyeta", "run1.mod"))
   mod2 <- model |>
-    add_peripheral_compartment()
+    pharmr::add_peripheral_compartment()
   expect_s3_class(mod2, "pharmpy.model.model.Model")
   expect_true(all(c("POP_QP1", "POP_VP1") %in% mod2$parameters$names))  
 })
