@@ -76,8 +76,12 @@ create_model_from_file <- function(
 #' Guard against a bug in Pharmpy where eta_dummy is not correctly imported
 #' 
 fix_eta_dummy_bug <- function(model_code) {
-  if(stringr::str_detect(model_code, "eta_dummy")) {
-    model_code <- stringr::str_replace_all(model_code, "eta_dummy", "ETA_DUMMY")
+  # We intentionally scan the entire model code (including comments) because
+  # eta_dummy is only expected to appear as this placeholder name.
+  # Use a whole-word match to avoid changing substrings like "meta_dummy".
+  pattern <- stringr::regex("\\beta_dummy\\b", ignore_case = FALSE)
+  if (stringr::str_detect(model_code, pattern)) {
+    model_code <- stringr::str_replace_all(model_code, pattern, "ETA_DUMMY")
   }
   model_code
 }
