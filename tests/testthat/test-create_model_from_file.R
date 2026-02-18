@@ -296,6 +296,7 @@ test_that("create_model_from_file works without data argument (default NULL)", {
 })
 
 test_that("create_model_from_file circumvents bug in pharmpy with dummy_eta and can add peripheral comparment", {
+  local_pharmr.extra_options()
   model <- create_model_from_file(test_path("fixtures", "model_with_dummyeta", "run1.mod"))
   mod2 <- model |>
     pharmr::add_peripheral_compartment()
