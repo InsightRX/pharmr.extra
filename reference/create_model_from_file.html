@@ -38,7 +38,7 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">create_model_from_file</span><span class="op">(</span><span class="va">model_file</span>, data <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">create_model_from_file</span><span class="op">(</span><span class="va">model_file</span>, ext_file <span class="op">=</span> <span class="cn">NULL</span>, data <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -47,6 +47,11 @@
 
 <dl><dt id="arg-model-file">model_file<a class="anchor" aria-label="anchor" href="#arg-model-file"></a></dt>
 <dd><p>the model file (.mod) to read.</p></dd>
+
+
+<dt id="arg-ext-file">ext_file<a class="anchor" aria-label="anchor" href="#arg-ext-file"></a></dt>
+<dd><p>optional path to a .ext file containing final parameter
+estimates that will be used to update the initial estimates in the model.</p></dd>
 
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
