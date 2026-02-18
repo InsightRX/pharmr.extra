@@ -300,5 +300,5 @@ test_that("create_model_from_file circumvents bug in pharmpy with dummy_eta and 
   mod2 <- model |>
     pharmr::add_peripheral_compartment()
   expect_s3_class(mod2, "pharmpy.model.model.Model")
-  expect_true(all(c("POP_QP1", "POP_VP1") %in% mod2$parameters$names))  
+  expect_true(all(c("POP_QP1", "POP_VP1") %in% mod2$parameters$names))
 })
