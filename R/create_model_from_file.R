@@ -75,6 +75,9 @@ create_model_from_file <- function(
 
 #' Guard against a bug in Pharmpy where eta_dummy is not correctly imported
 #' 
+#' @param model_code Character string with model code.
+#' 
+#' @returns Character string with model code.
 fix_eta_dummy_bug <- function(model_code) {
   # We intentionally scan the entire model code (including comments) because
   # eta_dummy is only expected to appear as this placeholder name.
