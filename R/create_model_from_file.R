@@ -32,8 +32,10 @@ create_model_from_file <- function(
   
   ## Create Pharmpy object
   tryCatch({
-    model_code <- readLines(model_file)
-    model <- pharmr::read_model_from_string(paste(model_code, collapse = "\n"))
+    model_code <- readLines(model_file) |>
+      paste(collapse = "\n") |>
+      fix_eta_dummy_bug()
+    model <- pharmr::read_model_from_string(model_code)
   })
   
   ## If .ext file provided, update initial estimates
@@ -69,4 +71,20 @@ create_model_from_file <- function(
   }
   
   model
+}
+
+#' Guard against a bug in Pharmpy where eta_dummy is not correctly imported
+#' 
+#' @param model_code Character string with model code.
+#' 
+#' @returns Character string with model code.
+fix_eta_dummy_bug <- function(model_code) {
+  # We intentionally scan the entire model code (including comments) because
+  # eta_dummy is only expected to appear as this placeholder name.
+  # Use a whole-word match to avoid changing substrings like "meta_dummy".
+  pattern <- stringr::regex("\\beta_dummy\\b", ignore_case = FALSE)
+  if (stringr::str_detect(model_code, pattern)) {
+    model_code <- stringr::str_replace_all(model_code, pattern, "ETA_DUMMY")
+  }
+  model_code
 }
