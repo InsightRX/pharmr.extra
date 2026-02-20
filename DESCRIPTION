@@ -16,6 +16,7 @@ Imports:
     pharmr,
     cli,
     dplyr,
+    fs,
     ggplot2,
     glue,
     htmlwidgets,
@@ -32,7 +33,6 @@ Imports:
     tidyr,
     tidyselect
 Suggests:
-    fs,
     mockery,
     nlmixr2data,
     rmarkdown,
