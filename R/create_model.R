@@ -288,6 +288,32 @@ create_model <- function(
       parameter_uncertainty_method = toupper(uncertainty_method)
     )
   }
+  
+  ## Convert to TDMDD model?
+  if(!is.null(tmdd_type)) {
+    allowed_tmdd_types <- c("full", "ib", "crib", "cr", "qss", "mmapp")
+    if(!tmdd_type %in% allowed_tmdd_types) {
+      cli::cli_abort("Specified `tmdd_type` not allowed, select one of: {allowed_tmdd_types}.")
+    }
+    cli::cli_alert_info("Converting model into TMDD structure ({tmdd_type}).")
+    mod <- mod |>
+      pharmr::set_tmdd(type = tmdd_type)
+  }
+  
+  ## Add metabolite compartment?
+  mod <- add_metabolite_compartment(mod, metabolite, route)
+  
+  ## Add $TABLEs
+  if(tool == "nonmem") {
+    if(!is.null(tables)) {
+      mod <- add_default_output_tables(
+        model = mod,
+        iiv = iiv,
+        tables = tables,
+        full_tables = full_tables
+      )
+    }
+  }
 
   ## Add dataset (needed if we want to add covariates to the model)
   if(!is.null(data)) {
@@ -309,32 +335,6 @@ create_model <- function(
       model = mod,
       try_make_numeric = TRUE
     )
-  }
-  
-  ## Convert to TDMDD model?
-  if(!is.null(tmdd_type)) {
-    allowed_tmdd_types <- c("full", "ib", "crib", "cr", "qss", "mmapp")
-    if(!tmdd_type %in% allowed_tmdd_types) {
-      cli::cli_abort("Specified `tmdd_type` not allowed, select one of: {allowed_tmdd_types}.")
-    }
-    cli::cli_alert_info("Converting model into TMDD structure ({tmdd_type}).")
-    mod <- mod |>
-      pharmr::set_tmdd(type = tmdd_type)
-  }
-
-  ## Add metabolite compartment?
-  mod <- add_metabolite_compartment(mod, metabolite, route)
-
-  ## Add $TABLEs
-  if(tool == "nonmem") {
-    if(!is.null(tables)) {
-      mod <- add_default_output_tables(
-        model = mod,
-        iiv = iiv,
-        tables = tables,
-        full_tables = full_tables
-      )
-    }
   }
   
   ## Handle BLQ
