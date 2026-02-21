@@ -289,28 +289,6 @@ create_model <- function(
       parameter_uncertainty_method = toupper(uncertainty_method)
     )
   }
-
-  ## Add dataset (needed if we want to add covariates to the model)
-  if(!is.null(data)) {
-    if(isTRUE(auto_stack_encounters)) {
-      data <- stack_encounters(
-        data = data,
-        verbose = verbose
-      )
-    }
-    if(verbose) cli::cli_alert_info("Updating model dataset with provided dataset.")
-    mod <- mod |>
-      pharmr::unload_dataset() |>
-      pharmr::set_dataset(
-        path_or_df = data,
-        datatype = "nonmem"
-      )
-    if(verbose) cli::cli_alert_info("Checking and cleaning dataset.")
-    mod <- clean_modelfit_data(
-      model = mod,
-      try_make_numeric = TRUE
-    )
-  }
   
   ## Convert to TDMDD model?
   if(!is.null(tmdd_type)) {
@@ -334,10 +312,10 @@ create_model <- function(
         dv_types = tmdd_dv_types
       )
   }
-
+  
   ## Add metabolite compartment?
   mod <- add_metabolite_compartment(mod, metabolite, route)
-
+  
   ## Add $TABLEs
   if(tool == "nonmem") {
     if(!is.null(tables)) {
@@ -348,6 +326,28 @@ create_model <- function(
         full_tables = full_tables
       )
     }
+  }
+
+  ## Add dataset (needed if we want to add covariates to the model)
+  if(!is.null(data)) {
+    if(isTRUE(auto_stack_encounters)) {
+      data <- stack_encounters(
+        data = data,
+        verbose = verbose
+      )
+    }
+    if(verbose) cli::cli_alert_info("Updating model dataset with provided dataset.")
+    mod <- mod |>
+      pharmr::unload_dataset() |>
+      pharmr::set_dataset(
+        path_or_df = data,
+        datatype = "nonmem"
+      )
+    if(verbose) cli::cli_alert_info("Checking and cleaning dataset.")
+    mod <- clean_modelfit_data(
+      model = mod,
+      try_make_numeric = TRUE
+    )
   }
   
   ## Handle BLQ
