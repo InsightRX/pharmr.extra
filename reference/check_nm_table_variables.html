@@ -38,7 +38,7 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">check_nm_table_variables</span><span class="op">(</span><span class="va">model</span>, <span class="va">variables</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">check_nm_table_variables</span><span class="op">(</span><span class="va">model</span>, <span class="va">variables</span>, throw_error <span class="op">=</span> <span class="cn">TRUE</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -52,10 +52,16 @@
 <dt id="arg-variables">variables<a class="anchor" aria-label="anchor" href="#arg-variables"></a></dt>
 <dd><p>character vector with variable names</p></dd>
 
+
+<dt id="arg-throw-error">throw_error<a class="anchor" aria-label="anchor" href="#arg-throw-error"></a></dt>
+<dd><p>should throw error? If FALSE, will return vector of
+invalid variables.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p><code>NULL</code> if all variables are valid, otherwise an error.</p>
+    <p><code>NULL</code> if all variables are valid, otherwise an error (or return
+all invalid variables if <code>throw_error</code> is FALSE).</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
