@@ -54,7 +54,7 @@ add_table_to_model <- function(
 #' invalid variables.
 #'
 #' @returns `NULL` if all variables are valid, otherwise an error (or return
-#' all invalid variables if `throw_error` is FALSE.
+#' all invalid variables if `throw_error` is FALSE).
 #' 
 check_nm_table_variables <- function(model, variables, throw_error = TRUE) {
   is_data_variable <- variables %in% model$datainfo$names

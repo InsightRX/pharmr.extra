@@ -16,7 +16,7 @@ invalid variables.}
 }
 \value{
 \code{NULL} if all variables are valid, otherwise an error (or return
-all invalid variables if \code{throw_error} is FALSE.
+all invalid variables if \code{throw_error} is FALSE).
 }
 \description{
 Check NONMEM table variables
