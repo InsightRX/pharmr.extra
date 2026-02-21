@@ -289,18 +289,6 @@ create_model <- function(
     )
   }
 
-  ## Add $TABLEs
-  if(tool == "nonmem") {
-    if(!is.null(tables)) {
-      mod <- add_default_output_tables(
-        model = mod,
-        iiv = iiv,
-        tables = tables,
-        full_tables = full_tables
-      )
-    }
-  }
-
   ## Add dataset (needed if we want to add covariates to the model)
   if(!is.null(data)) {
     if(isTRUE(auto_stack_encounters)) {
@@ -336,6 +324,18 @@ create_model <- function(
 
   ## Add metabolite compartment?
   mod <- add_metabolite_compartment(mod, metabolite, route)
+
+  ## Add $TABLEs
+  if(tool == "nonmem") {
+    if(!is.null(tables)) {
+      mod <- add_default_output_tables(
+        model = mod,
+        iiv = iiv,
+        tables = tables,
+        full_tables = full_tables
+      )
+    }
+  }
   
   ## Handle BLQ
   if(!is.null(blq_method)) {
