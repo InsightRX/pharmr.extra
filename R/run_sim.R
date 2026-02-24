@@ -85,7 +85,7 @@ run_sim <- function(
       cli::cli_alert_info("Supplied `model` is a Pharmpy model object.")
     } else {
       cli::cli_alert_info("Supplied `model` is not a Pharmpy model object. Trying to load in Pharmpy.")
-      model <- create_model_from_file(model, data)
+      model <- create_model_from_file(model_file = model, data = data)
       if(inherits(model, "pharmpy.model.model.Model")) {
         cli::cli_alert_info("Model successfully imported as Pharmpy model object.")
       } else {

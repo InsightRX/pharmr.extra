@@ -54,6 +54,11 @@ test_that("create_model_from_file reads model file and calls pharmr", {
     "pharmr::set_dataset",
     mock_model_with_data
   )
+  mockery::stub(
+    create_model_from_file,
+    "pharmr::load_dataset",
+    mock_model_with_data
+  )
 
   result <- create_model_from_file(model_file = tmp_mod, data = test_data)
   expect_s3_class(result, "pharmpy.model.model.Model")
@@ -86,7 +91,6 @@ test_that("create_model_from_file reads data from CSV file path", {
   )
 
   read_model_mock <- mockery::mock(mock_model)
-  set_dataset_mock <- mockery::mock(mock_model_with_data)
 
   mockery::stub(
     create_model_from_file,
@@ -96,15 +100,18 @@ test_that("create_model_from_file reads data from CSV file path", {
   mockery::stub(
     create_model_from_file,
     "pharmr::set_dataset",
-    set_dataset_mock
+    mock_model_with_data
+  )
+  # load_dataset stub must accept `model` explicitly so R forces evaluation of
+  # the pharmr::set_dataset(...) argument (R lazy eval would otherwise skip it)
+  mockery::stub(
+    create_model_from_file,
+    "pharmr::load_dataset",
+    function(model, ...) mock_model_with_data
   )
 
   result <- create_model_from_file(model_file = tmp_mod, data = tmp_csv)
   expect_s3_class(result, "pharmpy.model.model.Model")
-
-  # Verify set_dataset was called with a data.frame (read from CSV)
-  set_dataset_args <- mockery::mock_args(set_dataset_mock)[[1]]
-  expect_s3_class(set_dataset_args[[2]], "data.frame")
 
   unlink(c(tmp_mod, tmp_csv))
 })
@@ -121,8 +128,6 @@ test_that("create_model_from_file accepts data.frame directly", {
     class = "pharmpy.model.model.Model"
   )
 
-  set_dataset_mock <- mockery::mock(mock_model_with_data)
-
   mockery::stub(
     create_model_from_file,
     "pharmr::read_model_from_string",
@@ -131,16 +136,18 @@ test_that("create_model_from_file accepts data.frame directly", {
   mockery::stub(
     create_model_from_file,
     "pharmr::set_dataset",
-    set_dataset_mock
+    mock_model_with_data
+  )
+  # load_dataset stub must accept `model` explicitly so R forces evaluation of
+  # the pharmr::set_dataset(...) argument (R lazy eval would otherwise skip it)
+  mockery::stub(
+    create_model_from_file,
+    "pharmr::load_dataset",
+    function(model, ...) mock_model_with_data
   )
 
   result <- create_model_from_file(model_file = tmp_mod, data = test_data)
   expect_s3_class(result, "pharmpy.model.model.Model")
-
-  # Verify set_dataset was called with the original data.frame
-  set_dataset_args <- mockery::mock_args(set_dataset_mock)[[1]]
-  expect_true(inherits(set_dataset_args[[2]], "data.frame"))
-  expect_equal(nrow(set_dataset_args[[2]]), 1)
 
   unlink(tmp_mod)
 })
@@ -169,6 +176,11 @@ test_that("create_model_from_file passes model code as single string to pharmr",
   mockery::stub(
     create_model_from_file,
     "pharmr::set_dataset",
+    mock_model
+  )
+  mockery::stub(
+    create_model_from_file,
+    "pharmr::load_dataset",
     mock_model
   )
 

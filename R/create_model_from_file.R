@@ -13,6 +13,7 @@ create_model_from_file <- function(
   ext_file = NULL,
   data = NULL
 ) {
+  
   ## Checks
   if(! inherits(model_file, "character")) {
     cli::cli_abort("Model file should be a string.")
@@ -66,8 +67,11 @@ create_model_from_file <- function(
   }
   
   if(!is.null(data)) {
-    model <- model |> 
-      pharmr::set_dataset(data)
+    dataset_file <- tempfile(pattern = "data", fileext = ".csv")
+    write.csv(data, dataset_file, quote = F, row.names = F)
+    model <- model |>
+      pharmr::set_dataset(path_or_df = dataset_file, datatype = "nonmem") |>
+      pharmr::load_dataset()
   }
   
   model
