@@ -34,6 +34,7 @@ get_initial_estimates_from_data <- function(
     }
   }
   est <- pars |>
+    dplyr::mutate(dplyr::across(where(is.numeric), ~ ifelse(is.infinite(.), max(.[!is.infinite(.)], na.rm = TRUE), .))) |> # remove all Inf values and replace them with the maximum value for the column
     dplyr::summarise_all(function(x) signif(mean(x, na.rm=TRUE), 3)) |>
     as.list()
   if(n_cmt >= 2) {
