@@ -13,6 +13,7 @@ create_model_from_file <- function(
   ext_file = NULL,
   data = NULL
 ) {
+  
   ## Checks
   if(! inherits(model_file, "character")) {
     cli::cli_abort("Model file should be a string.")
