@@ -1,5 +1,5 @@
 test_that("basic_gof_plot works", {
-  skip() # TODO: figure out how to make this pass in GitHub Actions
+  skip_on_ci() # TODO: figure out how to make this pass in GitHub Actions
   skip_on_os(os = "mac", arch = "aarch64")
 
   # # sample model from nlmixr2 docs
