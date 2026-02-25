@@ -74,7 +74,7 @@ add_default_output_tables <- function(
         add_optional <- c(add_optional, variab)
       }
     }
-    cols <- c("DV", "EVID", add_optional, "PRED", "CWRES", "NPDE")
+    cols <- c("DV", "EVID", add_optional, "PRED", "CWRES", "CIWRES", "NPDE")
     if(full_tables) {
       cols <- unique(c(cols, model$datainfo$names))
     }
