@@ -102,7 +102,8 @@ test_that("works with different route types", {
   expect_true("its" %in% tolower(steps_oral$method))
 })
 
-test_that("warns and uses first method when multiple methods provided", {
+test_that("supports multiple estimation steps", {
+  local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -113,21 +114,35 @@ test_that("warns and uses first method when multiple methods provided", {
     MDV = c(1, 0, 0)
   )
   mod <- create_model(route = "iv", data = dat, verbose = FALSE)
-  
-  # Should warn when multiple methods provided:
-  expect_warning(
-    {
-      updated_mod <- update_estimation_method(
-        mod, c("FOCE", "SAEM"), verbose = FALSE
-      )
-    },
-    "supports only a single estimation method"
-  )
-  
-  # Should use first method:
+
+  updated_mod <- update_estimation_method(mod, c("SAEM", "IMP"), verbose = FALSE)
   steps <- updated_mod$execution_steps$to_dataframe()
-  expect_true("foce" %in% tolower(steps$method))
-  expect_false("saem" %in% tolower(steps$method))
+
+  expect_equal(nrow(steps), 2)
+  expect_equal(tolower(steps$method[1]), "saem")
+  expect_equal(tolower(steps$method[2]), "imp")
+})
+
+test_that("reduces to fewer steps when new set is smaller", {
+  local_pharmr.extra_options()
+  dat <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0)
+  )
+  mod <- create_model(route = "iv", data = dat, verbose = FALSE)
+  mod <- update_estimation_method(mod, c("SAEM", "IMP"), verbose = FALSE)
+
+  # Now reduce back to a single step
+  updated_mod <- update_estimation_method(mod, "FOCE", verbose = FALSE)
+  steps <- updated_mod$execution_steps$to_dataframe()
+
+  expect_equal(nrow(steps), 1)
+  expect_equal(tolower(steps$method[1]), "foce")
 })
 
 test_that("errors on invalid estimation method", {
