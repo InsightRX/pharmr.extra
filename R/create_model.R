@@ -99,6 +99,7 @@ create_model <- function(
     iiv = "all",
     iiv_type = "exp",
     tmdd_type = NULL,
+    tmdd_dv_types = list(drug = 1, target = 2),
     metabolite = FALSE,
     ruv = c("additive", "proportional", "combined", "ltbs"),
     covariates = NULL,
@@ -296,8 +297,20 @@ create_model <- function(
       cli::cli_abort("Specified `tmdd_type` not allowed, select one of: {allowed_tmdd_types}.")
     }
     cli::cli_alert_info("Converting model into TMDD structure ({tmdd_type}).")
+    if(!is.null(tmdd_dv_types)) {
+      allowed_dv_types <- c("drug", "target", "complex", "drug_tot", "target_tot")
+      if(any(!names(tmdd_dv_types) %in% allowed_dv_types)) {
+        cli::cli_abort("Specified TMDD dv_types not allowed. Pick from: {allowed_dv_types}.")
+      }
+      for(key in names(tmdd_dv_types)) { # pharmpy is picky about integer type
+        tmdd_dv_types[[key]] <- as.integer(tmdd_dv_types[[key]])
+      }
+    }
     mod <- mod |>
-      pharmr::set_tmdd(type = tmdd_type)
+      pharmr::set_tmdd(
+        type = tmdd_type, 
+        dv_types = tmdd_dv_types
+      )
   }
   
   ## Add metabolite compartment?
