@@ -299,7 +299,7 @@ create_model <- function(
     cli::cli_alert_info("Converting model into TMDD structure ({tmdd_type}).")
     if(!is.null(tmdd_dv_types)) {
       allowed_dv_types <- c("drug", "target", "complex", "drug_tot", "target_tot")
-      if(any(tmdd_dv_types %in% allowed_dv_types)) {
+      if(any(!names(tmdd_dv_types) %in% allowed_dv_types)) {
         cli::cli_abort("Specified TMDD dv_types not allowed. Pick from: {allowed_dv_types}.")
       }
       for(key in names(tmdd_dv_types)) { # pharmpy is picky about integer type
