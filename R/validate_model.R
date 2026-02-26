@@ -12,11 +12,12 @@ validate_model <- function(
   } else if(inherits(model, "character")) {
     tool <- "nonmem"
     if(file.exists(model)) { ## specified as file?
-      model <- pharmr::read_model(path = model)
+      model <- create_model_from_file(model)
     } else { ## specified as code?
-      model <- pharmr::read_model_from_string(
-        code = paste0(model, collapse = "\n")
-      )
+      tmpfile <- tempfile(pattern = "mod_")
+      on.exit(unlink(tmpfile), add = TRUE)
+      writeLines(paste0(model, collapse = "\n"), tmpfile)
+      model <- create_model_from_file(tmpfile)
     }
   } else {
     cli::cli_abort("`model` should either be model code or a pharmpy model object")

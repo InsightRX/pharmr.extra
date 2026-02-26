@@ -66,7 +66,15 @@ add_default_output_tables <- function(
   ## goodness of fit, all rows
   if("fit" %in% tables && !(default_table_names[["fit"]] %in% existing_tables)) {
     if(verbose) cli::cli_alert_info("Adding output table for goodness of fit")
-    cols <- c("DV", "EVID", "MDV", "PRED", "IPRED", "CWRES", "NPDE")
+    optional_vars <- c("MDV", "IPRED")
+    add_optional <- c()
+    for(variab in optional_vars) {
+      check_var <- check_nm_table_variables(model, variab, throw_error = FALSE)
+      if(is.null(check_var)) { # i.e. IPRED is declared as variable and we can safely add to table
+        add_optional <- c(add_optional, variab)
+      }
+    }
+    cols <- c("DV", "EVID", add_optional, "PRED", "CWRES", "CIWRES", "NPDE")
     if(full_tables) {
       cols <- unique(c(cols, model$datainfo$names))
     }

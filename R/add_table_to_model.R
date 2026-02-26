@@ -50,9 +50,13 @@ add_table_to_model <- function(
 #' Check NONMEM table variables
 #'
 #' @inheritParams add_table_to_model
+#' @param throw_error should throw error? If FALSE, will return vector of 
+#' invalid variables.
 #'
-#' @returns `NULL` if all variables are valid, otherwise an error.
-check_nm_table_variables <- function(model, variables) {
+#' @returns `NULL` if all variables are valid, otherwise an error (or return
+#' all invalid variables if `throw_error` is FALSE).
+#' 
+check_nm_table_variables <- function(model, variables, throw_error = TRUE) {
   is_data_variable <- variables %in% model$datainfo$names
   is_lhs_variable <- variables %in% get_lhs_variables(model)
   is_defined_pk_parameter <- variables %in% get_defined_pk_parameters(model)
@@ -67,15 +71,18 @@ check_nm_table_variables <- function(model, variables) {
   if (all(is_valid)) return()
   
   invalid_variables <- variables[!is_valid]
-  cli::cli_abort(c(
-    paste0(
-      "$TABLE variables must be any of the following: ",
-      "A data variable, a left-hand side variable in the model, ",
-      "or a reserved NONMEM $TABLE variable."
-    ),
-    "x" = "{.field {invalid_variables}} {?is/are} not {?a/} valid variable{?s}.",
-    "i" = "Did you make a typo?"
-  ))
+  if(throw_error) {
+    cli::cli_abort(c(
+      paste0(
+        "$TABLE variables must be any of the following: ",
+        "A data variable, a left-hand side variable in the model, ",
+        "or a reserved NONMEM $TABLE variable."
+      ),
+      "x" = "{.field {invalid_variables}} {?is/are} not {?a/} valid variable{?s}.",
+      "i" = "Did you make a typo?"
+    ))
+  }
+  invalid_variables
 }
 
 get_lhs_variables <- function(model) {
