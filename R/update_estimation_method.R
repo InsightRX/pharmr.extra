@@ -10,6 +10,9 @@ update_estimation_method <- function(
     estimation_method,
     verbose = TRUE
 ) {
+  if(length(estimation_method) < 1) {
+    cli::cli_abort("At least one estimation method must be provided.")
+  }
   estimation_method <- toupper(estimation_method)
   allowed <- c("FO", "FOCE", "ITS", "IMPMAP", "IMP", "SAEM") # FIXME: "LAPLACE" not allowed
   if (any(is.na(estimation_method)) ||
