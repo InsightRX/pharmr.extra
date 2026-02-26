@@ -16,7 +16,7 @@ as_pharmpy_model <- function(model) {
     if (fs::is_file(model) & fs::path_ext(model) == "rds") {
       model <- import_pharmpy_model(model)
     } else if (fs::is_file(model)  & fs::path_ext(model) %in% c("mod", "ctl", "nmctl")) {
-      model <- pharmr::read_model(model)
+      model <- create_model_from_file(model)
     } else {
       model <- pharmr::read_model_from_string(model)
     }
