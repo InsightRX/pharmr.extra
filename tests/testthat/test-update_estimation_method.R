@@ -145,6 +145,25 @@ test_that("reduces to fewer steps when new set is smaller", {
   expect_equal(tolower(steps$method[1]), "foce")
 })
 
+test_that("errors on empty estimation method vector", {
+  local_pharmr.extra_options()
+  dat <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0)
+  )
+  mod <- create_model(route = "iv", data = dat, verbose = FALSE)
+
+  expect_error(
+    update_estimation_method(mod, character(0), verbose = FALSE),
+    "At least one estimation method must be provided"
+  )
+})
+
 test_that("errors on invalid estimation method", {
   local_pharmr.extra_options()
   dat <- data.frame(
