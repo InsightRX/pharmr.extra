@@ -506,6 +506,14 @@ test_that("can create mu-referenced model", {
   expect_s3_class(mod, "pharmpy.model.external.nonmem.model.Model")
 })
 
+test_that("SAEM automatically applies mu-referencing", {
+  mod_saem <- create_model(estimation_method = "saem")
+  expect_true(grepl("MU_1", mod_saem$code))
+
+  mod_foce <- create_model(estimation_method = "foce")
+  expect_false(grepl("MU_1", mod_foce$code))
+})
+
 test_that("IIV argument handles all input formats correctly", {
   # Test data for consistent testing
   test_data <- data.frame(
