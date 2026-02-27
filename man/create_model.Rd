@@ -14,6 +14,7 @@ create_model(
   iiv = "all",
   iiv_type = "exp",
   tmdd_type = NULL,
+  tmdd_dv_types = list(drug = 1, target = 2),
   metabolite = FALSE,
   ruv = c("additive", "proportional", "combined", "ltbs"),
   covariates = NULL,

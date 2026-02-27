@@ -4,21 +4,12 @@
 \alias{check_nm_table_variables}
 \title{Check NONMEM table variables}
 \usage{
-<<<<<<< HEAD
-check_nm_table_variables(model, variables)
-=======
 check_nm_table_variables(model, variables, throw_error = TRUE)
->>>>>>> 325ce38fa866b6bf722d3ffc9d2d83a7c9e28da7
 }
 \arguments{
 \item{model}{pharmpy model object}
 
 \item{variables}{character vector with variable names}
-<<<<<<< HEAD
-}
-\value{
-\code{NULL} if all variables are valid, otherwise an error.
-=======
 
 \item{throw_error}{should throw error? If FALSE, will return vector of
 invalid variables.}
@@ -26,7 +17,6 @@ invalid variables.}
 \value{
 \code{NULL} if all variables are valid, otherwise an error (or return
 all invalid variables if \code{throw_error} is FALSE).
->>>>>>> 325ce38fa866b6bf722d3ffc9d2d83a7c9e28da7
 }
 \description{
 Check NONMEM table variables
