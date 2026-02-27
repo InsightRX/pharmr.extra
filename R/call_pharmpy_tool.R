@@ -57,6 +57,20 @@ call_pharmpy_tool <- function(
       force = force
     )
   }
+  
+  ## For tools that require results, prefer the model stored in the results
+  ## object. That model was re-read from the run folder by run_nlme() and
+  ## therefore carries the correct file path needed for Pharmpy to resolve
+  ## output tables (sdtab etc.) when running in a Dask worker.
+  if(tool %in% req_results && !is.null(results)) {
+    model_from_results <- attr(results, "model")
+    if(!is.null(model_from_results)) {
+      if(!is.null(model) && verbose) {
+        cli::cli_alert_info("Using model stored in `results` to ensure file path consistency.")
+      }
+      model <- model_from_results
+    }
+  }
 
   ## Prepare run folder
   if(is.null(folder)) {
