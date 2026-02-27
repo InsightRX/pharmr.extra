@@ -36,9 +36,15 @@ update_estimation_method <- function(
         idx = i - 1L  # 0-indexed
       )
     } else {
+      niter = NULL
+      if(estimation_method[i] == "IMP") { ## TODO: Temporary fix
+        niter <- 10
+      }
       model <- pharmr::add_estimation_step(
         model,
         method = estimation_method[i],
+        niter = niter,
+        interaction = TRUE,
         residuals = character(0),
         predictions = character(0),
         derivatives = character(0),
