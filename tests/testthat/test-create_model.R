@@ -1078,3 +1078,25 @@ test_that("create_model can create metabolite model with explicit arguments", {
     "Cannot add presystemic metabolite"
   )
 })
+
+test_that("create_model supports multiple estimation methods", {
+  local_pharmr.extra_options()
+  mod <- create_model(
+    route = "iv",
+    data = test_data,
+    estimation_method = c("saem", "imp"),
+    verbose = FALSE
+  )
+  steps <- mod$execution_steps$to_dataframe()
+  expect_equal(nrow(steps), 2)
+  expect_equal(tolower(steps$method[1]), "saem")
+  expect_equal(tolower(steps$method[2]), "imp")
+})
+
+test_that("create_model errors on invalid estimation method", {
+  local_pharmr.extra_options()
+  expect_error(
+    create_model(route = "iv", data = test_data, estimation_method = "BOGUS", verbose = FALSE),
+    "estimation_method must be"
+  )
+})

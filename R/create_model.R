@@ -41,7 +41,11 @@
 #' @param scale_observations scale observations by factor, e.g. due to unit
 #' differences between dose and concentration. E.g. `scale_observations = 1000`
 #' will add `S1 = V/1000` (for a 1-compartment model) to NONMEM code.
-#' @param estimation_method estimation method.
+#' @param estimation_method character vector of one or more estimation methods.
+#' A single method (e.g. `"foce"`) sets one estimation step; a vector (e.g.
+#' `c("saem", "imp")`) creates sequential estimation steps. Available methods:
+#' `"fo"`, `"foce"`, `"its"`, `"impmap"`, `"imp"`, `"saem"`. Tool options
+#' (see `estimation_options`) apply to the first step only.
 #' @param estimation_options options for estimation method, specified as list,
 #'  e.g. `NITER` or `ISAMPLE`.
 #' @param uncertainty_method Compute uncertainty for parameter estimations.
@@ -107,7 +111,7 @@ create_model <- function(
     scale_observations = NULL,
     data = NULL,
     name = NULL,
-    estimation_method = c("foce", "saem"),
+    estimation_method = "foce",
     estimation_options = list(),
     uncertainty_method = c("sandwich", "smat", "rmat", "efim", "none"),
     blq_method = NULL,
@@ -127,7 +131,12 @@ create_model <- function(
   elimination <- match.arg(elimination)
   ruv <- match.arg(ruv)
   tool <- match.arg(tool)
-  estimation_method <- match.arg(estimation_method)
+  allowed_est_methods <- c("fo", "foce", "its", "impmap", "imp", "saem")
+  if(any(!tolower(estimation_method) %in% allowed_est_methods)) {
+    cli::cli_abort(
+      "estimation_method must be one or more of: {paste(allowed_est_methods, collapse=', ')}"
+    )
+  }
   uncertainty_method <- match.arg(uncertainty_method)
   if(uncertainty_method == "none")
     uncertainty_method <- NULL
@@ -253,33 +262,30 @@ create_model <- function(
   ## Estimation method
   steps <- mod$execution_steps$to_dataframe()
   n_steps <- nrow(steps)
-  if(! estimation_method %in% steps$method) {
-    ## add requested estimation method, with options
-    if(tool == "nonmem") {
-      if(verbose) cli::cli_alert_info("Setting estimation options")
-      tool_options <- get_estimation_options(
-        tool,
-        estimation_method,
-        estimation_options
-      )
-    } else {
-      tool_options <- list()
-      cli::cli_alert_warning(paste0("Skipping estimation options for ", tool, ", since not supported by Pharmpy. Please set manually"))
-    }
-    if(verbose) cli::cli_alert_info(paste0("Updating estimation step: ", estimation_method))
-    mod <- pharmr::set_estimation_step(
-      mod,
-      method = estimation_method,
-      idx = n_steps - 1,
-      interaction = TRUE,
-      tool_options = tool_options,
-      parameter_uncertainty_method = uncertainty_method
-    )
+  first_method <- tolower(estimation_method[1])
+  if(tool == "nonmem") {
+    if(verbose) cli::cli_alert_info("Setting estimation options")
+    tool_options <- get_estimation_options(tool, first_method, estimation_options)
+  } else {
+    tool_options <- list()
+    cli::cli_alert_warning(paste0("Skipping estimation options for ", tool, ", since not supported by Pharmpy. Please set manually"))
+  }
+  if(verbose) cli::cli_alert_info("Setting estimation step(s): {paste(estimation_method, collapse=' -> ')}")
+  mod <- pharmr::set_estimation_step(
+    mod,
+    method = first_method,
+    idx = n_steps - 1,
+    interaction = TRUE,
+    tool_options = tool_options,
+    parameter_uncertainty_method = uncertainty_method
+  )
+  if(length(estimation_method) > 1) {
+    mod <- update_estimation_method(mod, estimation_method, verbose = FALSE)
   }
 
   ## MU referencing?
   apply_mu <- (isTRUE(mu_reference) ||
-    (identical(mu_reference, "auto") && estimation_method == "saem")) &&
+    (identical(mu_reference, "auto") && "saem" %in% tolower(estimation_method))) &&
     tool == "nonmem"
   if(apply_mu && !pharmr::has_mu_reference(mod)) {
     mod <- pharmr::mu_reference_model(mod)
