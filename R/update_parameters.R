@@ -19,7 +19,8 @@ update_parameters <- function(
   final_model <- attr(fit, "model") 
   params <- fit$parameter_estimates
   if(is.null(params)) {
-    cli::cli_abort("No parameter estimates found in fit object; cannot update model.")
+    cli::cli_warn("No parameter estimates found in fit object; cannot update model.")
+    return(invisible())
   }
   if(all(is.nan(params))) {
     cli::cli_warn("No parameter estimates were available, not updating model.")

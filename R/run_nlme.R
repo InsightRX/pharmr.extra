@@ -104,6 +104,14 @@ run_nlme <- function(
     )
   }
 
+  ## Warn if SAEM is used without mu-referencing
+  steps <- model$execution_steps$to_dataframe()
+  if("saem" %in% tolower(steps$method) && !pharmr::has_mu_reference(model)) {
+    cli::cli_warn(
+      "Model uses SAEM but is not mu-referenced. Consider using {.code mu_reference = 'auto'} (default) in {.fn create_model} for better convergence."
+    )
+  }
+
   ## Add default tables, if requested
   if(!is.null(tables)) {
     model <- add_default_output_tables(
@@ -229,10 +237,15 @@ run_nlme <- function(
     }
   }
 
+  ## Re-read the model from disk so it carries the correct file path.
+  ## This is important for downstream tools (e.g. ruvsearch) that resolve
+  ## output table paths (sdtab, etc.) via the model's stored filename.
+  model_on_disk <- pharmr::read_model(file.path(obj$fit_folder, obj$model_file))
+
   ## Attach fit info / tables as attributes, also for simulation
   fit <- attach_fit_info(
     fit,
-    model = obj$model,
+    model = model_on_disk,
     obj$fit_folder,
     obj$output_file,
     is_sim_model = is_sim_model,
