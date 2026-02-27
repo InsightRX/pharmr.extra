@@ -14,6 +14,7 @@ create_model(
   iiv = "all",
   iiv_type = "exp",
   tmdd_type = NULL,
+  tmdd_dv_types = list(drug = 1, target = 2),
   metabolite = FALSE,
   ruv = c("additive", "proportional", "combined", "ltbs"),
   covariates = NULL,
@@ -30,7 +31,7 @@ create_model(
   full_tables = FALSE,
   auto_init = TRUE,
   auto_stack_encounters = TRUE,
-  mu_reference = FALSE,
+  mu_reference = "auto",
   settings = list(),
   verbose = FALSE
 )
@@ -128,8 +129,9 @@ This feature is useful e.g. for crossover trials when data on the same
 individual ispresent but is included in the dataset as time-after-dose and
 not actual time since first overall dose.}
 
-\item{mu_reference}{MU-reference the model, useful for SAEM estimation
-method.}
+\item{mu_reference}{Control mu-referencing of the model. \code{"auto"} (default)
+applies mu-referencing automatically when \code{estimation_method = "saem"}.
+\code{TRUE} always applies mu-referencing. \code{FALSE} never applies it.}
 
 \item{settings}{additional settings for model creation and model estimation.
 TBD}
