@@ -15,6 +15,9 @@
 - [`add_table_to_model()`](https://insightrx.github.io/pharmr.extra/reference/add_table_to_model.md)
   : Add new \$TABLE record to output variables
 
+- [`as_pharmpy_model()`](https://insightrx.github.io/pharmr.extra/reference/as_pharmpy_model.md)
+  : Coerce files, model code, and more to pharmpy model objects
+
 - [`attach_fit_info()`](https://insightrx.github.io/pharmr.extra/reference/attach_fit_info.md)
   : Attach fit info and tables to a fit object, e.g. from model fit or
   Pharmpy grid search final results
@@ -197,6 +200,13 @@
 
 - [`get_initial_estimates_from_individual_data()`](https://insightrx.github.io/pharmr.extra/reference/get_initial_estimates_from_individual_data.md)
   : Core function to get parameter estimates from individual data
+
+- [`get_model_info()`](https://insightrx.github.io/pharmr.extra/reference/get_model_info.md)
+  [`get_error_model()`](https://insightrx.github.io/pharmr.extra/reference/get_model_info.md)
+  [`get_elimination()`](https://insightrx.github.io/pharmr.extra/reference/get_model_info.md)
+  [`get_absorption()`](https://insightrx.github.io/pharmr.extra/reference/get_model_info.md)
+  [`get_ode_linearity()`](https://insightrx.github.io/pharmr.extra/reference/get_model_info.md)
+  : Get model info
 
 - [`get_new_run_number()`](https://insightrx.github.io/pharmr.extra/reference/get_new_run_number.md)
   : Get new run number for model fit

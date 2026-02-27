@@ -9,6 +9,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/add_default_output_tables.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/add_metabolite_compartment.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/add_table_to_model.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/as_pharmpy_model.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/attach_fit_info.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/basic_gof_plot.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/calc_condition_number.html</loc></url>
@@ -60,6 +61,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_fit_info.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_initial_estimates_from_data.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_initial_estimates_from_individual_data.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/get_model_info.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_new_run_number.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_nmfe_location.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_nmfe_output.html</loc></url>
