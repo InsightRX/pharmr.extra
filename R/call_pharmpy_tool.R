@@ -78,15 +78,17 @@ call_pharmpy_tool <- function(
 
   ## Tool-specific modifications / checks
   ##
-  ## - ruvsearch: requires residuals (CWRES); SAEM does not compute them by
-  ##   default. Check early and give a clear message rather than a cryptic
-  ##   Pharmpy AssertionError.
+  ## - ruvsearch: requires residuals (CWRES). Check early to give a clear
+  ##   message rather than a cryptic Pharmpy AssertionError. Residuals can
+  ##   be missing when CWRES is not in the output tables, when SAEM is used,
+  ##   or when results come from a model search tool.
   if(tool == "ruvsearch" && !is.null(results)) {
-    if(is.null(results$residuals)) {
+    residuals <- tryCatch(results$residuals, error = function(e) NULL)
+    if(is.null(residuals)) {
       cli::cli_abort(c(
         "ruvsearch requires residuals (CWRES) but none were found in the results.",
-        "i" = "SAEM does not compute residuals by default.",
-        "i" = "Add an FOCE EONLY evaluation step after SAEM to compute residuals, e.g. by passing {.code estimation_method = c(\"saem\", \"foce\")} in {.fn create_model}."
+        "i" = "This can happen when CWRES is not present in the model output tables, when SAEM is used (which does not compute residuals by default), or when passing results from a model search tool.",
+        "i" = "Re-run the final model with {.fn run_nlme} to ensure residuals are available before calling ruvsearch."
       ))
     }
   }
