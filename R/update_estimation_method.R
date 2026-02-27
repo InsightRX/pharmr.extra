@@ -39,10 +39,11 @@ update_estimation_method <- function(
       model <- pharmr::add_estimation_step(
         model,
         method = estimation_method[i],
-        residuals = character(0) 
-        # residuals arg is needed because Pharmpy's EstimationStep.create() tries to do tuple(sorted(residuals)), but when residuals
-        #   defaults to None, sorted(None) raises the TypeError. Passing character(0) from R converts to an empty Python tuple (), 
-        #   which is what the function actually expects as its default.
+        residuals = character(0),
+        predictions = character(0)
+        # Both residuals and predictions args are needed because Pharmpy's EstimationStep.create() tries to do
+        # tuple(sorted(x)) for each, and some pharmpy versions default these to None rather than ().
+        # Passing character(0) from R converts to an empty Python tuple (), the correct default.
       )
     }
   }
