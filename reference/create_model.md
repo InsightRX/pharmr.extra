@@ -16,6 +16,7 @@ create_model(
   iiv = "all",
   iiv_type = "exp",
   tmdd_type = NULL,
+  tmdd_dv_types = list(drug = 1, target = 2),
   metabolite = FALSE,
   ruv = c("additive", "proportional", "combined", "ltbs"),
   covariates = NULL,
@@ -32,7 +33,7 @@ create_model(
   full_tables = FALSE,
   auto_init = TRUE,
   auto_stack_encounters = TRUE,
-  mu_reference = FALSE,
+  mu_reference = "auto",
   settings = list(),
   verbose = FALSE
 )
@@ -184,7 +185,9 @@ create_model(
 
 - mu_reference:
 
-  MU-reference the model, useful for SAEM estimation method.
+  Control mu-referencing of the model. `"auto"` (default) applies
+  mu-referencing automatically when `estimation_method = "saem"`. `TRUE`
+  always applies mu-referencing. `FALSE` never applies it.
 
 - settings:
 

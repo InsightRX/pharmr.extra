@@ -153,6 +153,10 @@
 - [`fit_model_nonmem()`](https://insightrx.github.io/pharmr.extra/reference/fit_model_nonmem.md)
   : Fit model using NONMEM
 
+- [`fix_eta_dummy_bug()`](https://insightrx.github.io/pharmr.extra/reference/fix_eta_dummy_bug.md)
+  : Guard against a bug in Pharmpy where eta_dummy is not correctly
+  imported
+
 - [`get_advan()`](https://insightrx.github.io/pharmr.extra/reference/get_advan.md)
   : Get ADVAN number for model
 
