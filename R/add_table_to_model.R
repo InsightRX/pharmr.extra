@@ -18,7 +18,7 @@ add_table_to_model <- function(
   tool <- get_tool_from_model(model)
   if(tool == "nonmem") {
     existing_tables <- get_tables_in_model_code(model$code)
-    data <- model$dataset
+    data <- tryCatch(model$dataset, error = function(e) NULL)
     if(file %in% existing_tables) {
       warning("Table file already in a $TABLE record in model.")
       return(model)

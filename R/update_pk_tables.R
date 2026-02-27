@@ -15,13 +15,16 @@ update_pk_tables <- function(model, ...) {
   pk_params <- get_defined_pk_parameters(model)
   tables <- get_tables_in_model_code(model$code)
   tables <- c("patab", "sdtab")
-  data <- model$dataset
+  data <- tryCatch(model$dataset, error = function(e) NULL)
 
   ## remove any table starting with "patab"
   model <- remove_tables_from_model(model, file = "patab")
 
   ## Re-add dataset
-  new_model <- pharmr::set_dataset(model, data)
+  if (!is.null(data)) {
+    model <- pharmr::set_dataset(model, data)
+  }
+  new_model <- model
 
   ## add back parameter table
   new_model <- add_default_output_tables(

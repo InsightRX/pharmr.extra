@@ -21,11 +21,13 @@ remove_tables_from_model <- function(
     }
 
     ## workaround for dataset needed to circumvent issues re-reading the model file
-    data <- model$dataset
+    data <- tryCatch(model$dataset, error = function(e) NULL)
     # TODO: use data.frame instead of creating and passing a csv
-    temp_csv <- paste0(tempfile(), ".csv")
-    write.csv(data, temp_csv, quote=F, row.names=F)
-    model <- pharmr::set_dataset(model, temp_csv)
+    if (!is.null(data)) {
+      temp_csv <- paste0(tempfile(), ".csv")
+      write.csv(data, temp_csv, quote=F, row.names=F)
+      model <- pharmr::set_dataset(model, temp_csv)
+    }
     code_without_tables <- remove_table_sections(model$code, file = file)
     model <- pharmr::read_model_from_string(
       code = code_without_tables
