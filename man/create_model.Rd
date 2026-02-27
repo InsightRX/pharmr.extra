@@ -21,7 +21,7 @@ create_model(
   scale_observations = NULL,
   data = NULL,
   name = NULL,
-  estimation_method = c("foce", "saem"),
+  estimation_method = "foce",
   estimation_options = list(),
   uncertainty_method = c("sandwich", "smat", "rmat", "efim", "none"),
   blq_method = NULL,
@@ -91,7 +91,11 @@ will add \code{S1 = V/1000} (for a 1-compartment model) to NONMEM code.}
 
 \item{name}{name of model}
 
-\item{estimation_method}{estimation method.}
+\item{estimation_method}{character vector of one or more estimation methods.
+A single method (e.g. \code{"foce"}) sets one estimation step; a vector (e.g.
+\code{c("saem", "imp")}) creates sequential estimation steps. Available methods:
+\code{"fo"}, \code{"foce"}, \code{"its"}, \code{"impmap"}, \code{"imp"}, \code{"saem"}. Tool options
+(see \code{estimation_options}) apply to the first step only.}
 
 \item{estimation_options}{options for estimation method, specified as list,
 e.g. \code{NITER} or \code{ISAMPLE}.}

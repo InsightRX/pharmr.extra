@@ -1081,6 +1081,16 @@ test_that("create_model can create metabolite model with explicit arguments", {
 
 test_that("create_model supports multiple estimation methods", {
   local_pharmr.extra_options()
+  test_data <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0),
+    BW = 70
+  )
   mod <- create_model(
     route = "iv",
     data = test_data,
