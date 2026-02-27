@@ -46,9 +46,13 @@ call_pharmpy_tool <- function(
     }
   }
 
-  ## Check results, if needed
+  ## Check results, if needed rerun model
+  if(tool == "ruvsearch") {
+    model <- model |>
+      add_default_output_tables() # ensure residuals are outputted
+  }
   req_results <- c("modelsearch", "covsearch", "iivsearch", "ruvsearch", "amd")
-  if(is.null(results) && tool %in% req_results) {
+  if((is.null(results) && tool %in% req_results) || tool == "ruvsearch") {
     if(verbose)
       cli::cli_alert_info("No `results` provided, running the model first to generate `results` object.")
     results <- run_nlme(
@@ -56,6 +60,20 @@ call_pharmpy_tool <- function(
       model = model,
       force = force
     )
+  }
+
+  ## For tools that require results, prefer the model stored in the results
+  ## object. That model was re-read from the run folder by run_nlme() and
+  ## therefore carries the correct file path needed for Pharmpy to resolve
+  ## output tables (sdtab etc.) when running in a Dask worker.
+  if(tool %in% req_results && !is.null(results)) {
+    model_from_results <- attr(results, "model")
+    if(!is.null(model_from_results)) {
+      if(!is.null(model) && verbose) {
+        cli::cli_alert_info("Using model stored in `results` to ensure file path consistency.")
+      }
+      model <- model_from_results
+    }
   }
 
   ## Prepare run folder
@@ -76,8 +94,6 @@ call_pharmpy_tool <- function(
     )
   }
 
-  ## Tool-specific modifications / checks
-  ##
   ## - simulation: ensure it is a simulation
   if(tool == "simulation") {
     if(verbose)
@@ -98,13 +114,20 @@ call_pharmpy_tool <- function(
   }
 
   ## make the call to the Pharmpy tool
-  withr::with_dir(run_folder, {
-    res <- do.call(
-      paste0("run_", tool),
-      envir = asNamespace("pharmr"),
-      args = args
-    )
+  tryCatch({
+    withr::with_dir(run_folder, {
+      res <- do.call(
+        paste0("run_", tool),
+        envir = asNamespace("pharmr"),
+        args = args
+      )
+    })
+  }, error = function(e) {
+    cli::cli_abort("Pharmpy error running {tool}: {e}")
   })
+  if(is.null(res)) {
+    cli::cli_abort("Pharmpy error running {tool}.")
+  }
 
   ## Post-processing, tool-specific
   ## Save final model to file, and attach to output object
