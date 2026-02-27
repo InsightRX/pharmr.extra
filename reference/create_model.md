@@ -23,7 +23,7 @@ create_model(
   scale_observations = NULL,
   data = NULL,
   name = NULL,
-  estimation_method = c("foce", "saem"),
+  estimation_method = "foce",
   estimation_options = list(),
   uncertainty_method = c("sandwich", "smat", "rmat", "efim", "none"),
   blq_method = NULL,
@@ -127,7 +127,11 @@ create_model(
 
 - estimation_method:
 
-  estimation method.
+  character vector of one or more estimation methods. A single method
+  (e.g. `"foce"`) sets one estimation step; a vector (e.g.
+  `c("saem", "imp")`) creates sequential estimation steps. Available
+  methods: `"fo"`, `"foce"`, `"its"`, `"impmap"`, `"imp"`, `"saem"`.
+  Tool options (see `estimation_options`) apply to the first step only.
 
 - estimation_options:
 

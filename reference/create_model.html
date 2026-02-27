@@ -58,7 +58,7 @@ functionality in pharmr/Pharmpy.</p>
 <span>  scale_observations <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  data <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  name <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  estimation_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"foce"</span>, <span class="st">"saem"</span><span class="op">)</span>,</span>
+<span>  estimation_method <span class="op">=</span> <span class="st">"foce"</span>,</span>
 <span>  estimation_options <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  uncertainty_method <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"sandwich"</span>, <span class="st">"smat"</span>, <span class="st">"rmat"</span>, <span class="st">"efim"</span>, <span class="st">"none"</span><span class="op">)</span>,</span>
 <span>  blq_method <span class="op">=</span> <span class="cn">NULL</span>,</span>
@@ -163,7 +163,11 @@ will add <code>S1 = V/1000</code> (for a 1-compartment model) to NONMEM code.</p
 
 
 <dt id="arg-estimation-method">estimation_method<a class="anchor" aria-label="anchor" href="#arg-estimation-method"></a></dt>
-<dd><p>estimation method.</p></dd>
+<dd><p>character vector of one or more estimation methods.
+A single method (e.g. <code>"foce"</code>) sets one estimation step; a vector (e.g.
+<code>c("saem", "imp")</code>) creates sequential estimation steps. Available methods:
+<code>"fo"</code>, <code>"foce"</code>, <code>"its"</code>, <code>"impmap"</code>, <code>"imp"</code>, <code>"saem"</code>. Tool options
+(see <code>estimation_options</code>) apply to the first step only.</p></dd>
 
 
 <dt id="arg-estimation-options">estimation_options<a class="anchor" aria-label="anchor" href="#arg-estimation-options"></a></dt>
