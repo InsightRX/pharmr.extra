@@ -281,7 +281,7 @@ create_model <- function(
   apply_mu <- (isTRUE(mu_referencing) ||
     (identical(mu_referencing, "auto") && estimation_method == "saem")) &&
     tool == "nonmem"
-  if(apply_mu) {
+  if(apply_mu && !pharmr::has_mu_reference(mod)) {
     mod <- pharmr::mu_reference_model(mod)
   }
 
