@@ -2,6 +2,37 @@ library(mockery)
 
 ## TODO: needs tests for main run_nlme function
 
+test_that("run_nlme warns when SAEM model is not mu-referenced", {
+  mod_saem <- create_model(estimation_method = "saem", mu_referencing = FALSE)
+  expect_warning(
+    tryCatch(
+      run_nlme(mod_saem, id = "run1", path = withr::local_tempdir()),
+      error = function(e) NULL
+    ),
+    "not mu-referenced"
+  )
+})
+
+test_that("run_nlme does not warn when SAEM model is mu-referenced", {
+  mod_saem <- create_model(estimation_method = "saem", mu_referencing = TRUE)
+  expect_no_warning(
+    tryCatch(
+      run_nlme(mod_saem, id = "run1", path = withr::local_tempdir()),
+      error = function(e) NULL
+    )
+  )
+})
+
+test_that("run_nlme does not warn when FOCE model is not mu-referenced", {
+  mod_foce <- create_model(estimation_method = "foce")
+  expect_no_warning(
+    tryCatch(
+      run_nlme(mod_foce, id = "run1", path = withr::local_tempdir()),
+      error = function(e) NULL
+    )
+  )
+})
+
 test_that("get_new_run_number works correctly", {
   # Create temporary directory for testing
   temp_dir <- tempdir()
