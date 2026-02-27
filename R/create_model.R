@@ -74,7 +74,7 @@
 #' This feature is useful e.g. for crossover trials when data on the same
 #' individual ispresent but is included in the dataset as time-after-dose and
 #' not actual time since first overall dose.
-#' @param mu_referencing Control mu-referencing of the model. `"auto"` (default)
+#' @param mu_reference Control mu-referencing of the model. `"auto"` (default)
 #' applies mu-referencing automatically when `estimation_method = "saem"`.
 #' `TRUE` always applies mu-referencing. `FALSE` never applies it.
 #' @param settings additional settings for model creation and model estimation.
@@ -117,7 +117,7 @@ create_model <- function(
     full_tables = FALSE,
     auto_init = TRUE,
     auto_stack_encounters = TRUE,
-    mu_referencing = "auto",
+    mu_reference = "auto",
     settings = list(), # TBD
     verbose = FALSE
 ) {
@@ -278,8 +278,8 @@ create_model <- function(
   }
 
   ## MU referencing?
-  apply_mu <- (isTRUE(mu_referencing) ||
-    (identical(mu_referencing, "auto") && estimation_method == "saem")) &&
+  apply_mu <- (isTRUE(mu_reference) ||
+    (identical(mu_reference, "auto") && estimation_method == "saem")) &&
     tool == "nonmem"
   if(apply_mu && !pharmr::has_mu_reference(mod)) {
     mod <- pharmr::mu_reference_model(mod)

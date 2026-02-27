@@ -501,7 +501,7 @@ test_that("LTBS model is handled, and LNDV is set to DV", {
   )
 })
 
-test_that("mu_referencing argument works correctly", {
+test_that("mu_reference argument works correctly", {
   # auto (default): applied for SAEM, not for FOCE
   mod_saem <- create_model(estimation_method = "saem")
   expect_true(grepl("MU_1", mod_saem$code))
@@ -510,11 +510,11 @@ test_that("mu_referencing argument works correctly", {
   expect_false(grepl("MU_1", mod_foce$code))
 
   # TRUE: always applied regardless of estimation method
-  mod_true <- create_model(estimation_method = "foce", mu_referencing = TRUE)
+  mod_true <- create_model(estimation_method = "foce", mu_reference = TRUE)
   expect_true(grepl("MU_1", mod_true$code))
 
   # FALSE: never applied, even for SAEM
-  mod_false <- create_model(estimation_method = "saem", mu_referencing = FALSE)
+  mod_false <- create_model(estimation_method = "saem", mu_reference = FALSE)
   expect_false(grepl("MU_1", mod_false$code))
 })
 

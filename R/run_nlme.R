@@ -108,7 +108,7 @@ run_nlme <- function(
   steps <- model$execution_steps$to_dataframe()
   if("saem" %in% tolower(steps$method) && !pharmr::has_mu_reference(model)) {
     cli::cli_warn(
-      "Model uses SAEM but is not mu-referenced. Consider using {.code mu_referencing = 'auto'} (default) in {.fn create_model} for better convergence."
+      "Model uses SAEM but is not mu-referenced. Consider using {.code mu_reference = 'auto'} (default) in {.fn create_model} for better convergence."
     )
   }
 

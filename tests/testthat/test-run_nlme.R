@@ -3,7 +3,7 @@ library(mockery)
 ## TODO: needs tests for main run_nlme function
 
 test_that("run_nlme warns when SAEM model is not mu-referenced", {
-  mod_saem <- create_model(estimation_method = "saem", mu_referencing = FALSE)
+  mod_saem <- create_model(estimation_method = "saem", mu_reference = FALSE)
   expect_warning(
     tryCatch(
       run_nlme(mod_saem, id = "run1", path = withr::local_tempdir()),
@@ -14,7 +14,7 @@ test_that("run_nlme warns when SAEM model is not mu-referenced", {
 })
 
 test_that("run_nlme does not warn when SAEM model is mu-referenced", {
-  mod_saem <- create_model(estimation_method = "saem", mu_referencing = TRUE)
+  mod_saem <- create_model(estimation_method = "saem", mu_reference = TRUE)
   expect_no_warning(
     tryCatch(
       run_nlme(mod_saem, id = "run1", path = withr::local_tempdir()),
