@@ -40,10 +40,12 @@ update_estimation_method <- function(
         model,
         method = estimation_method[i],
         residuals = character(0),
-        predictions = character(0)
-        # Both residuals and predictions args are needed because Pharmpy's EstimationStep.create() tries to do
-        # tuple(sorted(x)) for each, and some pharmpy versions default these to None rather than ().
-        # Passing character(0) from R converts to an empty Python tuple (), the correct default.
+        predictions = character(0),
+        derivatives = character(0)
+        # In pharmr>=2.0.0 the R wrapper defaults residuals/predictions/derivatives to c() which
+        # is NULL in R and becomes None in Python. None is not iterable, so pharmpy's
+        # update_estimation() fails when it does set.update(estep.predictions) etc.
+        # Passing character(0) converts to an empty Python list [], which is safe.
       )
     }
   }
