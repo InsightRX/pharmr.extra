@@ -78,6 +78,19 @@ call_pharmpy_tool <- function(
 
   ## Tool-specific modifications / checks
   ##
+  ## - ruvsearch: requires residuals (CWRES); SAEM does not compute them by
+  ##   default. Check early and give a clear message rather than a cryptic
+  ##   Pharmpy AssertionError.
+  if(tool == "ruvsearch" && !is.null(results)) {
+    if(is.null(results$residuals)) {
+      cli::cli_abort(c(
+        "ruvsearch requires residuals (CWRES) but none were found in the results.",
+        "i" = "SAEM does not compute residuals by default.",
+        "i" = "Add an FOCE EONLY evaluation step after SAEM to compute residuals, e.g. by passing {.code estimation_method = c(\"saem\", \"foce\")} in {.fn create_model}."
+      ))
+    }
+  }
+
   ## - simulation: ensure it is a simulation
   if(tool == "simulation") {
     if(verbose)
@@ -98,13 +111,20 @@ call_pharmpy_tool <- function(
   }
 
   ## make the call to the Pharmpy tool
-  withr::with_dir(run_folder, {
-    res <- do.call(
-      paste0("run_", tool),
-      envir = asNamespace("pharmr"),
-      args = args
-    )
+  tryCatch({
+    withr::with_dir(run_folder, {
+      res <- do.call(
+        paste0("run_", tool),
+        envir = asNamespace("pharmr"),
+        args = args
+      )
+    })
+  }, error = function(e) {
+    cli::cli_abort("Pharmpy error running {tool}: {e}")
   })
+  if(is.null(res)) {
+    cli::cli_abort("Pharmpy error running {tool}.")
+  }
 
   ## Post-processing, tool-specific
   ## Save final model to file, and attach to output object
