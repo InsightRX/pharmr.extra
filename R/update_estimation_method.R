@@ -10,9 +10,13 @@ update_estimation_method <- function(
     estimation_method,
     verbose = TRUE
 ) {
+  if(length(estimation_method) < 1) {
+    cli::cli_abort("At least one estimation method must be provided.")
+  }
   estimation_method <- toupper(estimation_method)
   allowed <- c("FO", "FOCE", "ITS", "IMPMAP", "IMP", "SAEM") # FIXME: "LAPLACE" not allowed
-  if(any(! estimation_method %in% allowed)) {
+  if (any(is.na(estimation_method)) ||
+      any(! estimation_method %in% allowed, na.rm = TRUE)) {
     cli::cli_abort("The requested estimation method was not recognized. Available estimation methods are {allowed} or their lower-case equivalents.")
   }
   n_existing <- nrow(model$execution_steps$to_dataframe())
