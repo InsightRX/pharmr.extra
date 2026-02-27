@@ -501,17 +501,21 @@ test_that("LTBS model is handled, and LNDV is set to DV", {
   )
 })
 
-test_that("can create mu-referenced model", {
-  mod <- create_model(mu_reference = TRUE)
-  expect_s3_class(mod, "pharmpy.model.external.nonmem.model.Model")
-})
-
-test_that("SAEM automatically applies mu-referencing", {
+test_that("mu_referencing argument works correctly", {
+  # auto (default): applied for SAEM, not for FOCE
   mod_saem <- create_model(estimation_method = "saem")
   expect_true(grepl("MU_1", mod_saem$code))
 
   mod_foce <- create_model(estimation_method = "foce")
   expect_false(grepl("MU_1", mod_foce$code))
+
+  # TRUE: always applied regardless of estimation method
+  mod_true <- create_model(estimation_method = "foce", mu_referencing = TRUE)
+  expect_true(grepl("MU_1", mod_true$code))
+
+  # FALSE: never applied, even for SAEM
+  mod_false <- create_model(estimation_method = "saem", mu_referencing = FALSE)
+  expect_false(grepl("MU_1", mod_false$code))
 })
 
 test_that("IIV argument handles all input formats correctly", {
