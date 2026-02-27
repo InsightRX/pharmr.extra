@@ -277,7 +277,7 @@ create_model <- function(
   }
 
   ## MU referencing? Applied automatically when SAEM is used.
-  if(mu_reference || estimation_method == "saem") {
+  if((mu_reference || estimation_method == "saem") && tool == "nonmem") {
     mod <- pharmr::mu_reference_model(mod)
   }
 
