@@ -46,9 +46,13 @@ call_pharmpy_tool <- function(
     }
   }
 
-  ## Check results, if needed
+  ## Check results, if needed rerun model
+  if(tool == "ruvsearch") {
+    model <- model |>
+      add_default_output_tables() # ensure residuals are outputted
+  }
   req_results <- c("modelsearch", "covsearch", "iivsearch", "ruvsearch", "amd")
-  if(is.null(results) && tool %in% req_results) {
+  if((is.null(results) && tool %in% req_results) || tool == "ruvsearch") {
     if(verbose)
       cli::cli_alert_info("No `results` provided, running the model first to generate `results` object.")
     results <- run_nlme(
@@ -57,7 +61,7 @@ call_pharmpy_tool <- function(
       force = force
     )
   }
-  
+
   ## For tools that require results, prefer the model stored in the results
   ## object. That model was re-read from the run folder by run_nlme() and
   ## therefore carries the correct file path needed for Pharmpy to resolve
@@ -88,23 +92,6 @@ call_pharmpy_tool <- function(
     cli::cli_alert_info(
       paste0("Starting {tool} in ", run_folder)
     )
-  }
-
-  ## Tool-specific modifications / checks
-  ##
-  ## - ruvsearch: requires residuals (CWRES). Check early to give a clear
-  ##   message rather than a cryptic Pharmpy AssertionError. Residuals can
-  ##   be missing when CWRES is not in the output tables, when SAEM is used,
-  ##   or when results come from a model search tool.
-  if(tool == "ruvsearch" && !is.null(results)) {
-    residuals <- tryCatch(results$residuals, error = function(e) NULL)
-    if(is.null(residuals)) {
-      cli::cli_abort(c(
-        "ruvsearch requires residuals (CWRES) but none were found in the results.",
-        "i" = "This can happen when CWRES is not present in the model output tables, when SAEM is used (which does not compute residuals by default), or when passing results from a model search tool.",
-        "i" = "Re-run the final model with {.fn run_nlme} to ensure residuals are available before calling ruvsearch."
-      ))
-    }
   }
 
   ## - simulation: ensure it is a simulation
