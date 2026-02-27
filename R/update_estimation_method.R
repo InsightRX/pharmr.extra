@@ -41,11 +41,12 @@ update_estimation_method <- function(
         method = estimation_method[i],
         residuals = character(0),
         predictions = character(0),
-        derivatives = character(0)
-        # In pharmr>=2.0.0 the R wrapper defaults residuals/predictions/derivatives to c() which
-        # is NULL in R and becomes None in Python. None is not iterable, so pharmpy's
-        # update_estimation() fails when it does set.update(estep.predictions) etc.
-        # Passing character(0) converts to an empty Python list [], which is safe.
+        derivatives = character(0),
+        tool_options = list()
+        # In pharmr>=2.0.0 the R wrapper defaults residuals/predictions/derivatives to c()
+        # (NULL in R → None in Python) and tool_options to {} (also NULL → None).
+        # None is not iterable, causing TypeError in pharmpy's update_estimation() and
+        # frozenmapping() respectively. Passing explicit empty values avoids this.
       )
     }
   }
