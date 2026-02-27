@@ -8,6 +8,8 @@
 update_estimation_method <- function(
     model,
     estimation_method,
+    per_step_options = NULL,
+    tool = "nonmem",
     verbose = TRUE
 ) {
   if(length(estimation_method) < 1) {
@@ -29,26 +31,29 @@ update_estimation_method <- function(
   ## preserve any step-level options (e.g. tool_options), and
   ## add_estimation_step for any additional steps beyond what already exists.
   for(i in seq_along(estimation_method)) {
+    ## Compute tool_options for this step (only when per_step_options is provided)
+    if(!is.null(per_step_options) && i <= length(per_step_options)) {
+      step_opts <- per_step_options[[i]]
+      tool_options_i <- get_estimation_options(tool, tolower(estimation_method[i]), step_opts)
+    } else {
+      tool_options_i <- list()
+    }
     if(i <= n_existing) {
       model <- pharmr::set_estimation_step(
         model,
         method = estimation_method[i],
-        idx = i - 1L  # 0-indexed
+        idx = i - 1L,  # 0-indexed
+        tool_options = tool_options_i
       )
     } else {
-      niter = NULL
-      if(estimation_method[i] == "IMP") { ## TODO: Temporary fix
-        niter <- 10
-      }
       model <- pharmr::add_estimation_step(
         model,
         method = estimation_method[i],
-        niter = niter,
         interaction = TRUE,
         residuals = character(0),
         predictions = character(0),
         derivatives = character(0),
-        tool_options = list()
+        tool_options = tool_options_i
         # In pharmr>=2.0.0 the R wrapper defaults residuals/predictions/derivatives to c()
         # (NULL in R → None in Python) and tool_options to {} (also NULL → None).
         # None is not iterable, causing TypeError in pharmpy's update_estimation() and
