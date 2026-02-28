@@ -44,10 +44,13 @@
 #' @param estimation_method character vector of one or more estimation methods.
 #' A single method (e.g. `"foce"`) sets one estimation step; a vector (e.g.
 #' `c("saem", "imp")`) creates sequential estimation steps. Available methods:
-#' `"fo"`, `"foce"`, `"its"`, `"impmap"`, `"imp"`, `"saem"`. Tool options
-#' (see `estimation_options`) apply to the first step only.
-#' @param estimation_options options for estimation method, specified as list,
-#'  e.g. `NITER` or `ISAMPLE`.
+#' `"fo"`, `"foce"`, `"its"`, `"impmap"`, `"imp"`, `"saem"`.
+#' @param estimation_options options for estimation method(s). For a single
+#' estimation method, specify a flat list, e.g. `list(NITER = 50)`. For
+#' multiple estimation methods, specify a named list of lists where names match
+#' the method names, e.g. `list(SAEM = list(NBURN = 500), IMP = list(NITER = 10))`.
+#' Methods not listed will use their default options. If a flat list is provided
+#' with multiple estimation methods, it applies to the first step only.
 #' @param uncertainty_method Compute uncertainty for parameter estimations.
 #' One of `sandwich` (default), `smat`, `fmat`, `efim`.
 #' @param blq_method method for handling data below the limit of quantification.
@@ -263,9 +266,10 @@ create_model <- function(
   steps <- mod$execution_steps$to_dataframe()
   n_steps <- nrow(steps)
   first_method <- tolower(estimation_method[1])
+  per_step_options <- parse_estimation_options(estimation_method, estimation_options)
   if(tool == "nonmem") {
     if(verbose) cli::cli_alert_info("Setting estimation options")
-    tool_options <- get_estimation_options(tool, first_method, estimation_options)
+    tool_options <- get_estimation_options(tool, first_method, per_step_options[[1]])
   } else {
     tool_options <- list()
     cli::cli_alert_warning(paste0("Skipping estimation options for ", tool, ", since not supported by Pharmpy. Please set manually"))
@@ -280,7 +284,12 @@ create_model <- function(
     parameter_uncertainty_method = uncertainty_method
   )
   if(length(estimation_method) > 1) {
-    mod <- update_estimation_method(mod, estimation_method, verbose = FALSE)
+    mod <- update_estimation_method(
+      mod, estimation_method,
+      per_step_options = per_step_options,
+      tool = tool,
+      verbose = FALSE
+    )
   }
 
   ## MU referencing?
@@ -395,6 +404,7 @@ create_model <- function(
 #' @param estimation_options TODO
 get_estimation_options <- function(tool, estimation_method, estimation_options) {
   tool_options <- estimation_options_defaults[[tool]][[estimation_method]]
+  if(is.null(tool_options)) tool_options <- list()
   if(!is.null(estimation_options)) {
     tool_options[names(estimation_options)] <- estimation_options
   }
@@ -404,6 +414,61 @@ get_estimation_options <- function(tool, estimation_method, estimation_options) 
   tool_options
 }
 
+
+#' Parse estimation_options into a per-step list.
+#'
+#' @param estimation_method character vector of estimation method(s)
+#' @param estimation_options flat list or named list of lists
+#'
+#' @returns a list of length `length(estimation_method)`, where each element
+#' is the options list for that step (possibly empty).
+parse_estimation_options <- function(estimation_method, estimation_options) {
+  n_methods <- length(estimation_method)
+
+  # Detect nested (multi-step) format: named list where all values are lists
+  is_nested <- is.list(estimation_options) &&
+    length(estimation_options) > 0 &&
+    all(sapply(estimation_options, is.list))
+
+  if(is_nested) {
+    if(n_methods == 1) {
+      cli::cli_abort(
+        paste0(
+          "`estimation_options` was specified as a list of lists, but only one ",
+          "`estimation_method` was provided. Use a flat list instead, e.g. `list(NITER = 50)`."
+        )
+      )
+    }
+    methods_upper <- toupper(estimation_method)
+    opts_upper <- toupper(names(estimation_options))
+    unknown <- setdiff(opts_upper, methods_upper)
+    if(length(unknown) > 0) {
+      cli::cli_abort(
+        paste0(
+          "Unknown method name(s) in `estimation_options`: ",
+          paste(unknown, collapse = ", "),
+          ". Must be one of: ",
+          paste(methods_upper, collapse = ", "), "."
+        )
+      )
+    }
+    lapply(seq_along(estimation_method), function(i) {
+      idx <- which(opts_upper == methods_upper[i])
+      if(length(idx) > 0) estimation_options[[idx[1]]] else list()
+    })
+  } else {
+    if(n_methods > 1 && length(estimation_options) > 0) {
+      warning(
+        "`estimation_options` is a flat list but multiple `estimation_method`s were provided. ",
+        "Options will apply to the first step only. ",
+        "To specify options per step, use a named list of lists, ",
+        "e.g. `list(SAEM = list(NBURN = 500), IMP = list(NITER = 10))`.",
+        call. = FALSE
+      )
+    }
+    c(list(estimation_options), rep(list(list()), n_methods - 1))
+  }
+}
 
 #' List of default options for estimation method.
 #'
