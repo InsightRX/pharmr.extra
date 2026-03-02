@@ -113,6 +113,19 @@ call_pharmpy_tool <- function(
     args$results <- results
   }
 
+  ## temporary rename of resamples argument
+  ## TODO: remove after move to Pharmpy 2.0
+  if(tool == "bootstrap") { 
+    v_pharmpy <- stringr::str_split(as.character(packageVersion("pharmr")), "\\.")[[1]] |> 
+      as.numeric()
+    if(v_pharmpy[1] < 2) {
+      if(!is.null(args$samples)) {
+        args$resamples <- args$samples
+        args$samples <- NULL
+      }
+    }
+  }
+  
   ## make the call to the Pharmpy tool
   tryCatch({
     withr::with_dir(run_folder, {
