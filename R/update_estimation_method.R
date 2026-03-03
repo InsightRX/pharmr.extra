@@ -40,15 +40,18 @@ update_estimation_method <- function(
       tool_options_i <- list()
     }
     if(i <= n_existing) {
-      cov_record <- get_covariance_record(model)
+      if(tool == "nonmem")
+        cov_record <- get_covariance_record(model)
       model <- pharmr::set_estimation_step(
         model,
         method = estimation_method[i],
         idx = i - 1L,  # 0-indexed
         tool_options = tool_options_i
       )
-      if(!is.null(cov_record)) { # the previous command may reset the COV record
-        model <- update_covariance_record(model, cov_record)  
+      if(tool == "nonmem") {
+        if(!is.null(cov_record)) { # the previous command may reset the COV record
+          model <- update_covariance_record(model, cov_record)  
+        }
       }
     } else {
       model <- pharmr::add_estimation_step(

@@ -299,8 +299,10 @@ create_model <- function(
   }
   
   ## Modify model to use SIR in COV step?
-  mod <- mod |> 
-    add_sir(options = sir_options)
+  if(tool == "nonmem") {
+    mod <- mod |>
+      add_sir(options = sir_options)
+  }
 
   ## MU referencing?
   apply_mu <- (isTRUE(mu_reference) ||
