@@ -57,11 +57,11 @@ test_that("add_sir() errors when required option keys are missing", {
   mod <- make_model_with_cov()
   expect_error(
     add_sir(mod, options = list(niter = 1)),
-    "requires T/F or a list"
+    "requires a list"
   )
   expect_error(
     add_sir(mod, options = list(samples = 1000)),
-    "requires T/F or a list"
+    "requires a list"
   )
 })
 
@@ -96,3 +96,4 @@ test_that("create_model() uses custom SIR option values", {
   expect_true(grepl("SIRSAMPLE=2000", mod$code))
   expect_true(grepl("SIRNITER=3", mod$code))
 })
+
