@@ -16,12 +16,12 @@ add_sir <- function(
   if(! inherits(options, "list")) {
     cli::cli_abort("`options` should be a `list`.")
   } else {
-    if(! has_cov) {
-      cli::cli_abort("Model need a $COVARIANCE step to use SIR.")
-    }
     if(isFALSE(options$niter > 0)) {
       cli::cli_alert_info("Not running SIR (`niter` <= 0).")
       return(model)
+    }
+    if(! has_cov) {
+      cli::cli_abort("Model need a $COVARIANCE step to use SIR.")
     }
     if(! all(c("samples", "niter") %in% c(names(options)))) {
       cli::cli_abort("`add_sir(options=...)` argument requires T/F or a list with `samples` and `iter` elements.")
