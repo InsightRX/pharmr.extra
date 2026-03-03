@@ -38,7 +38,7 @@ get_covariance_record <- function(model) {
   if(!inherits(model, "pharmpy.model.external.nonmem.model.Model")) {
     cli::cli_abort("`model` is not a Pharmpy NONMEM model object.")
   }
-  obj <- nm_read_model(code = model$code, "COV")
+  obj <- nm_read_model(code = model$code)
   suppressWarnings(
     cov_record <- obj$COV  
   )
