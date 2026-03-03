@@ -24,7 +24,7 @@ add_sir <- function(
       cli::cli_abort("Model need a $COVARIANCE step to use SIR.")
     }
     if(! all(c("samples", "niter") %in% c(names(options)))) {
-      cli::cli_abort("`add_sir(options=...)` argument requires T/F or a list with `samples` and `iter` elements.")
+      cli::cli_abort("`add_sir(options=...)` argument requires a list with `samples` and `niter` elements.")
     }
     tool <- get_tool_from_model(model)
     if(tool == "nonmem") {
