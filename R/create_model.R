@@ -52,7 +52,10 @@
 #' Methods not listed will use their default options. If a flat list is provided
 #' with multiple estimation methods, it applies to the first step only.
 #' @param uncertainty_method Compute uncertainty for parameter estimations.
-#' One of `sandwich` (default), `smat`, `fmat`, `efim`.
+#' One of `sandwich` (default), `smat`, `fmat`, `efim`, or `none`.
+#' @param sir_options options for running SIR in covariance step. A list with options
+#' `niter` (default = 1) and `samples` (default = 1000). If `niter <= 0` 
+#' (default), SIR will not be run.
 #' @param blq_method method for handling data below the limit of quantification.
 #' Available options are `m1`, `m3`, `m4`, `m5`, `m6`, `m7`, as described
 #' by Beal et al. Default is no handling of BLQ data (`NULL`).
@@ -117,6 +120,7 @@ create_model <- function(
     estimation_method = "foce",
     estimation_options = list(),
     uncertainty_method = c("sandwich", "smat", "rmat", "efim", "none"),
+    sir_options = list(niter = -1),
     blq_method = NULL,
     lloq = NULL,
     tool = c("nonmem", "nlmixr", "nlmixr2"),
@@ -285,12 +289,18 @@ create_model <- function(
   )
   if(length(estimation_method) > 1) {
     mod <- update_estimation_method(
-      mod, estimation_method,
+      model = mod, 
+      estimation_method = estimation_method,
+      uncertainty_method = uncertainty_method,
       per_step_options = per_step_options,
       tool = tool,
       verbose = FALSE
     )
   }
+  
+  ## Modify model to use SIR in COV step?
+  mod <- mod |> 
+    add_sir(options = sir_options)
 
   ## MU referencing?
   apply_mu <- (isTRUE(mu_reference) ||

@@ -24,6 +24,7 @@ create_model(
   estimation_method = "foce",
   estimation_options = list(),
   uncertainty_method = c("sandwich", "smat", "rmat", "efim", "none"),
+  sir_options = list(niter = -1),
   blq_method = NULL,
   lloq = NULL,
   tool = c("nonmem", "nlmixr", "nlmixr2"),
@@ -94,14 +95,21 @@ will add \code{S1 = V/1000} (for a 1-compartment model) to NONMEM code.}
 \item{estimation_method}{character vector of one or more estimation methods.
 A single method (e.g. \code{"foce"}) sets one estimation step; a vector (e.g.
 \code{c("saem", "imp")}) creates sequential estimation steps. Available methods:
-\code{"fo"}, \code{"foce"}, \code{"its"}, \code{"impmap"}, \code{"imp"}, \code{"saem"}. Tool options
-(see \code{estimation_options}) apply to the first step only.}
+\code{"fo"}, \code{"foce"}, \code{"its"}, \code{"impmap"}, \code{"imp"}, \code{"saem"}.}
 
-\item{estimation_options}{options for estimation method, specified as list,
-e.g. \code{NITER} or \code{ISAMPLE}.}
+\item{estimation_options}{options for estimation method(s). For a single
+estimation method, specify a flat list, e.g. \code{list(NITER = 50)}. For
+multiple estimation methods, specify a named list of lists where names match
+the method names, e.g. \code{list(SAEM = list(NBURN = 500), IMP = list(NITER = 10))}.
+Methods not listed will use their default options. If a flat list is provided
+with multiple estimation methods, it applies to the first step only.}
 
 \item{uncertainty_method}{Compute uncertainty for parameter estimations.
-One of \code{sandwich} (default), \code{smat}, \code{fmat}, \code{efim}.}
+One of \code{sandwich} (default), \code{smat}, \code{fmat}, \code{efim}, or \code{none}.}
+
+\item{sir_options}{options for running SIR in covariance step. A list with options
+\code{niter} (default = 1) and \code{samples} (default = 1000). If \code{niter <= 0}
+(default), SIR will not be run.}
 
 \item{blq_method}{method for handling data below the limit of quantification.
 Available options are \code{m1}, \code{m3}, \code{m4}, \code{m5}, \code{m6}, \code{m7}, as described
