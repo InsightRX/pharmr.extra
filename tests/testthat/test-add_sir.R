@@ -1,17 +1,3 @@
-## Helpers ------------------------------------------------------------------
-
-make_model_with_cov <- function() {
-  pharmr::read_model_from_string(
-    "$PROBLEM Test\n$INPUT ID TIME DV AMT EVID MDV\n$DATA data.csv IGNORE=@\n$SUBROUTINES ADVAN1 TRANS2\n$PK\nCL=THETA(1)\nV=THETA(2)\nS1=V\n$ERROR\nY=F+EPS(1)\n$THETA (0,10) ; POP_CL\n$THETA (0,50) ; POP_V\n$SIGMA 0.1\n$EST METHOD=1\n$COV UNCOND\n"
-  )
-}
-
-make_model_without_cov <- function() {
-  pharmr::read_model_from_string(
-    "$PROBLEM Test\n$INPUT ID TIME DV AMT EVID MDV\n$DATA data.csv IGNORE=@\n$SUBROUTINES ADVAN1 TRANS2\n$PK\nCL=THETA(1)\nV=THETA(2)\nS1=V\n$ERROR\nY=F+EPS(1)\n$THETA (0,10) ; POP_CL\n$THETA (0,50) ; POP_V\n$SIGMA 0.1\n$EST METHOD=1\n"
-  )
-}
-
 ## add_sir() ----------------------------------------------------------------
 
 test_that("add_sir() adds SIRSAMPLE and SIRNITER to $COV record", {
