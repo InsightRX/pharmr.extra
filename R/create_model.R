@@ -54,8 +54,8 @@
 #' @param uncertainty_method Compute uncertainty for parameter estimations.
 #' One of `sandwich` (default), `smat`, `fmat`, `efim`, or `none`.
 #' @param sir_options options for running SIR in covariance step.
-#' A list with options `niter` and `samples`. If `sir_options` is NULL (default)
-#' or `sir_options$niter <= 0`, SIR will not be run.
+#' A list with options `niter` and `samples`. If `niter <= 0` 
+#' (default), SIR will not be run.
 #' @param blq_method method for handling data below the limit of quantification.
 #' Available options are `m1`, `m3`, `m4`, `m5`, `m6`, `m7`, as described
 #' by Beal et al. Default is no handling of BLQ data (`NULL`).
@@ -120,7 +120,7 @@ create_model <- function(
     estimation_method = "foce",
     estimation_options = list(),
     uncertainty_method = c("sandwich", "smat", "rmat", "efim", "none"),
-    sir_options = NULL,
+    sir_options = list(niter = -1),
     blq_method = NULL,
     lloq = NULL,
     tool = c("nonmem", "nlmixr", "nlmixr2"),
