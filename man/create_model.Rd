@@ -24,7 +24,7 @@ create_model(
   estimation_method = "foce",
   estimation_options = list(),
   uncertainty_method = c("sandwich", "smat", "rmat", "efim", "none"),
-  sir_options = list(niter = -1),
+  sir_options = NULL,
   blq_method = NULL,
   lloq = NULL,
   tool = c("nonmem", "nlmixr", "nlmixr2"),
@@ -107,9 +107,9 @@ with multiple estimation methods, it applies to the first step only.}
 \item{uncertainty_method}{Compute uncertainty for parameter estimations.
 One of \code{sandwich} (default), \code{smat}, \code{fmat}, \code{efim}, or \code{none}.}
 
-\item{sir_options}{options for running SIR in covariance step. A list with options
-\code{niter} (default = 1) and \code{samples} (default = 1000). If \code{niter <= 0}
-(default), SIR will not be run.}
+\item{sir_options}{options for running SIR in covariance step.
+A list with options \code{niter} and \code{samples}. If \code{sir_options} is NULL (default)
+or \code{sir_options$niter <= 0}, SIR will not be run.}
 
 \item{blq_method}{method for handling data below the limit of quantification.
 Available options are \code{m1}, \code{m3}, \code{m4}, \code{m5}, \code{m6}, \code{m7}, as described
