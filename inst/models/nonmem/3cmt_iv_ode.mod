@@ -1,0 +1,64 @@
+$SIZES PD=100
+
+$PROBLEM Base linear model with iv input
+
+$INPUT ID TIME DV MDV EVID SS II AMT
+
+$DATA nm_data.csv IGNORE=@
+  
+$SUBROUTINES ADVAN6 TOL=9
+
+$MODEL 
+COMP=(CENTRAL DEFOBS DEFDOSE)
+COMP=(PERIPH1)
+COMP=(PERIPH2)
+NCOMP=3
+
+$ABBR REPLACE ETA_CL=ETA(1)
+$ABBR REPLACE ETA_V1=ETA(2)
+$ABBR REPLACE ETA_Q=ETA(3)
+$ABBR REPLACE ETA_V2=ETA(4)
+
+$PK
+TVCL = THETA(1)
+TVV  = THETA(2)
+QP1 = THETA(3)
+VP1 = THETA(4)
+QP2 = THETA(5)
+VP2 = THETA(6)
+
+CL = TVCL*EXP(ETA_CL)
+V1 = TVV*EXP(ETA_V1)
+Q2 = QP1*EXP(ETA_Q)
+V2 = VP1*EXP(ETA_V2)
+Q3 = QP1*EXP(ETA_Q)
+V3 = VP1*EXP(ETA_V2)
+
+S1 = V1
+
+$DES
+DADT(1) = - (CL/V1)*A(1) - (Q2/V)*A(1) + (Q2/V2)*A(2) - (Q3/V)*A(1) + (Q3/V3)*A(2)
+DADT(2) =                  (Q2/V)*A(1) - (Q2/V2)*A(2)
+DADT(3) =                                               (Q3/V)*A(1) - (Q3/V3)*A(3)
+
+$ERROR
+W = 1
+IPRED = F
+Y = IPRED + W * EPS(1)
+
+$THETA  (0, 15)  ; POP_CL
+$THETA  (0, 5)   ; POP_V1
+$THETA  (0, 6)   ; POP_Q2
+$THETA  (0, 10)  ; POP_V2
+$THETA  (0, 20)  ; POP_Q3
+$THETA  (0, 30)  ; POP_V3
+
+$OMEGA  0.3  ; IIV_CL
+$OMEGA  0.3  ; IIV_V1
+$OMEGA  0.3  ; IIV_Q
+$OMEGA  0.3  ; IIV_V2
+
+$SIGMA  0.5 ; RUV_ADD
+
+$EST METHOD=1
+$COV UNCOND

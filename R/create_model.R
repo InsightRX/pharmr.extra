@@ -40,7 +40,7 @@
 #' Values in list need to match one of the effects allowed by pharmpy.
 #' @param force_ode force creation of a model with ODEs, even though the model
 #' is linear. Can be `FALSE` (default), `TRUE`, or ADVAN number (for NONMEM 
-#' models). In the latter case, options are either `6` or `9`.
+#' models). In the latter case, options are either `6`, `9`, or `13`.
 #' @param scale_observations scale observations by factor, e.g. due to unit
 #' differences between dose and concentration. E.g. `scale_observations = 1000`
 #' will add `S1 = V/1000` (for a 1-compartment model) to NONMEM code.
@@ -166,8 +166,9 @@ create_model <- function(
   ## Read base model
   if(verbose) cli::cli_alert_info("Reading base model")
   mod <- pharmr::read_model(
-    path = get_template_modelfile(route, force_ode)
+    path = get_template_modelfile(route, n_cmt, force_ode)
   )
+  ## TODO: update ADVAN, if needed
 
   ## Absorption
   if(verbose) cli::cli_alert_info("Parsing absorption model")
@@ -600,25 +601,32 @@ get_route_from_data <- function(data, default = "iv") {
 #' 
 #' @returns modelfile name (character)
 #' 
-get_template_modelfile <- function(route, force_ode) {
+get_template_modelfile <- function(route, n_cmt, force_ode) {
   advan_flag <- NULL
   if(is.logical(force_ode)) {
     if(force_ode) force_ode <- 6
   }
   if(is.numeric(force_ode) || is.integer(force_ode) || is.character(force_ode)) {
     force_ode <- as.integer(force_ode)
-    if(force_ode %in% c(6, 9)) {
-      advan_flag <- paste0("_advan", force_ode)
+    if(force_ode %in% c(6, 9, 13)) {
+      advan_flag <- "_ode"
     } else {
-      cli::abort("`force_ode` can only be TRUE, FALSE, 6, or 9.")
+      cli::cli_abort("`force_ode` can only be TRUE, FALSE, 6, 9, or 13.")
     }
   }
-  system.file(
-    paste0(
-      "models/nonmem/base_", 
-      ifelse(route == "iv", "iv", "oral"),
-      advan_flag,
-      ".mod"),
+  base <- "base"
+  if(force_ode) {
+    if(n_cmt >= 2) base <- paste0(n_cmt, "cmt")
+  }
+  template_path <- paste0(
+    "models/nonmem/", base, "_", 
+    ifelse(route == "iv", "iv", "oral"),
+    advan_flag,
+    ".mod")
+  template <- system.file(
+    template_path,
     package = "pharmr.extra"
   )
+  if(template == "") cli::cli_abort("Can't find template modelfile at {template_path}.")
+  template
 }
