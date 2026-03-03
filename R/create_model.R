@@ -38,6 +38,9 @@
 #' @param covariates list of parameter-covariate effects, e.g.
 #' `list(CL = list(WT = "pow", CRCL = "lin"), V = list(WT = "pow")`
 #' Values in list need to match one of the effects allowed by pharmpy.
+#' @param force_ode force creation of a model with ODEs, even though the model
+#' is linear. Can be `FALSE` (default), `TRUE`, or ADVAN number (for NONMEM 
+#' models). In the latter case, options are either `6` or `9`.
 #' @param scale_observations scale observations by factor, e.g. due to unit
 #' differences between dose and concentration. E.g. `scale_observations = 1000`
 #' will add `S1 = V/1000` (for a 1-compartment model) to NONMEM code.
@@ -113,6 +116,7 @@ create_model <- function(
     tmdd_dv_types = list(drug = 1, target = 2),
     metabolite = FALSE,
     ruv = c("additive", "proportional", "combined", "ltbs"),
+    force_ode = FALSE,
     covariates = NULL,
     scale_observations = NULL,
     data = NULL,
@@ -162,10 +166,7 @@ create_model <- function(
   ## Read base model
   if(verbose) cli::cli_alert_info("Reading base model")
   mod <- pharmr::read_model(
-    path = system.file(
-      paste0("models/nonmem/base_", ifelse(route == "iv", "iv", "oral"), ".mod"),
-      package = "pharmr.extra"
-    )
+    path = get_template_modelfile(route, force_ode)
   )
 
   ## Absorption
@@ -190,10 +191,13 @@ create_model <- function(
   }
 
   ## Distribution: add peripheral compartments
-  if(n_cmt > 1) {
-    if(verbose) cli::cli_alert_info("Adding peripheral compartments")
-    for(i in 1:(n_cmt-1)) {
-      mod <- pharmr::add_peripheral_compartment(mod)
+  if(isFALSE(force_ode)) { ## Pharmpy auto-converts ODE models back to linear in add_peripheral_compartments
+    ## TODO: update reading of template models for ODE systems
+    if(n_cmt > 1) {
+      if(verbose) cli::cli_alert_info("Adding peripheral compartments")
+      for(i in 1:(n_cmt-1)) {
+        mod <- pharmr::add_peripheral_compartment(mod)
+      }
     }
   }
 
@@ -587,4 +591,34 @@ get_route_from_data <- function(data, default = "iv") {
     route <- "iv"
   }
   route
+}
+
+#' Helper function to get the name of the template modelfile to load,
+#' based on route and ODE / analytical
+#' 
+#' @inheritParams create_model
+#' 
+#' @returns modelfile name (character)
+#' 
+get_template_modelfile <- function(route, force_ode) {
+  advan_flag <- NULL
+  if(is.logical(force_ode)) {
+    if(force_ode) force_ode <- 6
+  }
+  if(is.numeric(force_ode) || is.integer(force_ode) || is.character(force_ode)) {
+    force_ode <- as.integer(force_ode)
+    if(force_ode %in% c(6, 9)) {
+      advan_flag <- paste0("_advan", force_ode)
+    } else {
+      cli::abort("`force_ode` can only be TRUE, FALSE, 6, or 9.")
+    }
+  }
+  system.file(
+    paste0(
+      "models/nonmem/base_", 
+      ifelse(route == "iv", "iv", "oral"),
+      advan_flag,
+      ".mod"),
+    package = "pharmr.extra"
+  )
 }

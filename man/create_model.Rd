@@ -17,6 +17,7 @@ create_model(
   tmdd_dv_types = list(drug = 1, target = 2),
   metabolite = FALSE,
   ruv = c("additive", "proportional", "combined", "ltbs"),
+  force_ode = FALSE,
   covariates = NULL,
   scale_observations = NULL,
   data = NULL,
@@ -79,6 +80,10 @@ whether the metabolite is formed before absorption (\code{TRUE}), or after
 systemic absorption (\code{FALSE}).}
 
 \item{ruv}{one of \code{proportional}, \code{additive}, or \code{combined}.}
+
+\item{force_ode}{force creation of a model with ODEs, even though the model
+is linear. Can be \code{FALSE} (default), \code{TRUE}, or ADVAN number (for NONMEM
+models). In the latter case, options are either \code{6} or \code{9}.}
 
 \item{covariates}{list of parameter-covariate effects, e.g.
 \verb{list(CL = list(WT = "pow", CRCL = "lin"), V = list(WT = "pow")}
