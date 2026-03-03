@@ -22,6 +22,7 @@ run_nlme(
   save_fit = TRUE,
   save_summary = TRUE,
   estimation_method = NULL,
+  sir_options = NULL,
   auto_stack_encounters = TRUE,
   clean = TRUE,
   as_job = FALSE,
@@ -100,6 +101,12 @@ run_nlme(
   Optional. Character vector of estimation method(s) to apply to model.
   Will remove all existing estimation steps in the model and update with
   methods specified in argument.
+
+- sir_options:
+
+  options for running SIR in covariance step. A list with options
+  `niter` (number of SIR iterations) and `samples` (number of samples).
+  Default `NULL` leaves the model unchanged.
 
 - auto_stack_encounters:
 

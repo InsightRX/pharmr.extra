@@ -26,6 +26,7 @@ create_model(
   estimation_method = "foce",
   estimation_options = list(),
   uncertainty_method = c("sandwich", "smat", "rmat", "efim", "none"),
+  sir_options = list(niter = -1),
   blq_method = NULL,
   lloq = NULL,
   tool = c("nonmem", "nlmixr", "nlmixr2"),
@@ -131,17 +132,26 @@ create_model(
   (e.g. `"foce"`) sets one estimation step; a vector (e.g.
   `c("saem", "imp")`) creates sequential estimation steps. Available
   methods: `"fo"`, `"foce"`, `"its"`, `"impmap"`, `"imp"`, `"saem"`.
-  Tool options (see `estimation_options`) apply to the first step only.
 
 - estimation_options:
 
-  options for estimation method, specified as list, e.g. `NITER` or
-  `ISAMPLE`.
+  options for estimation method(s). For a single estimation method,
+  specify a flat list, e.g. `list(NITER = 50)`. For multiple estimation
+  methods, specify a named list of lists where names match the method
+  names, e.g. `list(SAEM = list(NBURN = 500), IMP = list(NITER = 10))`.
+  Methods not listed will use their default options. If a flat list is
+  provided with multiple estimation methods, it applies to the first
+  step only.
 
 - uncertainty_method:
 
   Compute uncertainty for parameter estimations. One of `sandwich`
-  (default), `smat`, `fmat`, `efim`.
+  (default), `smat`, `fmat`, `efim`, or `none`.
+
+- sir_options:
+
+  options for running SIR in covariance step. A list with options
+  `niter` and `samples`. If `niter <= 0` (default), SIR will not be run.
 
 - blq_method:
 

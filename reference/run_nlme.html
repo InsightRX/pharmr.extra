@@ -61,6 +61,7 @@ inspection of intermediate model fit.</p>
 <span>  save_fit <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  save_summary <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  estimation_method <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  sir_options <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auto_stack_encounters <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  clean <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  as_job <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -141,6 +142,12 @@ Default is <code>TRUE</code>. Will use current folder, and save as
 <dd><p>Optional. Character vector of estimation method(s)
 to apply to model. Will remove all existing estimation steps in the model
 and update with methods specified in argument.</p></dd>
+
+
+<dt id="arg-sir-options">sir_options<a class="anchor" aria-label="anchor" href="#arg-sir-options"></a></dt>
+<dd><p>options for running SIR in covariance step. A list with
+options <code>niter</code> (number of SIR iterations) and <code>samples</code> (number of
+samples). Default <code>NULL</code> leaves the model unchanged.</p></dd>
 
 
 <dt id="arg-auto-stack-encounters">auto_stack_encounters<a class="anchor" aria-label="anchor" href="#arg-auto-stack-encounters"></a></dt>

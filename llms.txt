@@ -49,6 +49,9 @@ MIT © InsightRX
 - [`add_metabolite_compartment()`](https://insightrx.github.io/pharmr.extra/reference/add_metabolite_compartment.md)
   : Add a metabolite compartment, if requested
 
+- [`add_sir()`](https://insightrx.github.io/pharmr.extra/reference/add_sir.md)
+  : Add SIR sampling in covariance step in Pharmpy model
+
 - [`add_table_to_model()`](https://insightrx.github.io/pharmr.extra/reference/add_table_to_model.md)
   : Add new \$TABLE record to output variables
 
@@ -210,6 +213,9 @@ MIT © InsightRX
 - [`get_cov_matrix()`](https://insightrx.github.io/pharmr.extra/reference/get_cov_matrix.md)
   : Create a covariance block matrix
 
+- [`get_covariance_record()`](https://insightrx.github.io/pharmr.extra/reference/get_covariance_record.md)
+  : Extract covariance record from a Pharmpy NONMEM model object
+
 - [`get_defined_pk_parameters()`](https://insightrx.github.io/pharmr.extra/reference/get_defined_pk_parameters.md)
   : Get all parameters that are defined (from a predefined vector of
   possible parameters)
@@ -298,6 +304,9 @@ MIT © InsightRX
 - [`get_tool_from_model()`](https://insightrx.github.io/pharmr.extra/reference/get_tool_from_model.md)
   : Get estimation/simulation engine from pharmpy model
 
+- [`has_covariance_record()`](https://insightrx.github.io/pharmr.extra/reference/has_covariance_record.md)
+  : Does the Pharmpy NONMEM model object have a \$COV record?
+
 - [`import_pharmpy_model()`](https://insightrx.github.io/pharmr.extra/reference/import_pharmpy_model.md)
   :
 
@@ -352,6 +361,9 @@ MIT © InsightRX
 
 - [`nm_update_dataset()`](https://insightrx.github.io/pharmr.extra/reference/nm_update_dataset.md)
   : Update \$DATA in NONMEM model with new dataset
+
+- [`parse_estimation_options()`](https://insightrx.github.io/pharmr.extra/reference/parse_estimation_options.md)
+  : Parse estimation_options into a per-step list.
 
 - [`parse_psn_args()`](https://insightrx.github.io/pharmr.extra/reference/parse_psn_args.md)
   : Parse tool options specified in YAML into PsN commandline args
@@ -418,6 +430,9 @@ MIT © InsightRX
 - [`stack_encounters()`](https://insightrx.github.io/pharmr.extra/reference/stack_encounters.md)
   : Stack encounters when data from multiple encounters is available for
   the same ID, and TIME is starting at 0 for each encounter.
+
+- [`update_covariance_record()`](https://insightrx.github.io/pharmr.extra/reference/update_covariance_record.md)
+  : Update the covariance record in a Pharmpy NONMEM model
 
 - [`update_estimation_method()`](https://insightrx.github.io/pharmr.extra/reference/update_estimation_method.md)
   : Wrapper around pharmr's functions to set/add estimation methods

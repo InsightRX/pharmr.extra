@@ -8,6 +8,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/add_covariates_to_model.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/add_default_output_tables.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/add_metabolite_compartment.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/add_sir.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/add_table_to_model.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/as_pharmpy_model.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/attach_fit_info.html</loc></url>
@@ -55,6 +56,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_compartment_scale.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_condition_number_for_fit.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_cov_matrix.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/get_covariance_record.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_defined_pk_parameters.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_estimation_options.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_final_results_from_search.html</loc></url>
@@ -78,6 +80,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_tables_from_folder.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_tables_in_model_code.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_tool_from_model.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/has_covariance_record.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/import_pharmpy_model.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/import_pharmpy_results.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/index.html</loc></url>
@@ -95,6 +98,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/nm_save_dataset.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/nm_save_model.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/nm_update_dataset.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/parse_estimation_options.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/parse_psn_args.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/pharmr.extra-package.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/prepare_run_folder.html</loc></url>
@@ -117,6 +121,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/set_iiv.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/set_residual_error.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/stack_encounters.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/update_covariance_record.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/update_estimation_method.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/update_parameters.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/update_pk_tables.html</loc></url>

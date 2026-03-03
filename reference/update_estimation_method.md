@@ -6,7 +6,14 @@ wrapper.
 ## Usage
 
 ``` r
-update_estimation_method(model, estimation_method, verbose = TRUE)
+update_estimation_method(
+  model,
+  estimation_method,
+  uncertainty_method = "none",
+  per_step_options = NULL,
+  tool = "nonmem",
+  verbose = TRUE
+)
 ```
 
 ## Arguments
