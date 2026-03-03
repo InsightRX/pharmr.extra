@@ -1,7 +1,7 @@
 #' Add SIR sampling in covariance step in Pharmpy model
 #' 
 #' @inheritParams run_nlme
-#' @params options SIR options, one of `iter`, `samples`
+#' @param options SIR options, one of `iter`, `samples`
 #' 
 #' @export
 #' 

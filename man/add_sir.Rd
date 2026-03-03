@@ -9,6 +9,8 @@ add_sir(model, options = list(niter = 1, samples = 1000))
 \arguments{
 \item{model}{pharmpy model object or NONMEM model code (character) or path
 to NONMEM model file.}
+
+\item{options}{SIR options, one of \code{iter}, \code{samples}}
 }
 \description{
 Add SIR sampling in covariance step in Pharmpy model
