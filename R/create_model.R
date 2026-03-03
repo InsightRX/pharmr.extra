@@ -168,7 +168,14 @@ create_model <- function(
   mod <- pharmr::read_model(
     path = get_template_modelfile(route, n_cmt, force_ode)
   )
-  ## TODO: update ADVAN, if needed
+  if(!is.logical(force_ode)) {
+    if(is.numeric(force_ode) || is.integer(force_ode) || is.character(force_ode)) {
+      advan <- as.integer(force_ode)
+      if(force_ode %in% c(9, 13)) { # default ADVAN for templates is 6, update if needed:
+        mod <- update_advan(mod, advan)
+      }
+    }
+  }
 
   ## Absorption
   if(verbose) cli::cli_alert_info("Parsing absorption model")

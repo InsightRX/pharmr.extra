@@ -1110,3 +1110,126 @@ test_that("create_model errors on invalid estimation method", {
     "estimation_method must be"
   )
 })
+
+## get_template_modelfile tests (no pharmpy required) ----
+
+test_that("get_template_modelfile returns analytical templates when force_ode = FALSE", {
+  path_iv   <- pharmr.extra:::get_template_modelfile("iv",   n_cmt = 1, force_ode = FALSE)
+  path_oral <- pharmr.extra:::get_template_modelfile("oral", n_cmt = 1, force_ode = FALSE)
+  expect_match(path_iv,   "base_iv\\.mod$")
+  expect_match(path_oral, "base_oral\\.mod$")
+  expect_false(grepl("_ode", path_iv))
+  expect_false(grepl("_ode", path_oral))
+})
+
+test_that("get_template_modelfile returns ODE template for 1-cmt when force_ode = TRUE", {
+  path_iv   <- pharmr.extra:::get_template_modelfile("iv",   n_cmt = 1, force_ode = TRUE)
+  path_oral <- pharmr.extra:::get_template_modelfile("oral", n_cmt = 1, force_ode = TRUE)
+  expect_match(path_iv,   "base_iv_ode\\.mod$")
+  expect_match(path_oral, "base_oral_ode\\.mod$")
+})
+
+test_that("get_template_modelfile returns multi-cmt ODE templates when force_ode = TRUE", {
+  path_2cmt_iv   <- pharmr.extra:::get_template_modelfile("iv",   n_cmt = 2, force_ode = TRUE)
+  path_2cmt_oral <- pharmr.extra:::get_template_modelfile("oral", n_cmt = 2, force_ode = TRUE)
+  path_3cmt_iv   <- pharmr.extra:::get_template_modelfile("iv",   n_cmt = 3, force_ode = TRUE)
+  path_3cmt_oral <- pharmr.extra:::get_template_modelfile("oral", n_cmt = 3, force_ode = TRUE)
+  expect_match(path_2cmt_iv,   "2cmt_iv_ode\\.mod$")
+  expect_match(path_2cmt_oral, "2cmt_oral_ode\\.mod$")
+  expect_match(path_3cmt_iv,   "3cmt_iv_ode\\.mod$")
+  expect_match(path_3cmt_oral, "3cmt_oral_ode\\.mod$")
+})
+
+test_that("get_template_modelfile returns ODE template for valid ADVAN numbers", {
+  for (advan in c(6, 9, 13)) {
+    path <- pharmr.extra:::get_template_modelfile("iv", n_cmt = 1, force_ode = advan)
+    expect_match(path, "_ode\\.mod$", info = paste("ADVAN", advan))
+    # file must actually exist
+    expect_true(file.exists(path), info = paste("ADVAN", advan))
+  }
+})
+
+test_that("get_template_modelfile returns character ADVAN numbers as valid input", {
+  path <- pharmr.extra:::get_template_modelfile("iv", n_cmt = 1, force_ode = "6")
+  expect_match(path, "_ode\\.mod$")
+})
+
+test_that("get_template_modelfile errors on invalid ADVAN numbers", {
+  expect_error(
+    pharmr.extra:::get_template_modelfile("iv", n_cmt = 1, force_ode = 5),
+    "force_ode.*can only be"
+  )
+  expect_error(
+    pharmr.extra:::get_template_modelfile("iv", n_cmt = 1, force_ode = 7),
+    "force_ode.*can only be"
+  )
+})
+
+test_that("get_template_modelfile returns existing files", {
+  combos <- expand.grid(
+    route     = c("iv", "oral"),
+    n_cmt     = c(1, 2, 3),
+    force_ode = c(FALSE, TRUE),
+    stringsAsFactors = FALSE
+  )
+  for (i in seq_len(nrow(combos))) {
+    path <- pharmr.extra:::get_template_modelfile(
+      combos$route[i], combos$n_cmt[i], combos$force_ode[i]
+    )
+    expect_true(
+      file.exists(path),
+      info = paste("route:", combos$route[i], "n_cmt:", combos$n_cmt[i],
+                   "force_ode:", combos$force_ode[i])
+    )
+  }
+})
+
+## create_model force_ode tests ----
+
+test_that("create_model default (force_ode = FALSE) creates analytical model", {
+  mod_iv   <- create_model(route = "iv",   n_cmt = 1, verbose = FALSE)
+  mod_oral <- create_model(route = "oral", n_cmt = 1, verbose = FALSE)
+  expect_false(grepl("ADVAN6", mod_iv$code))
+  expect_false(grepl("\\$DES",  mod_iv$code))
+  expect_false(grepl("ADVAN6", mod_oral$code))
+  expect_false(grepl("\\$DES",  mod_oral$code))
+})
+
+test_that("create_model force_ode = TRUE creates ODE-based model", {
+  mod_iv   <- create_model(route = "iv",   n_cmt = 1, force_ode = TRUE, verbose = FALSE)
+  mod_oral <- create_model(route = "oral", n_cmt = 1, force_ode = TRUE, verbose = FALSE)
+  expect_true(grepl("ADVAN6", mod_iv$code))
+  expect_true(grepl("\\$DES",  mod_iv$code))
+  expect_true(grepl("ADVAN6", mod_oral$code))
+  expect_true(grepl("\\$DES",  mod_oral$code))
+})
+
+test_that("create_model force_ode = 6 is equivalent to force_ode = TRUE", {
+  mod_true <- create_model(route = "iv", n_cmt = 1, force_ode = TRUE, verbose = FALSE)
+  mod_6    <- create_model(route = "iv", n_cmt = 1, force_ode = 6,    verbose = FALSE)
+  expect_true(grepl("ADVAN6", mod_6$code))
+  expect_true(grepl("\\$DES",  mod_6$code))
+  expect_equal(mod_true$code, mod_6$code)
+})
+
+test_that("create_model force_ode = TRUE with n_cmt = 2 uses 2-cmt ODE template", {
+  mod <- create_model(route = "iv", n_cmt = 2, force_ode = TRUE, verbose = FALSE)
+  expect_true(grepl("ADVAN6", mod$code))
+  expect_true(grepl("\\$DES",  mod$code))
+  # 2-cmt ODE has equations for two compartments
+  expect_true(grepl("DADT\\(2\\)", mod$code))
+})
+
+test_that("create_model force_ode = TRUE with n_cmt = 3 uses 3-cmt ODE template", {
+  mod <- create_model(route = "iv", n_cmt = 3, force_ode = TRUE, verbose = FALSE)
+  expect_true(grepl("ADVAN6", mod$code))
+  expect_true(grepl("\\$DES",  mod$code))
+  expect_true(grepl("DADT\\(3\\)", mod$code))
+})
+
+test_that("create_model force_ode with invalid ADVAN number errors", {
+  expect_error(
+    create_model(route = "iv", force_ode = 5, verbose = FALSE),
+    "force_ode.*can only be"
+  )
+})

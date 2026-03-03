@@ -83,7 +83,7 @@ systemic absorption (\code{FALSE}).}
 
 \item{force_ode}{force creation of a model with ODEs, even though the model
 is linear. Can be \code{FALSE} (default), \code{TRUE}, or ADVAN number (for NONMEM
-models). In the latter case, options are either \code{6} or \code{9}.}
+models). In the latter case, options are either \code{6}, \code{9}, or \code{13}.}
 
 \item{covariates}{list of parameter-covariate effects, e.g.
 \verb{list(CL = list(WT = "pow", CRCL = "lin"), V = list(WT = "pow")}

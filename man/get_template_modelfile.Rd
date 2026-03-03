@@ -5,14 +5,17 @@
 \title{Helper function to get the name of the template modelfile to load,
 based on route and ODE / analytical}
 \usage{
-get_template_modelfile(route, force_ode)
+get_template_modelfile(route, n_cmt, force_ode)
 }
 \arguments{
 \item{route}{route of administration, either \code{oral} or \code{iv}}
 
+\item{n_cmt}{number of elimination and distribution compartments. Default is
+1, i.e. no peripheral distributions.}
+
 \item{force_ode}{force creation of a model with ODEs, even though the model
 is linear. Can be \code{FALSE} (default), \code{TRUE}, or ADVAN number (for NONMEM
-models). In the latter case, options are either \code{6} or \code{9}.}
+models). In the latter case, options are either \code{6}, \code{9}, or \code{13}.}
 }
 \value{
 modelfile name (character)
