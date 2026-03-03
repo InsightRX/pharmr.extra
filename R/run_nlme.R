@@ -39,6 +39,9 @@
 #' @param estimation_method Optional. Character vector of estimation method(s)
 #' to apply to model. Will remove all existing estimation steps in the model
 #' and update with methods specified in argument.
+#' @param sir_options options for running SIR in covariance step. A list with
+#' options `niter` (number of SIR iterations) and `samples` (number of
+#' samples). Default `NULL` leaves the model unchanged.
 #' @param auto_stack_encounters only invoked if `data` argument supplied, not if
 #' a pharmpy model object is supplied without `data`.
 #' Detects if TIME within an individual is
@@ -77,6 +80,7 @@ run_nlme <- function(
   save_fit = TRUE,
   save_summary = TRUE,
   estimation_method = NULL,
+  sir_options = NULL,
   auto_stack_encounters = TRUE,
   clean = TRUE,
   as_job = FALSE,
@@ -102,6 +106,11 @@ run_nlme <- function(
       estimation_method,
       verbose = verbose
     )
+  }
+
+  ## Add SIR to covariance step, if requested
+  if(!is.null(sir_options)) {
+    model <- add_sir(model, options = sir_options)
   }
 
   ## Warn if SAEM is used without mu-referencing

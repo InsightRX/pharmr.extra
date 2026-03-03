@@ -4,7 +4,14 @@
 \alias{update_estimation_method}
 \title{Wrapper around pharmr's functions to set/add estimation methods}
 \usage{
-update_estimation_method(model, estimation_method, verbose = TRUE)
+update_estimation_method(
+  model,
+  estimation_method,
+  uncertainty_method = "none",
+  per_step_options = NULL,
+  tool = "nonmem",
+  verbose = TRUE
+)
 }
 \arguments{
 \item{model}{pharmpy model object or NONMEM model code (character) or path
