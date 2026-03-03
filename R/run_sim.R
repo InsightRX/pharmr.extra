@@ -116,69 +116,105 @@ run_sim <- function(
   }
 
   ## Prepare data
-  if(is.null(data)) {
-    input_data <- model$dataset
-  } else {
-    input_data <- data
-  }
-  ## Set CMT to NA if not in dataset
-  if(is.null(input_data[[dictionary$CMT]])) {
-    input_data[[dictionary$CMT]] <- NA
-  }
-  if(is.null(covariates)) { # use original dataset
-    if(verbose) cli::cli_alert_info("Using input dataset for simulation")
-    sim_data <- input_data
-    if(!is.null(dictionary)) {
-      sim_data <- sim_data |>
-        dplyr::rename(
-          !!!rlang::set_names(
-            dictionary,
-            names(dictionary)
-          )
-        )
-    }
-    if(!is.null(n_subjects)) {
-      cli::cli_warn("`n_subjects` argument can only be used when sampling `covariates`, and will ignored for this simulation.")
-    }
-    n_subjects <- length(unique(sim_data[[dictionary$ID]]))
-  } else { ## use provided sampled covariates in `data`
-    if(is.null(n_subjects)) {
-      cli::cli_abort("For sampling new datasets, need `n_subjects` argument.")
-    }
-    if(verbose) cli::cli_alert_info("Preparing sampled dataset for simulation")
-    ids <- unique(input_data[[dictionary$ID]])
-    random_sample <- sample(ids, n_subjects, replace = TRUE)
-    sim_data <- lapply(seq_along(random_sample), function(i) {
-      input_data |>
-        dplyr::filter(.data$ID == random_sample[i]) |>
-        dplyr::mutate(ID = i)
-    }) %>%
-      dplyr::bind_rows()
+  ## When regimen + t_obs are both given without data, build the dataset from scratch
+  build_from_scratch <- is.null(data) && !is.null(regimen_df) && !is.null(t_obs)
+  if(build_from_scratch) {
+    if(verbose) cli::cli_alert_info("Building simulation dataset from regimen and t_obs (no input data)")
     if(!is.null(covariates)) {
-      if(verbose) cli::cli_alert_info("Updating covariates for subjects in simulation")
       covs_reqd <- unlist(lapply(
         pharmr::get_model_covariates(model),
         function(x) { x$name }
       ))
-      if(! all(covs_reqd %in% names(covariates))) {
-        missing <- covs_reqd[! covs_reqd %in% names(covariates)]
-        cli::cli_abort("Not all required covariates supplied in `covariates` data, missing: {missing}")
+      if(!all(covs_reqd %in% names(covariates))) {
+        missing <- covs_reqd[!covs_reqd %in% names(covariates)]
+        cli::cli_abort("Not all required covariates supplied in `covariates`, missing: {missing}")
       }
-      if(! "ID" %in% names(covariates)) {
-        covariates$ID <- 1:nrow(covariates)
+      if(!"ID" %in% names(covariates)) covariates$ID <- seq_len(nrow(covariates))
+      if(!"TIME" %in% names(covariates)) covariates$TIME <- 0
+      n_subjects <- length(unique(covariates$ID))
+    } else {
+      if(is.null(n_subjects)) n_subjects <- 1L
+    }
+    ## One seed row per subject per regimen: carries covariate values into dose/obs rows via fill
+    unq_reg <- if(!is.null(regimen_df$regimen)) unique(regimen_df$regimen) else "regimen 1"
+    if(!is.null(covariates)) {
+      sim_data <- dplyr::bind_rows(lapply(unq_reg, function(reg) {
+        covariates |>
+          dplyr::mutate(AMT = 0, EVID = 0L, MDV = 1L, DV = 0, CMT = NA_integer_, RATE = 0, .regimen = reg)
+      }))
+    } else {
+      sim_data <- dplyr::bind_rows(lapply(unq_reg, function(reg) {
+        data.frame(
+          ID = seq_len(n_subjects), TIME = 0, AMT = 0, EVID = 0L, MDV = 1L, DV = 0,
+          CMT = NA_integer_, RATE = 0, .regimen = reg
+        )
+      }))
+    }
+  } else {
+    if(is.null(data)) {
+      input_data <- model$dataset
+    } else {
+      input_data <- data
+    }
+    ## Set CMT to NA if not in dataset
+    if(is.null(input_data[[dictionary$CMT]])) {
+      input_data[[dictionary$CMT]] <- NA
+    }
+    if(is.null(covariates)) { # use original dataset
+      if(verbose) cli::cli_alert_info("Using input dataset for simulation")
+      sim_data <- input_data
+      if(!is.null(dictionary)) {
+        sim_data <- sim_data |>
+          dplyr::rename(
+            !!!rlang::set_names(
+              dictionary,
+              names(dictionary)
+            )
+          )
       }
-      if(! "TIME" %in% names(covariates)) {
-        covariates$TIME <- 0
+      if(!is.null(n_subjects)) {
+        cli::cli_warn("`n_subjects` argument can only be used when sampling `covariates`, and will ignored for this simulation.")
       }
-      new_covariates <- names(covariates)
-      new_covariates <- new_covariates[(! new_covariates %in% c("ID", "TIME")) & new_covariates %in% names(sim_data)]
-      sim_data <- sim_data |>
-        dplyr::select(- new_covariates) |> ## remove existing covariates
-        dplyr::left_join(
-          covariates,
-          by = c("ID", "TIME")
-        ) |>
-        tidyr::fill(new_covariates, .direction = "downup")
+      n_subjects <- length(unique(sim_data[[dictionary$ID]]))
+    } else { ## use provided sampled covariates in `data`
+      if(is.null(n_subjects)) {
+        cli::cli_abort("For sampling new datasets, need `n_subjects` argument.")
+      }
+      if(verbose) cli::cli_alert_info("Preparing sampled dataset for simulation")
+      ids <- unique(input_data[[dictionary$ID]])
+      random_sample <- sample(ids, n_subjects, replace = TRUE)
+      sim_data <- lapply(seq_along(random_sample), function(i) {
+        input_data |>
+          dplyr::filter(.data$ID == random_sample[i]) |>
+          dplyr::mutate(ID = i)
+      }) %>%
+        dplyr::bind_rows()
+      if(!is.null(covariates)) {
+        if(verbose) cli::cli_alert_info("Updating covariates for subjects in simulation")
+        covs_reqd <- unlist(lapply(
+          pharmr::get_model_covariates(model),
+          function(x) { x$name }
+        ))
+        if(! all(covs_reqd %in% names(covariates))) {
+          missing <- covs_reqd[! covs_reqd %in% names(covariates)]
+          cli::cli_abort("Not all required covariates supplied in `covariates` data, missing: {missing}")
+        }
+        if(! "ID" %in% names(covariates)) {
+          covariates$ID <- 1:nrow(covariates)
+        }
+        if(! "TIME" %in% names(covariates)) {
+          covariates$TIME <- 0
+        }
+        new_covariates <- names(covariates)
+        new_covariates <- new_covariates[(! new_covariates %in% c("ID", "TIME")) & new_covariates %in% names(sim_data)]
+        sim_data <- sim_data |>
+          dplyr::select(- new_covariates) |> ## remove existing covariates
+          dplyr::left_join(
+            covariates,
+            by = c("ID", "TIME")
+          ) |>
+          tidyr::fill(new_covariates, .direction = "downup")
+      }
     }
   }
   if(!is.null(regimen_df)) {
