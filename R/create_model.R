@@ -621,8 +621,9 @@ get_template_modelfile <- function(route, n_cmt, force_ode) {
       cli::cli_abort("`force_ode` can only be TRUE, FALSE, 6, 9, or 13.")
     }
   }
+  use_ode <- isTRUE(force_ode) || (!is.logical(force_ode) && identical(advan_flag, "_ode"))
   base <- "base"
-  if(force_ode) {
+  if(use_ode) {
     if(n_cmt >= 2) base <- paste0(n_cmt, "cmt")
   }
   template_path <- paste0(
