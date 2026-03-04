@@ -264,6 +264,10 @@
   : extract FILE names from \$TABLE using simple regex. For some reason
   the tables are not (yet?) available in pharmpy
 
+- [`get_template_modelfile()`](https://insightrx.github.io/pharmr.extra/reference/get_template_modelfile.md)
+  : Helper function to get the name of the template modelfile to load,
+  based on route and ODE / analytical
+
 - [`get_tool_from_model()`](https://insightrx.github.io/pharmr.extra/reference/get_tool_from_model.md)
   : Get estimation/simulation engine from pharmpy model
 
@@ -393,6 +397,9 @@
 - [`stack_encounters()`](https://insightrx.github.io/pharmr.extra/reference/stack_encounters.md)
   : Stack encounters when data from multiple encounters is available for
   the same ID, and TIME is starting at 0 for each encounter.
+
+- [`update_advan()`](https://insightrx.github.io/pharmr.extra/reference/update_advan.md)
+  : Update the ADVAN number
 
 - [`update_covariance_record()`](https://insightrx.github.io/pharmr.extra/reference/update_covariance_record.md)
   : Update the covariance record in a Pharmpy NONMEM model

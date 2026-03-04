@@ -19,6 +19,7 @@ create_model(
   tmdd_dv_types = list(drug = 1, target = 2),
   metabolite = FALSE,
   ruv = c("additive", "proportional", "combined", "ltbs"),
+  force_ode = FALSE,
   covariates = NULL,
   scale_observations = NULL,
   data = NULL,
@@ -105,6 +106,12 @@ create_model(
 - ruv:
 
   one of `proportional`, `additive`, or `combined`.
+
+- force_ode:
+
+  force creation of a model with ODEs, even though the model is linear.
+  Can be `FALSE` (default), `TRUE`, or ADVAN number (for NONMEM models).
+  In the latter case, options are either `6`, `9`, or `13`.
 
 - covariates:
 
