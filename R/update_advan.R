@@ -18,7 +18,7 @@ update_advan <- function(model, advan) {
   }
   model_code <- model_code |>
     stringr::str_replace(
-      "ADVAN[0-9*]",
+      "ADVAN\\d+",
       glue::glue("ADVAN{advan}")
     ) |>
     stringr::str_replace(
