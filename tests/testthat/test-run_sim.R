@@ -194,6 +194,7 @@ test_that("run_sim: no data, multiple regimens produce separate regimen_label va
 
 test_that("run_sim: no data, error when required covariate missing from covariates arg", {
   local_pharmr.extra_options()
+  withr::local_dir(tempdir())
 
   mod <- pharmr::load_example_model("pheno")
 
