@@ -609,7 +609,7 @@ get_route_from_data <- function(data, default = "iv") {
 #' @returns modelfile name (character)
 #' 
 get_template_modelfile <- function(route, n_cmt, force_ode) {
-  advan_flag <- NULL
+  advan_flag <- ""
   if(is.logical(force_ode)) {
     if(force_ode) force_ode <- 6
   }
