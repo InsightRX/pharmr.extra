@@ -1165,6 +1165,13 @@ test_that("get_template_modelfile errors on invalid ADVAN numbers", {
   )
 })
 
+test_that("get_template_modelfile errors on non-numeric string for force_ode", {
+  expect_error(
+    pharmr.extra:::get_template_modelfile("iv", n_cmt = 1, force_ode = "foo"),
+    "force_ode.*must be"
+  )
+})
+
 test_that("get_template_modelfile returns existing files", {
   combos <- expand.grid(
     route     = c("iv", "oral"),
