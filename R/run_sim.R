@@ -127,7 +127,7 @@ run_sim <- function(
       ))
       if(!all(covs_reqd %in% names(covariates))) {
         missing <- covs_reqd[!covs_reqd %in% names(covariates)]
-        cli::cli_abort("Not all required covariates supplied in `covariates`, missing: {missing}")
+        cli::cli_abort("Not all required covariates supplied in `covariates` data, missing: {missing}")
       }
       if(!"ID" %in% names(covariates)) covariates$ID <- seq_len(nrow(covariates))
       if(!"TIME" %in% names(covariates)) covariates$TIME <- 0
