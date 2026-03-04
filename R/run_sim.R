@@ -131,7 +131,11 @@ run_sim <- function(
       }
       if(!"ID" %in% names(covariates)) covariates$ID <- seq_len(nrow(covariates))
       if(!"TIME" %in% names(covariates)) covariates$TIME <- 0
-      n_subjects <- length(unique(covariates$ID))
+      new_n_subjects <- length(unique(covariates$ID))
+      if(!is.null(n_subjects)) {
+        cli::cli_warn("'n_subjects' is ignored when 'covariates' is provided; using {new_n_subjects} subjects from the covariates data frame.")
+      }
+      n_subjects <- new_n_subjects
     } else {
       if(is.null(n_subjects)) n_subjects <- 1L
     }
