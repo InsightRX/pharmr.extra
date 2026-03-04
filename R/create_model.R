@@ -171,7 +171,7 @@ create_model <- function(
   if(!is.logical(force_ode)) {
     if(is.numeric(force_ode) || is.integer(force_ode) || is.character(force_ode)) {
       advan <- as.integer(force_ode)
-      if(force_ode %in% c(9, 13)) { # default ADVAN for templates is 6, update if needed:
+      if(advan == 9L || advan == 13L) { # default ADVAN for templates is 6, update if needed:
         mod <- update_advan(mod, advan)
       }
     }
