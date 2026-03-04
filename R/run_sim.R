@@ -135,6 +135,11 @@ run_sim <- function(
     } else {
       if(is.null(n_subjects)) n_subjects <- 1L
     }
+    ## Validate n_subjects after derivation from covariates or user input
+    n_subjects <- as.integer(n_subjects)
+    if (is.na(n_subjects) || n_subjects < 1L) {
+      cli::cli_abort("`n_subjects` must be a positive integer (>= 1), got {.val {n_subjects}}.")
+    }
     ## One seed row per subject per regimen: carries covariate values into dose/obs rows via fill
     unq_reg <- if(!is.null(regimen_df$regimen)) unique(regimen_df$regimen) else "regimen 1"
     if(!is.null(covariates)) {
