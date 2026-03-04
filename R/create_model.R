@@ -614,7 +614,10 @@ get_template_modelfile <- function(route, n_cmt, force_ode) {
     if(force_ode) force_ode <- 6
   }
   if(is.numeric(force_ode) || is.integer(force_ode) || is.character(force_ode)) {
-    force_ode <- as.integer(force_ode)
+    force_ode <- suppressWarnings(as.integer(force_ode))
+    if(is.na(force_ode)) {
+      cli::cli_abort("`force_ode` must be TRUE, FALSE, or a numeric ADVAN number (6, 9, or 13).")
+    }
     if(force_ode %in% c(6, 9, 13)) {
       advan_flag <- "_ode"
     } else {
