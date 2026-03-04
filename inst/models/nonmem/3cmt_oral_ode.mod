@@ -1,6 +1,6 @@
 $SIZES PD=100
 
-$PROBLEM Base linear model with iv input
+$PROBLEM Base linear model with oral input
 
 $INPUT ID TIME DV MDV EVID SS II AMT
 
