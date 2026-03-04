@@ -280,6 +280,7 @@ run_sim <- function(
     ## grab data for regimen
     sim_data_regimen <- sim_data |>
       dplyr::filter(.data$.regimen == reg_label) |>
+      dplyr::arrange(.data$ID, .data$TIME, -.data$EVID) |>
       dplyr::select(-".regimen")
 
     ## Set simulation, and set sim dataset:
