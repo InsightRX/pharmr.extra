@@ -4,8 +4,7 @@
 #' change anything in the remaining model code! The primary use case for this
 #' function is for easy switching between ADVAN 6, 9, and 13 for ODE models.
 #' 
-#' @inheritParams run_nlme
-#' 
+#' @param model a Pharmpy NONMEM model object
 #' @param advan new advan
 #' 
 #' @export 

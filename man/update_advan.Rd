@@ -7,8 +7,7 @@
 update_advan(model, advan)
 }
 \arguments{
-\item{model}{pharmpy model object or NONMEM model code (character) or path
-to NONMEM model file.}
+\item{model}{a Pharmpy NONMEM model object}
 
 \item{advan}{new advan}
 }
