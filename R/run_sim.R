@@ -149,7 +149,7 @@ run_sim <- function(
     } else {
       sim_data <- dplyr::bind_rows(lapply(unq_reg, function(reg) {
         data.frame(
-          ID = seq_len(n_subjects), TIME = 0, AMT = 0, EVID = 0L, MDV = 1L, DV = 0,
+          ID = seq_len(n_subjects), TIME = 0, AMT = 0, EVID = NA_integer_, MDV = NA_integer_, DV = 0,
           CMT = NA_integer_, RATE = 0, .regimen = reg
         )
       }))
@@ -177,10 +177,10 @@ run_sim <- function(
           )
       }
       if(!is.null(n_subjects)) {
-        cli::cli_warn("`n_subjects` argument can only be used when sampling `covariates`, and will ignored for this simulation.")
+        cli::cli_warn("`n_subjects` argument can only be used when sampling `covariates`, and will be ignored for this simulation.")
       }
       n_subjects <- length(unique(sim_data[[dictionary$ID]]))
-    } else { ## use provided sampled covariates in `data`
+    } else { ## user provided sampled covariates in `data`
       if(is.null(n_subjects)) {
         cli::cli_abort("For sampling new datasets, need `n_subjects` argument.")
       }
@@ -193,32 +193,30 @@ run_sim <- function(
           dplyr::mutate(ID = i)
       }) %>%
         dplyr::bind_rows()
-      if(!is.null(covariates)) {
-        if(verbose) cli::cli_alert_info("Updating covariates for subjects in simulation")
-        covs_reqd <- unlist(lapply(
-          pharmr::get_model_covariates(model),
-          function(x) { x$name }
-        ))
-        if(! all(covs_reqd %in% names(covariates))) {
-          missing <- covs_reqd[! covs_reqd %in% names(covariates)]
-          cli::cli_abort("Not all required covariates supplied in `covariates` data, missing: {missing}")
-        }
-        if(! "ID" %in% names(covariates)) {
-          covariates$ID <- 1:nrow(covariates)
-        }
-        if(! "TIME" %in% names(covariates)) {
-          covariates$TIME <- 0
-        }
-        new_covariates <- names(covariates)
-        new_covariates <- new_covariates[(! new_covariates %in% c("ID", "TIME")) & new_covariates %in% names(sim_data)]
-        sim_data <- sim_data |>
-          dplyr::select(- new_covariates) |> ## remove existing covariates
-          dplyr::left_join(
-            covariates,
-            by = c("ID", "TIME")
-          ) |>
-          tidyr::fill(new_covariates, .direction = "downup")
+      if(verbose) cli::cli_alert_info("Updating covariates for subjects in simulation")
+      covs_reqd <- unlist(lapply(
+        pharmr::get_model_covariates(model),
+        function(x) { x$name }
+      ))
+      if(! all(covs_reqd %in% names(covariates))) {
+        missing <- covs_reqd[! covs_reqd %in% names(covariates)]
+        cli::cli_abort("Not all required covariates supplied in `covariates` data, missing: {missing}")
       }
+      if(! "ID" %in% names(covariates)) {
+        covariates$ID <- 1:nrow(covariates)
+      }
+      if(! "TIME" %in% names(covariates)) {
+         covariates$TIME <- 0
+      }
+      new_covariates <- names(covariates)
+      new_covariates <- new_covariates[(! new_covariates %in% c("ID", "TIME")) & new_covariates %in% names(sim_data)]
+      sim_data <- sim_data |>
+       dplyr::select(- new_covariates) |> ## remove existing covariates
+        dplyr::left_join(
+          covariates,
+          by = c("ID", "TIME")
+        ) |>
+        tidyr::fill(new_covariates, .direction = "downup")
     }
   }
   if(!is.null(regimen_df)) {
@@ -477,7 +475,7 @@ create_obs_records <- function(
     dplyr::filter(.data$ID == 1 & .data$EVID == 0) |>
     dplyr::slice(1) |>
     dplyr::pull("CMT")
-  if(is.null(cmt) || is.na(cmt)) {
+  if(is.null(cmt) || is.na(cmt) || length(cmt) == 0) {
     cmt <- get_obs_compartment(model)
   }
   obs <- data.frame(
