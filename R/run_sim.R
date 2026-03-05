@@ -133,7 +133,11 @@ run_sim <- function(
       if(!"TIME" %in% names(covariates)) covariates$TIME <- 0
       new_n_subjects <- length(unique(covariates$ID))
       if(!is.null(n_subjects)) {
-        cli::cli_warn("'n_subjects' is ignored when 'covariates' is provided; using {new_n_subjects} subjects from the covariates data frame.")
+        if(n_subjects < new_n_subjects) {
+          new_n_subjects <- n_subjects
+        } else {
+          cli::cli_warn("'n_subjects' cannot be higher than the number of subjects in the 'covariates' data frame. Using {new_n_subjects} for this simulation.")
+        }
       }
       n_subjects <- new_n_subjects
     } else {
@@ -149,7 +153,7 @@ run_sim <- function(
     } else {
       sim_data <- dplyr::bind_rows(lapply(unq_reg, function(reg) {
         data.frame(
-          ID = seq_len(n_subjects), TIME = 0, AMT = 0, EVID = NA_integer_, MDV = NA_integer_, DV = 0,
+          ID = seq_len(n_subjects), TIME = 0, AMT = 0, EVID = 0L, MDV = 1L, DV = 0,
           CMT = NA_integer_, RATE = 0, .regimen = reg
         )
       }))
@@ -291,7 +295,14 @@ run_sim <- function(
     if(update_table) {
       if(verbose) cli::cli_alert_info("Updating table record(s)")
       parameter_names <- get_defined_pk_parameters(sim_model)
-      variables <- unique(c(variables, parameter_names, names(covariates)))
+      checked_variables <- c()
+      for(variab in variables) {
+        check_var <- check_nm_table_variables(sim_model, variab, throw_error = FALSE)
+        if(is.null(check_var)) { # i.e. IPRED is declared as variable and we can safely add to table
+          checked_variables <- c(checked_variables, variab)
+        }
+      }
+      variables <- unique(c(checked_variables, parameter_names, names(covariates)))
       sim_model <- sim_model |>
         remove_tables_from_model() |>
         add_table_to_model(variables, file = output_file)
@@ -423,7 +434,7 @@ create_dosing_records <- function(
   if(!is.null(advan)) {
     if(advan %in% c(1, 3, 11)) {
       cmt_iv <- 1
-      if(any(regimen$route) %in% c("oral", "im", "sc")) {
+      if(any(regimen$route %in% c("oral", "im", "sc"))) {
         cli::cli_abort("The model structure does not support oral, im, or sc dosing, only iv.")
       }
     }
@@ -471,10 +482,17 @@ create_obs_records <- function(
   unq_reg <- unique(data[[".regimen"]])
   ## create a template row
   ## first try pull CMT from data. if not available in data, try based on ADVAN
-  cmt <- data |>
-    dplyr::filter(.data$ID == 1 & .data$EVID == 0) |>
-    dplyr::slice(1) |>
-    dplyr::pull("CMT")
+  if("MDV" %in% names(data)) {
+    cmt <- data |>
+      dplyr::filter(.data$ID == 1 & .data$EVID == 0 & .data$MDV == 0) |> 
+      dplyr::slice(1) |>
+      dplyr::pull("CMT")
+  } else {
+    cmt <- data |>
+      dplyr::filter(.data$ID == 1 & .data$EVID == 0) |> 
+      dplyr::slice(1) |>
+      dplyr::pull("CMT")
+  }
   if(is.null(cmt) || is.na(cmt) || length(cmt) == 0) {
     cmt <- get_obs_compartment(model)
   }
