@@ -11,6 +11,7 @@
 #' @param data NONMEM-style dataset
 #' @param n_cmt number of distribution / elimination compartments.
 #' @param scale_observations TODO
+#' @param ltbs is DV column log-transformed?
 #'
 #' @returns TODO
 #' 
@@ -18,7 +19,8 @@
 get_initial_estimates_from_data <- function(
   data,
   n_cmt = 1,
-  scale_observations = NULL
+  scale_observations = NULL,
+  ltbs = FALSE
 ) {
 
   ## TODO: an extension could be to automatically add
@@ -27,7 +29,8 @@ get_initial_estimates_from_data <- function(
   ids <- unique(data$ID)
   for(id in ids) {
     tmp <- get_initial_estimates_from_individual_data(
-      data[data$ID == id,]
+      data[data$ID == id,],
+      ltbs = ltbs
     )
     if(length(tmp) > 0) {
       pars <- dplyr::bind_rows(pars, tmp)
@@ -57,9 +60,12 @@ get_initial_estimates_from_data <- function(
 
 #' Core function to get parameter estimates from individual data
 #'
-#' @param data TODO
-#' @param ... TODO
-get_initial_estimates_from_individual_data <- function(data, ...) {
+#' @param inheritParams get_initial_estimates_from_data
+#' 
+get_initial_estimates_from_individual_data <- function(
+  data, 
+  ltbs = FALSE
+) {
 
   suppressWarnings(
     dat <- data |>
@@ -69,6 +75,10 @@ get_initial_estimates_from_individual_data <- function(data, ...) {
         TIME = as.numeric(.data$TIME)
       )
   )
+  if(ltbs) { # data is log-transformed, back-transform to normal scale
+    dat <- dat |>
+      dplyr::mutate(DV = ifelse(.data$EVID == 0, exp(.data$DV), .data$DV))
+  }
 
   ## Get first dose number for which more than two samples are available.
   dose_nr <- dat |>
@@ -94,18 +104,23 @@ get_initial_estimates_from_individual_data <- function(data, ...) {
   }
 
   ## get peak value. This leads to estimate for V
-  tmp <- dat |>
+  obs <- dat |>
     dplyr::filter(
       .data$dosenr == dose_nr & .data$EVID == 0 & !is.na(.data$DV) & .data$DV != 0
-    ) |>
-    dplyr::slice(unique(c(which.max(.data$DV), which.min(.data$DV))))
+    )
+  tmp <- obs |>
+    dplyr::slice_tail(n = 3)
   dose <- dat |>
     dplyr::filter(.data$dosenr == dose_nr & .data$EVID == 1) |>
     dplyr::pull("AMT")
   est <- c()
   if(inherits(tmp$TIME, "numeric") && nrow(tmp) > 1) { # two datapoints at least
-    KEL <- (log(max(tmp$DV)) - log(min(tmp$DV))) / abs(diff(tmp$TIME))
-    est$V <- dose / max(tmp$DV, na.rm=TRUE)
+    fit <- stats::lm(log(DV) ~ TIME, tmp)
+    KEL <- -as.numeric(coef(fit)[2])
+    if (KEL <= 0) { # fallback for absorption-phase or flat data
+      KEL <- (log(max(obs$DV, na.rm=TRUE)) - log(min(obs$DV[obs$DV > 0], na.rm=TRUE))) / diff(range(obs$TIME))
+    }
+    est$V <- dose / max(obs$DV, na.rm=TRUE)
     est$CL <- KEL * est$V
   } else { # more crude estimation
     if(length(tmp$DV) > 0) {

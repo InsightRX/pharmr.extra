@@ -12,7 +12,12 @@ twice the size of CL and V, which is often a good starting point.
 In most scenarios this is sufficiently close to the final estimates that
 estimation methods will be able to find the global minimum.}
 \usage{
-get_initial_estimates_from_data(data, n_cmt = 1, scale_observations = NULL)
+get_initial_estimates_from_data(
+  data,
+  n_cmt = 1,
+  scale_observations = NULL,
+  ltbs = FALSE
+)
 }
 \arguments{
 \item{data}{NONMEM-style dataset}
@@ -20,6 +25,8 @@ get_initial_estimates_from_data(data, n_cmt = 1, scale_observations = NULL)
 \item{n_cmt}{number of distribution / elimination compartments.}
 
 \item{scale_observations}{TODO}
+
+\item{ltbs}{is DV column log-transformed?}
 }
 \value{
 TODO

@@ -256,7 +256,8 @@ create_model <- function(
     inits <- get_initial_estimates_from_data(
       data,
       n_cmt = n_cmt,
-      scale_observations = scale_observations
+      scale_observations = scale_observations,
+      ltbs = (ruv == "ltbs")
     )
     if(length(inits) == 0 || any(is.na(inits)) || any(inits == Inf)) {
       cli::cli_alert_warning("Could not compute initial estimates automatically, please check manually.")

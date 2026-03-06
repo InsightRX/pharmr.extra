@@ -147,6 +147,32 @@ test_that("get_initial_estimates_from_individual_data handles missing data", {
   expect_true(all(estimates > 0))
 })
 
+test_that("get_initial_estimates_from_data handles ltbs = TRUE", {
+  # Same PK profile as 1-cmt test, but DV is log-transformed
+  test_data <- data.frame(
+    ID = c(1, 1, 1, 1),
+    TIME = c(0, 1, 4, 8),
+    DV = c(0, log(100), log(50), log(25)),
+    EVID = c(1, 0, 0, 0),
+    MDV = c(1, 0, 0, 0),
+    AMT = c(1000, 0, 0, 0)
+  )
+
+  result_ltbs <- get_initial_estimates_from_data(test_data, n_cmt = 1, ltbs = TRUE)
+  result_normal <- get_initial_estimates_from_data(
+    data.frame(
+      ID = c(1, 1, 1, 1), TIME = c(0, 1, 4, 8),
+      DV = c(0, 100, 50, 25), EVID = c(1, 0, 0, 0),
+      MDV = c(1, 0, 0, 0), AMT = c(1000, 0, 0, 0)
+    ),
+    n_cmt = 1
+  )
+
+  # Results should be identical to the non-ltbs version with back-transformed data
+  expect_equal(result_ltbs$V, result_normal$V, tolerance = 1e-6)
+  expect_equal(result_ltbs$CL, result_normal$CL, tolerance = 1e-6)
+})
+
 test_that("get_initial_estimates_from_individual_data handles insufficient data", {
   # Create test data with only one observation
   test_data <- data.frame(

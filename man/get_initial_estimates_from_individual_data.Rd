@@ -4,12 +4,10 @@
 \alias{get_initial_estimates_from_individual_data}
 \title{Core function to get parameter estimates from individual data}
 \usage{
-get_initial_estimates_from_individual_data(data, ...)
+get_initial_estimates_from_individual_data(data, ltbs = FALSE)
 }
 \arguments{
-\item{data}{TODO}
-
-\item{...}{TODO}
+\item{inheritParams}{get_initial_estimates_from_data}
 }
 \description{
 Core function to get parameter estimates from individual data
