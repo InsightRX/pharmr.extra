@@ -24,6 +24,7 @@ run_nlme(
   as_job = FALSE,
   save_final = TRUE,
   check_only = FALSE,
+  remove_tables = FALSE,
   verbose = TRUE
 )
 }
@@ -98,6 +99,9 @@ with the final estimates from the run.}
 \item{check_only}{if \code{TRUE}, will only check the model code (NM-TRAN in the case
 of NONMEM), but not run the model. Will return \code{TRUE} if model syntax is
 correct, and \code{FALSE} if not. Will also attach stdout as \code{message} attribute.}
+
+\item{remove_tables}{if \code{TRUE}, removes all \verb{$TABLE} records from the model
+before running. Applied after any tables added via the \code{tables} argument.}
 
 \item{verbose}{verbose output?}
 }

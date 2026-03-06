@@ -4,7 +4,12 @@
 \alias{create_model_from_file}
 \title{Create a Pharmpy model object from a model file and dataset (optional)}
 \usage{
-create_model_from_file(model_file, ext_file = NULL, data = NULL)
+create_model_from_file(
+  model_file,
+  ext_file = NULL,
+  data = NULL,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{model_file}{the model file (.mod) to read.}
@@ -13,6 +18,8 @@ create_model_from_file(model_file, ext_file = NULL, data = NULL)
 estimates that will be used to update the initial estimates in the model.}
 
 \item{data}{the filename of the dataset (or an actual data.frame)}
+
+\item{verbose}{verbose output}
 }
 \value{
 a Pharmpy model object

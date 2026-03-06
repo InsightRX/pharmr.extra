@@ -49,11 +49,20 @@ call_pharmpy_tool <- function(
     }
   }
 
-  ## Check results, if needed rerun model
-  if(tool == "ruvsearch") {
-    model <- model |>
-      add_default_output_tables() # ensure residuals are outputted
+  ## Remove $TABLE records, if requested
+  if(remove_tables) {
+    if(verbose) cli::cli_alert_info("Removing $TABLE records from model")
+    model <- remove_tables_from_model(model)
   }
+  # Ensure residuals are outputted, when needed for the tool
+  if(tool == "ruvsearch") {
+    if(remove_tables) {
+      cli::cli_alert_warning("`remove_tables` is set to `TRUE`, but `ruvsearch` requires a table with residuals to function. Adding back $TABLE record with residuals and basic fit info.")
+    }
+    model <- model |>
+      add_default_output_tables("fit")
+  }
+  ## Check results, if needed rerun model
   req_results <- c("modelsearch", "covsearch", "iivsearch", "ruvsearch", "amd")
   if((is.null(results) && tool %in% req_results) || tool == "ruvsearch") {
     if(verbose)
@@ -77,12 +86,6 @@ call_pharmpy_tool <- function(
       }
       model <- model_from_results
     }
-  }
-
-  ## Remove $TABLE records, if requested
-  if(remove_tables) {
-    if(verbose) cli::cli_alert_info("Removing $TABLE records from model")
-    model <- remove_tables_from_model(model)
   }
 
   ## Prepare run folder

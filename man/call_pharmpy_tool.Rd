@@ -14,7 +14,8 @@ call_pharmpy_tool(
   clean = TRUE,
   verbose = TRUE,
   force = FALSE,
-  options = list()
+  options = list(),
+  remove_tables = FALSE
 )
 }
 \arguments{
@@ -39,6 +40,9 @@ do we want to remove them first?}
 \item{options}{list of arguments pass on to \code{tool} as argument. Documentation
 for available arguments for each Pharmpy tool can be found here:
 https://pharmpy.github.io/latest/mfl.html.}
+
+\item{remove_tables}{if \code{TRUE}, removes all \verb{$TABLE} records from the model
+before passing it to the Pharmpy tool.}
 }
 \value{
 fit object
