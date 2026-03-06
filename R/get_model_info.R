@@ -38,7 +38,8 @@ get_model_info <- function(model) {
     absorption = get_absorption(model),
     elimination = get_elimination(model),
     linearity = get_ode_linearity(model),
-    ltbs = is_ltbs_model(model)
+    ltbs = is_ltbs_model(model),
+    estimation_steps = get_estimation_steps(model)
   )
 }
 
@@ -84,6 +85,28 @@ get_absorption <- function(model) {
 #' @export
 get_ode_linearity <- function(model) {
   dplyr::if_else(pharmr::has_linear_odes(model), "linear", "nonlinear")
+}
+
+#' @rdname get_model_info
+#' @export
+get_estimation_steps <- function(model) {
+  model <- as_pharmpy_model(model)
+  steps_df <- model$execution_steps$to_dataframe()
+
+  if (is.null(steps_df) || nrow(steps_df) == 0L) {
+    return(list())
+  }
+
+  lapply(seq_len(nrow(steps_df)), function(i) {
+    pum <- steps_df$parameter_uncertainty_method[i]
+    list(
+      method = as.character(steps_df$method[i]),
+      interaction = isTRUE(steps_df$interaction[i]),
+      evaluation = isTRUE(steps_df$evaluation[i]),
+      parameter_uncertainty_method = if (is.null(pum) || (length(pum) == 1L && is.na(pum))) NULL else as.character(pum),
+      laplace = isTRUE(steps_df$laplace[i])
+    )
+  })
 }
 
 # Some pharmr outputs are lists of symbols, which require a special approach

@@ -6,6 +6,7 @@
 \alias{get_elimination}
 \alias{get_absorption}
 \alias{get_ode_linearity}
+\alias{get_estimation_steps}
 \title{Get model info}
 \usage{
 get_model_info(model)
@@ -17,6 +18,8 @@ get_elimination(model)
 get_absorption(model)
 
 get_ode_linearity(model)
+
+get_estimation_steps(model)
 }
 \arguments{
 \item{model}{Either a Pharmpy model object, a path to a model file, a string
