@@ -77,7 +77,7 @@ get_initial_estimates_from_individual_data <- function(
   )
   if(ltbs) { # data is log-transformed, back-transform to normal scale
     dat <- dat |>
-      mutate(DV = ifelse(.data$EVID == 0, exp(.data$DV), .data$DV))
+      dplyr::mutate(DV = ifelse(.data$EVID == 0, exp(.data$DV), .data$DV))
   }
 
   ## Get first dose number for which more than two samples are available.
@@ -104,10 +104,11 @@ get_initial_estimates_from_individual_data <- function(
   }
 
   ## get peak value. This leads to estimate for V
-  tmp <- dat |>
+  obs <- dat |>
     dplyr::filter(
       .data$dosenr == dose_nr & .data$EVID == 0 & !is.na(.data$DV) & .data$DV != 0
-    ) |>
+    )
+  tmp <- obs |>
     dplyr::slice_tail(n = 3)
   dose <- dat |>
     dplyr::filter(.data$dosenr == dose_nr & .data$EVID == 1) |>
@@ -116,7 +117,7 @@ get_initial_estimates_from_individual_data <- function(
   if(inherits(tmp$TIME, "numeric") && nrow(tmp) > 1) { # two datapoints at least
     fit <- stats::lm(log(DV) ~ TIME, tmp)
     KEL <- -as.numeric(coef(fit)[2])
-    est$V <- dose / max(tmp$DV, na.rm=TRUE)
+    est$V <- dose / max(obs$DV, na.rm=TRUE)
     est$CL <- KEL * est$V
   } else { # more crude estimation
     if(length(tmp$DV) > 0) {
