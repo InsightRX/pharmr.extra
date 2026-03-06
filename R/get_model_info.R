@@ -91,14 +91,20 @@ get_ode_linearity <- function(model) {
 #' @export
 get_estimation_steps <- function(model) {
   model <- as_pharmpy_model(model)
-  steps <- model$execution_steps
-  lapply(reticulate::iterate(steps), function(step) {
+  steps_df <- model$execution_steps$to_dataframe()
+
+  if (is.null(steps_df) || nrow(steps_df) == 0L) {
+    return(list())
+  }
+
+  lapply(seq_len(nrow(steps_df)), function(i) {
+    pum <- steps_df$parameter_uncertainty_method[i]
     list(
-      method = as.character(step$method),
-      interaction = isTRUE(step$interaction),
-      evaluation = isTRUE(step$evaluation),
-      parameter_uncertainty_method = if (is.null(step$parameter_uncertainty_method)) NULL else as.character(step$parameter_uncertainty_method),
-      laplace = isTRUE(step$laplace)
+      method = as.character(steps_df$method[i]),
+      interaction = isTRUE(steps_df$interaction[i]),
+      evaluation = isTRUE(steps_df$evaluation[i]),
+      parameter_uncertainty_method = if (is.null(pum) || (length(pum) == 1L && is.na(pum))) NULL else as.character(pum),
+      laplace = isTRUE(steps_df$laplace[i])
     )
   })
 }
