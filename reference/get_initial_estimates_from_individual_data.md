@@ -5,15 +5,11 @@ Core function to get parameter estimates from individual data
 ## Usage
 
 ``` r
-get_initial_estimates_from_individual_data(data, ...)
+get_initial_estimates_from_individual_data(data, ltbs = FALSE)
 ```
 
 ## Arguments
 
-- data:
+- inheritParams:
 
-  TODO
-
-- ...:
-
-  TODO
+  get_initial_estimates_from_data

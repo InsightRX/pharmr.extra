@@ -13,7 +13,12 @@ minimum.
 ## Usage
 
 ``` r
-get_initial_estimates_from_data(data, n_cmt = 1, scale_observations = NULL)
+get_initial_estimates_from_data(
+  data,
+  n_cmt = 1,
+  scale_observations = NULL,
+  ltbs = FALSE
+)
 ```
 
 ## Arguments
@@ -29,6 +34,10 @@ get_initial_estimates_from_data(data, n_cmt = 1, scale_observations = NULL)
 - scale_observations:
 
   TODO
+
+- ltbs:
+
+  is DV column log-transformed?
 
 ## Value
 
