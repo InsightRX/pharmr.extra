@@ -61,10 +61,12 @@
 #' @param check_only if `TRUE`, will only check the model code (NM-TRAN in the case
 #' of NONMEM), but not run the model. Will return `TRUE` if model syntax is
 #' correct, and `FALSE` if not. Will also attach stdout as `message` attribute.
+#' @param remove_tables if `TRUE`, removes all `$TABLE` records from the model
+#' before running. Applied after any tables added via the `tables` argument.
 #' @param verbose verbose output?
 #'
 #' @returns TODO
-#' 
+#'
 #' @export
 run_nlme <- function(
   model,
@@ -86,6 +88,7 @@ run_nlme <- function(
   as_job = FALSE,
   save_final = TRUE,
   check_only = FALSE,
+  remove_tables = FALSE,
   verbose = TRUE
 ) {
 
@@ -128,6 +131,12 @@ run_nlme <- function(
       tables = tables,
       full_tables = full_tables
     )
+  }
+
+  ## Remove $TABLE records, if requested
+  if(remove_tables) {
+    if(verbose) cli::cli_alert_info("Removing $TABLE records from model")
+    model <- remove_tables_from_model(model)
   }
 
   ## Make sure data is clean for modelfit
