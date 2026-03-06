@@ -4,6 +4,7 @@
 #' @param ext_file optional path to a .ext file containing final parameter 
 #'   estimates that will be used to update the initial estimates in the model.
 #' @param data the filename of the dataset (or an actual data.frame)
+#' @param verbose verbose output
 #' 
 #' @returns a Pharmpy model object
 #'
@@ -11,7 +12,8 @@
 create_model_from_file <- function(
   model_file,
   ext_file = NULL,
-  data = NULL
+  data = NULL,
+  verbose = TRUE
 ) {
   
   ## Checks
@@ -72,6 +74,11 @@ create_model_from_file <- function(
     model <- model |>
       pharmr::set_dataset(path_or_df = dataset_file, datatype = "nonmem") |>
       pharmr::load_dataset()
+    if(verbose) cli::cli_alert_info("Checking and cleaning dataset.")
+    model <- clean_modelfit_data(
+      model = model,
+      try_make_numeric = TRUE
+    )
   }
   
   model
