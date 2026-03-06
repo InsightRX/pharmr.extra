@@ -101,7 +101,8 @@ of NONMEM), but not run the model. Will return \code{TRUE} if model syntax is
 correct, and \code{FALSE} if not. Will also attach stdout as \code{message} attribute.}
 
 \item{remove_tables}{if \code{TRUE}, removes all \verb{$TABLE} records from the model
-before running. Applied after any tables added via the \code{tables} argument.}
+before running. Applied after any tables added via the \code{tables} argument.
+Default is \code{FALSE}.}
 
 \item{verbose}{verbose output?}
 }

@@ -14,7 +14,7 @@
 #' @param options list of arguments pass on to `tool` as argument. Documentation
 #' for available arguments for each Pharmpy tool can be found here:
 #' https://pharmpy.github.io/latest/mfl.html.
-#' @param remove_tables if `TRUE`, removes all `$TABLE` records from the model
+#' @param remove_tables if `TRUE` (default), removes all `$TABLE` records from the model
 #' before passing it to the Pharmpy tool.
 #'
 #' @return fit object
@@ -30,7 +30,7 @@ call_pharmpy_tool <- function(
   verbose = TRUE,
   force = FALSE,
   options = list(),
-  remove_tables = FALSE
+  remove_tables = TRUE
 ) {
 
   if(is.null(tool)) {

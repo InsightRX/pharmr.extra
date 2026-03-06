@@ -15,7 +15,7 @@ call_pharmpy_tool(
   verbose = TRUE,
   force = FALSE,
   options = list(),
-  remove_tables = FALSE
+  remove_tables = TRUE
 )
 }
 \arguments{
@@ -41,7 +41,7 @@ do we want to remove them first?}
 for available arguments for each Pharmpy tool can be found here:
 https://pharmpy.github.io/latest/mfl.html.}
 
-\item{remove_tables}{if \code{TRUE}, removes all \verb{$TABLE} records from the model
+\item{remove_tables}{if \code{TRUE} (default), removes all \verb{$TABLE} records from the model
 before passing it to the Pharmpy tool.}
 }
 \value{
