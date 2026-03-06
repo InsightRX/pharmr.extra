@@ -10,7 +10,7 @@ test_that("returns named list with expected structure", {
     c(
       "id", "description", "advan", "code", "covariates", "parameters",
       "compartments", "error_model", "absorption", "elimination",
-      "linearity", "ltbs"
+      "linearity", "ltbs", "estimation_steps"
     )
   )
   expect_named(
@@ -39,7 +39,7 @@ test_that("gets model info from Pharmpy model objects", {
     c(
       "id", "description", "advan", "code", "covariates", "parameters",
       "compartments", "error_model", "absorption", "elimination",
-      "linearity", "ltbs"
+      "linearity", "ltbs", "estimation_steps"
     )
   )
   expect_equal(out$advan, 1L)
@@ -82,6 +82,22 @@ test_that("parameters list has expected types for base_iv", {
   expect_vector(out$parameters$sigma)
   expect_type(out$parameters$central_clearance, "character")
   expect_type(out$parameters$central_volume, "character")
+})
+
+# get_estimation_steps () -----------------------------------------------------
+test_that("returns list of estimation steps for base_iv", {
+  local_pharmr.extra_options()
+  mod_path <- fs::path_package("pharmr.extra", "models/nonmem/base_iv.mod")
+  mod <- as_pharmpy_model(mod_path)
+  out <- get_estimation_steps(mod)
+  expect_type(out, "list")
+  expect_length(out, 1L)
+  expect_named(out[[1]], c("method", "interaction", "evaluation", "parameter_uncertainty_method", "laplace"))
+  expect_equal(out[[1]]$method, "FOCE")
+  expect_false(out[[1]]$interaction)
+  expect_false(out[[1]]$evaluation)
+  expect_equal(out[[1]]$parameter_uncertainty_method, "SANDWICH")
+  expect_false(out[[1]]$laplace)
 })
 
 # get_error_model () ----------------------------------------------------------
