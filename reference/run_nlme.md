@@ -28,6 +28,7 @@ run_nlme(
   as_job = FALSE,
   save_final = TRUE,
   check_only = FALSE,
+  remove_tables = FALSE,
   verbose = TRUE
 )
 ```
@@ -142,6 +143,12 @@ run_nlme(
   NONMEM), but not run the model. Will return `TRUE` if model syntax is
   correct, and `FALSE` if not. Will also attach stdout as `message`
   attribute.
+
+- remove_tables:
+
+  if `TRUE`, removes all `$TABLE` records from the model before running.
+  Applied after any tables added via the `tables` argument. Default is
+  `FALSE`.
 
 - verbose:
 

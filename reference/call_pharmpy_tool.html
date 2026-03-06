@@ -50,7 +50,8 @@ or modelsearch. A separate function is available for <code>fit()</code></p>
 <span>  clean <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  force <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  options <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span></span>
+<span>  options <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
+<span>  remove_tables <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -96,6 +97,11 @@ do we want to remove them first?</p></dd>
 <dd><p>list of arguments pass on to <code>tool</code> as argument. Documentation
 for available arguments for each Pharmpy tool can be found here:
 https://pharmpy.github.io/latest/mfl.html.</p></dd>
+
+
+<dt id="arg-remove-tables">remove_tables<a class="anchor" aria-label="anchor" href="#arg-remove-tables"></a></dt>
+<dd><p>if <code>TRUE</code> (default), removes all <code>$TABLE</code> records from the model
+before passing it to the Pharmpy tool.</p></dd>
 
 </dl></div>
     <div class="section level2">

@@ -15,7 +15,8 @@ call_pharmpy_tool(
   clean = TRUE,
   verbose = TRUE,
   force = FALSE,
-  options = list()
+  options = list(),
+  remove_tables = TRUE
 )
 ```
 
@@ -61,6 +62,11 @@ call_pharmpy_tool(
   list of arguments pass on to `tool` as argument. Documentation for
   available arguments for each Pharmpy tool can be found here:
   https://pharmpy.github.io/latest/mfl.html.
+
+- remove_tables:
+
+  if `TRUE` (default), removes all `$TABLE` records from the model
+  before passing it to the Pharmpy tool.
 
 ## Value
 

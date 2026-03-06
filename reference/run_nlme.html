@@ -67,6 +67,7 @@ inspection of intermediate model fit.</p>
 <span>  as_job <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  save_final <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  check_only <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  remove_tables <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -182,6 +183,12 @@ with the final estimates from the run.</p></dd>
 <dd><p>if <code>TRUE</code>, will only check the model code (NM-TRAN in the case
 of NONMEM), but not run the model. Will return <code>TRUE</code> if model syntax is
 correct, and <code>FALSE</code> if not. Will also attach stdout as <code>message</code> attribute.</p></dd>
+
+
+<dt id="arg-remove-tables">remove_tables<a class="anchor" aria-label="anchor" href="#arg-remove-tables"></a></dt>
+<dd><p>if <code>TRUE</code>, removes all <code>$TABLE</code> records from the model
+before running. Applied after any tables added via the <code>tables</code> argument.
+Default is <code>FALSE</code>.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
