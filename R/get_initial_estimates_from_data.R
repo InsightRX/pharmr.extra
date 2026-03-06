@@ -117,6 +117,9 @@ get_initial_estimates_from_individual_data <- function(
   if(inherits(tmp$TIME, "numeric") && nrow(tmp) > 1) { # two datapoints at least
     fit <- stats::lm(log(DV) ~ TIME, tmp)
     KEL <- -as.numeric(coef(fit)[2])
+    if (KEL <= 0) { # fallback for absorption-phase or flat data
+      KEL <- (log(max(obs$DV, na.rm=TRUE)) - log(min(obs$DV[obs$DV > 0], na.rm=TRUE))) / diff(range(obs$TIME))
+    }
     est$V <- dose / max(obs$DV, na.rm=TRUE)
     est$CL <- KEL * est$V
   } else { # more crude estimation
