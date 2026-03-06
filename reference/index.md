@@ -212,6 +212,7 @@
   [`get_elimination()`](https://insightrx.github.io/pharmr.extra/reference/get_model_info.md)
   [`get_absorption()`](https://insightrx.github.io/pharmr.extra/reference/get_model_info.md)
   [`get_ode_linearity()`](https://insightrx.github.io/pharmr.extra/reference/get_model_info.md)
+  [`get_estimation_steps()`](https://insightrx.github.io/pharmr.extra/reference/get_model_info.md)
   : Get model info
 
 - [`get_new_run_number()`](https://insightrx.github.io/pharmr.extra/reference/get_new_run_number.md)

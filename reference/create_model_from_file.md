@@ -5,7 +5,12 @@ Create a Pharmpy model object from a model file and dataset (optional)
 ## Usage
 
 ``` r
-create_model_from_file(model_file, ext_file = NULL, data = NULL)
+create_model_from_file(
+  model_file,
+  ext_file = NULL,
+  data = NULL,
+  verbose = TRUE
+)
 ```
 
 ## Arguments
@@ -22,6 +27,10 @@ create_model_from_file(model_file, ext_file = NULL, data = NULL)
 - data:
 
   the filename of the dataset (or an actual data.frame)
+
+- verbose:
+
+  verbose output
 
 ## Value
 

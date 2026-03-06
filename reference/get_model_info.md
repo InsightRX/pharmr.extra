@@ -15,6 +15,8 @@ get_elimination(model)
 get_absorption(model)
 
 get_ode_linearity(model)
+
+get_estimation_steps(model)
 ```
 
 ## Arguments
