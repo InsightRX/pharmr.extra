@@ -87,6 +87,57 @@ test_that("change_nonmem_dataset handles errors appropriately", {
   )
 })
 
+test_that("run_nlme removes tables from model when remove_tables = TRUE", {
+  local_pharmr.extra_options()
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 1, 2), DV = c(0, 10, 5),
+    AMT = c(100, 0, 0), CMT = 1, EVID = c(1, 0, 0), MDV = c(1, 0, 0)
+  )
+  mod <- create_model(route = "iv", data = dat, tables = "fit", verbose = FALSE)
+  expect_true(length(get_tables_in_model_code(mod$code)) > 0)
+
+  captured_model <- NULL
+  stub(run_nlme, "prepare_run_folder", function(id, model, ...) {
+    captured_model <<- model
+    stop("abort before NONMEM")
+  })
+
+  tryCatch(
+    run_nlme(mod, id = "run1", path = withr::local_tempdir(),
+             remove_tables = TRUE, verbose = FALSE),
+    error = function(e) NULL
+  )
+
+  expect_false(is.null(captured_model))
+  expect_length(get_tables_in_model_code(captured_model$code), 0)
+})
+
+test_that("run_nlme preserves tables when remove_tables = FALSE", {
+  local_pharmr.extra_options()
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 1, 2), DV = c(0, 10, 5),
+    AMT = c(100, 0, 0), CMT = 1, EVID = c(1, 0, 0), MDV = c(1, 0, 0)
+  )
+  mod <- create_model(route = "iv", data = dat, tables = "fit", verbose = FALSE)
+  n_tables <- length(get_tables_in_model_code(mod$code))
+  expect_true(n_tables > 0)
+
+  captured_model <- NULL
+  stub(run_nlme, "prepare_run_folder", function(id, model, ...) {
+    captured_model <<- model
+    stop("abort before NONMEM")
+  })
+
+  tryCatch(
+    run_nlme(mod, id = "run1", path = withr::local_tempdir(),
+             remove_tables = FALSE, verbose = FALSE),
+    error = function(e) NULL
+  )
+
+  expect_false(is.null(captured_model))
+  expect_length(get_tables_in_model_code(captured_model$code), n_tables)
+})
+
 test_that("change_nonmem_dataset preserves whitespace and formatting", {
   # Test with extra whitespace
   model_code <- "$PROB TEST\n$DATA    old_data.csv    IGNORE=@   \n$INPUT ID TIME DV"
