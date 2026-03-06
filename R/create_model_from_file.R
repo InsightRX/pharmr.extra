@@ -77,7 +77,8 @@ create_model_from_file <- function(
     if(verbose) cli::cli_alert_info("Checking and cleaning dataset.")
     model <- clean_modelfit_data(
       model = model,
-      try_make_numeric = TRUE
+      try_make_numeric = TRUE,
+      verbose = verbose
     )
   }
   
