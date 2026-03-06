@@ -307,6 +307,112 @@ test_that("create_model_from_file works without data argument (default NULL)", {
   unlink(tmp_mod)
 })
 
+# Tests for character column handling in datasets --------------------------
+# The old code called pharmr::set_dataset(data) without writing to CSV first and
+# without calling clean_modelfit_data(), so character columns were never converted.
+# The fix: write to CSV, use set_dataset(path, datatype="nonmem"), load_dataset(),
+# then clean_modelfit_data(try_make_numeric = TRUE).
+
+test_that("create_model_from_file calls clean_modelfit_data with try_make_numeric = TRUE when data is provided", {
+  model_code <- c("$PROBLEM Test", "$PRED Y = THETA(1)", "$THETA 1")
+  tmp_mod <- tempfile(fileext = ".mod")
+  writeLines(model_code, tmp_mod)
+
+  test_data <- data.frame(
+    ID = 1, TIME = c(0, 1), DV = c(0, 5),
+    WT = c("70", "70")  # character column
+  )
+  mock_model <- structure(list(), class = "pharmpy.model.model.Model")
+  mock_model_with_data <- structure(list(has_data = TRUE), class = "pharmpy.model.model.Model")
+  clean_mock <- mockery::mock(mock_model_with_data)
+
+  mockery::stub(create_model_from_file, "pharmr::read_model_from_string", mock_model)
+  mockery::stub(create_model_from_file, "pharmr::set_dataset", mock_model_with_data)
+  mockery::stub(create_model_from_file, "pharmr::load_dataset", function(model, ...) mock_model_with_data)
+  mockery::stub(create_model_from_file, "clean_modelfit_data", clean_mock)
+
+  create_model_from_file(model_file = tmp_mod, data = test_data, verbose = FALSE)
+
+  expect_length(mockery::mock_calls(clean_mock), 1L)
+  clean_args <- mockery::mock_args(clean_mock)[[1]]
+  expect_true(isTRUE(clean_args$try_make_numeric))
+
+  unlink(tmp_mod)
+})
+
+test_that("create_model_from_file does NOT call clean_modelfit_data when data is NULL", {
+  model_code <- c("$PROBLEM Test", "$PRED Y = THETA(1)", "$THETA 1")
+  tmp_mod <- tempfile(fileext = ".mod")
+  writeLines(model_code, tmp_mod)
+
+  mock_model <- structure(list(), class = "pharmpy.model.model.Model")
+  clean_mock <- mockery::mock()
+
+  mockery::stub(create_model_from_file, "pharmr::read_model_from_string", mock_model)
+  mockery::stub(create_model_from_file, "clean_modelfit_data", clean_mock)
+
+  create_model_from_file(model_file = tmp_mod, data = NULL)
+
+  expect_length(mockery::mock_calls(clean_mock), 0L)
+
+  unlink(tmp_mod)
+})
+
+test_that("create_model_from_file converts numeric-as-character column to numeric in dataset", {
+  local_pharmr.extra_options()
+  mod_file <- testthat::test_path("fixtures", "run_with_ext", "run.mod")
+
+  test_data <- data.frame(
+    ID = 1L,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1L,
+    EVID = c(1L, 0L, 0L),
+    MDV = c(1L, 0L, 0L),
+    WT = c("70", "70", "70")  # numeric value stored as character
+  )
+
+  result <- create_model_from_file(
+    model_file = mod_file,
+    data = test_data,
+    verbose = FALSE
+  )
+
+  expect_s3_class(result, "pharmpy.model.model.Model")
+  expect_true(is.numeric(result$dataset$WT))
+  expect_equal(result$dataset$WT, c(70, 70, 70))
+})
+
+test_that("create_model_from_file handles multiple character columns in dataset", {
+  local_pharmr.extra_options()
+  mod_file <- testthat::test_path("fixtures", "run_with_ext", "run.mod")
+
+  test_data <- data.frame(
+    ID = 1L,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1L,
+    EVID = c(1L, 0L, 0L),
+    MDV = c(1L, 0L, 0L),
+    WT = c("70", "70", "70"),   # character
+    AGE = c("30", "30", "30")   # character
+  )
+
+  result <- create_model_from_file(
+    model_file = mod_file,
+    data = test_data,
+    verbose = FALSE
+  )
+
+  expect_s3_class(result, "pharmpy.model.model.Model")
+  expect_true(is.numeric(result$dataset$WT))
+  expect_true(is.numeric(result$dataset$AGE))
+  expect_equal(result$dataset$WT, c(70, 70, 70))
+  expect_equal(result$dataset$AGE, c(30, 30, 30))
+})
+
 test_that("create_model_from_file circumvents bug in pharmpy with dummy_eta and can add peripheral comparment", {
   local_pharmr.extra_options()
   model <- create_model_from_file(test_path("fixtures", "model_with_dummyeta", "run1.mod"))
