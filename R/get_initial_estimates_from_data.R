@@ -23,6 +23,8 @@ get_initial_estimates_from_data <- function(
   ltbs = FALSE
 ) {
 
+  data <- load_data_wrapper(data)
+  
   ## TODO: an extension could be to automatically add
   ## observed value scaling, e.g. when V < 1.0.
   pars <- data.frame()

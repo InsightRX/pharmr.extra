@@ -19,8 +19,8 @@ to NONMEM model file.}
 into numeric columns? If \code{FALSE} will just set all values to 0 (but
 retain column to avoid issues).}
 
-\item{data}{dataset (data.frame). Optional, can also be included in \code{model}
-object (if specified as pharmpy model object).}
+\item{data}{a data.frame (if not specified, will use \code{dataset} object in
+\code{model}).}
 
 \item{verbose}{verbose output?}
 }

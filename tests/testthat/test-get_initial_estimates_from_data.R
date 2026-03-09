@@ -190,3 +190,32 @@ test_that("get_initial_estimates_from_individual_data handles insufficient data"
   # Test that we get an empty result
   expect_equal(estimates, c(V = 2, CL = 0.2))
 })
+
+test_that("get_initial_estimates_from_data works with CSV filename", {
+  test_data <- data.frame(
+    ID = c(1, 1, 1, 1),
+    TIME = c(0, 1, 4, 8),
+    DV = c(0, 100, 50, 25),
+    EVID = c(1, 0, 0, 0),
+    MDV = c(1, 0, 0, 0),
+    AMT = c(1000, 0, 0, 0)
+  )
+  tmp <- tempfile(fileext = ".csv")
+  write.csv(test_data, tmp, row.names = FALSE)
+  on.exit(unlink(tmp))
+
+  result_file <- get_initial_estimates_from_data(tmp, n_cmt = 1)
+  result_df   <- get_initial_estimates_from_data(test_data, n_cmt = 1)
+
+  expect_type(result_file, "list")
+  expect_named(result_file, c("V", "CL"))
+  expect_equal(result_file$V,  result_df$V,  tolerance = 1e-6)
+  expect_equal(result_file$CL, result_df$CL, tolerance = 1e-6)
+})
+
+test_that("get_initial_estimates_from_data errors on non-existent CSV file", {
+  expect_error(
+    get_initial_estimates_from_data("/nonexistent/data.csv"),
+    "`data` file does not exist"
+  )
+})

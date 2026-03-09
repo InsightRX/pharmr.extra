@@ -158,3 +158,56 @@ test_that("warn and skip when effect type is not valid", {
   expect_s3_class(out, "pharmpy.model.external.nonmem.model.Model")
   expect_false(grepl("WT", out$statements$before_odes$full_expression("CL")))
 })
+
+
+test_that("data as CSV filename: covariate present in file is added", {
+  local_pharmr.extra_options()
+  dat <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0),
+    WT = 70
+  )
+  tmp <- tempfile(fileext = ".csv")
+  write.csv(dat, tmp, row.names = FALSE)
+  on.exit(unlink(tmp))
+
+  covs <- list(CL = list(WT = "lin"))
+  mod <- create_model(route = "oral", data = dat, verbose = FALSE)
+  expect_no_warning(
+    out <- add_covariates_to_model(model = mod, covariates = covs, data = tmp)
+  )
+  expect_s3_class(out, "pharmpy.model.external.nonmem.model.Model")
+  expect_true(grepl("WT", out$statements$before_odes$full_expression("CL")))
+})
+
+
+test_that("data as CSV filename: missing covariate warns and is skipped", {
+  local_pharmr.extra_options()
+  dat <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0)
+    # WT intentionally absent
+  )
+  tmp <- tempfile(fileext = ".csv")
+  write.csv(dat, tmp, row.names = FALSE)
+  on.exit(unlink(tmp))
+
+  covs <- list(CL = list(WT = "lin"))
+  mod <- create_model(route = "oral", data = dat, verbose = FALSE)
+  expect_warning(
+    out <- add_covariates_to_model(model = mod, covariates = covs, data = tmp),
+    "Covariate `WT` not found in data, skipping."
+  )
+  expect_s3_class(out, "pharmpy.model.external.nonmem.model.Model")
+  expect_false(grepl("WT", out$statements$before_odes$full_expression("CL")))
+})

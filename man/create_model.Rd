@@ -93,7 +93,7 @@ Values in list need to match one of the effects allowed by pharmpy.}
 differences between dose and concentration. E.g. \code{scale_observations = 1000}
 will add \code{S1 = V/1000} (for a 1-compartment model) to NONMEM code.}
 
-\item{data}{data.frame as input to NONMEM / nlmixr.}
+\item{data}{filename of dataset or data.frame as input to NONMEM / nlmixr.}
 
 \item{name}{name of model}
 

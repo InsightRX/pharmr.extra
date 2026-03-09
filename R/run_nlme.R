@@ -11,8 +11,9 @@
 #'
 #' @param model pharmpy model object or NONMEM model code (character) or path
 #' to NONMEM model file.
-#' @param data dataset (data.frame). Optional, can also be included in `model`
-#' object (if specified as pharmpy model object).
+#' @param data filename of dataset or data.frame as input to NONMEM / nlmixr. 
+#' Optional, can also be included in `model` object (if specified as pharmpy 
+#' model object).
 #' @param tables acharacter vector of which default tables
 #' to add, options are `fit` and `parameters`. Default is NULL,
 #' i.e. don't add any new tables (but will keep existing).
@@ -42,8 +43,9 @@
 #' @param sir_options options for running SIR in covariance step. A list with
 #' options `niter` (number of SIR iterations) and `samples` (number of
 #' samples). Default `NULL` leaves the model unchanged.
-#' @param auto_stack_encounters only invoked if `data` argument supplied, not if
-#' a pharmpy model object is supplied without `data`.
+#' @param auto_stack_encounters only invoked if `data` argument supplied as
+#' a data.frame, not if a pharmpy model object is supplied without `data` or 
+#' when `data` is a filename.
 #' Detects if TIME within an individual is
 #' decreasing from one record to another, which NONMEM cannot handle.
 #' If this happens, it will add a reset event (EVID=3) at that time, and

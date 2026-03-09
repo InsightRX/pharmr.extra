@@ -29,8 +29,9 @@ run_sim(
 \arguments{
 \item{fit}{a Pharmpy modelfit object.}
 
-\item{data}{dataset (data.frame). Optional, can also be included in \code{model}
-object (if specified as pharmpy model object).}
+\item{data}{filename of dataset or data.frame as input to NONMEM / nlmixr.
+Optional, can also be included in \code{model} object (if specified as pharmpy
+model object).}
 
 \item{model}{either a Pharmpy model object, or a filename (for a model
 with NONMEM model code). If the latter, \code{run_sim()} will attempt to load the

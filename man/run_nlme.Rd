@@ -32,8 +32,9 @@ run_nlme(
 \item{model}{pharmpy model object or NONMEM model code (character) or path
 to NONMEM model file.}
 
-\item{data}{dataset (data.frame). Optional, can also be included in \code{model}
-object (if specified as pharmpy model object).}
+\item{data}{filename of dataset or data.frame as input to NONMEM / nlmixr.
+Optional, can also be included in \code{model} object (if specified as pharmpy
+model object).}
 
 \item{tables}{acharacter vector of which default tables
 to add, options are \code{fit} and \code{parameters}. Default is NULL,
@@ -76,8 +77,9 @@ and update with methods specified in argument.}
 options \code{niter} (number of SIR iterations) and \code{samples} (number of
 samples). Default \code{NULL} leaves the model unchanged.}
 
-\item{auto_stack_encounters}{only invoked if \code{data} argument supplied, not if
-a pharmpy model object is supplied without \code{data}.
+\item{auto_stack_encounters}{only invoked if \code{data} argument supplied as
+a data.frame, not if a pharmpy model object is supplied without \code{data} or
+when \code{data} is a filename.
 Detects if TIME within an individual is
 decreasing from one record to another, which NONMEM cannot handle.
 If this happens, it will add a reset event (EVID=3) at that time, and
