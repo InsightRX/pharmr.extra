@@ -42,8 +42,9 @@ run_nlme(
 
 - data:
 
-  dataset (data.frame). Optional, can also be included in `model` object
-  (if specified as pharmpy model object).
+  filename of dataset or data.frame as input to NONMEM / nlmixr.
+  Optional, can also be included in `model` object (if specified as
+  pharmpy model object).
 
 - tables:
 
@@ -111,18 +112,18 @@ run_nlme(
 
 - auto_stack_encounters:
 
-  only invoked if `data` argument supplied, not if a pharmpy model
-  object is supplied without `data`. Detects if TIME within an
-  individual is decreasing from one record to another, which NONMEM
-  cannot handle. If this happens, it will add a reset event (EVID=3) at
-  that time, and increase the TIME for subsequent events so that NONMEM
-  does not throw an error. It will increase the time for the next
-  encounter to the maximum encounter length across all subjects in the
-  dataset (rounded up to 100). If no decreasing TIME is detected,
-  nothing will be done (most common case). This feature is useful e.g.
-  for crossover trials when data on the same individual ispresent but is
-  included in the dataset as time-after-dose and not actual time since
-  first overall dose.
+  only invoked if `data` argument supplied as a data.frame, not if a
+  pharmpy model object is supplied without `data` or when `data` is a
+  filename. Detects if TIME within an individual is decreasing from one
+  record to another, which NONMEM cannot handle. If this happens, it
+  will add a reset event (EVID=3) at that time, and increase the TIME
+  for subsequent events so that NONMEM does not throw an error. It will
+  increase the time for the next encounter to the maximum encounter
+  length across all subjects in the dataset (rounded up to 100). If no
+  decreasing TIME is detected, nothing will be done (most common case).
+  This feature is useful e.g. for crossover trials when data on the same
+  individual ispresent but is included in the dataset as time-after-dose
+  and not actual time since first overall dose.
 
 - clean:
 

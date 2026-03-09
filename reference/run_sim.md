@@ -36,8 +36,9 @@ run_sim(
 
 - data:
 
-  dataset (data.frame). Optional, can also be included in `model` object
-  (if specified as pharmpy model object).
+  filename of dataset or data.frame as input to NONMEM / nlmixr.
+  Optional, can also be included in `model` object (if specified as
+  pharmpy model object).
 
 - model:
 

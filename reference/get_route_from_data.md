@@ -14,8 +14,12 @@ get_route_from_data(data, default = "iv")
 
 - data:
 
-  TODO
+  filename of dataset or data.frame as input to NONMEM / nlmixr.
 
 - default:
 
-  TODO
+  default route (`iv` by default)
+
+## Value
+
+route (character)

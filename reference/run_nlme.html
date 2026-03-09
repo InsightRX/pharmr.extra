@@ -82,8 +82,9 @@ to NONMEM model file.</p></dd>
 
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
-<dd><p>dataset (data.frame). Optional, can also be included in <code>model</code>
-object (if specified as pharmpy model object).</p></dd>
+<dd><p>filename of dataset or data.frame as input to NONMEM / nlmixr.
+Optional, can also be included in <code>model</code> object (if specified as pharmpy
+model object).</p></dd>
 
 
 <dt id="arg-tables">tables<a class="anchor" aria-label="anchor" href="#arg-tables"></a></dt>
@@ -152,8 +153,9 @@ samples). Default <code>NULL</code> leaves the model unchanged.</p></dd>
 
 
 <dt id="arg-auto-stack-encounters">auto_stack_encounters<a class="anchor" aria-label="anchor" href="#arg-auto-stack-encounters"></a></dt>
-<dd><p>only invoked if <code>data</code> argument supplied, not if
-a pharmpy model object is supplied without <code>data</code>.
+<dd><p>only invoked if <code>data</code> argument supplied as
+a data.frame, not if a pharmpy model object is supplied without <code>data</code> or
+when <code>data</code> is a filename.
 Detects if TIME within an individual is
 decreasing from one record to another, which NONMEM cannot handle.
 If this happens, it will add a reset event (EVID=3) at that time, and

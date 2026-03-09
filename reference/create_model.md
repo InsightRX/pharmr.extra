@@ -127,7 +127,7 @@ create_model(
 
 - data:
 
-  data.frame as input to NONMEM / nlmixr.
+  filename of dataset or data.frame as input to NONMEM / nlmixr.
 
 - name:
 

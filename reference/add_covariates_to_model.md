@@ -22,7 +22,7 @@ add_covariates_to_model(model, covariates, data = NULL)
 
 - data:
 
-  data.frame as input to NONMEM / nlmixr.
+  filename of dataset or data.frame as input to NONMEM / nlmixr.
 
 ## Value
 

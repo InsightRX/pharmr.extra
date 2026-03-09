@@ -28,8 +28,7 @@ clean_modelfit_data(
 
 - data:
 
-  dataset (data.frame). Optional, can also be included in `model` object
-  (if specified as pharmpy model object).
+  a data.frame (if not specified, will use `dataset` object in `model`).
 
 - verbose:
 

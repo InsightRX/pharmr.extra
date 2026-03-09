@@ -326,6 +326,9 @@ MIT © InsightRX
 - [`is_maxeval_zero()`](https://insightrx.github.io/pharmr.extra/reference/is_maxeval_zero.md)
   : Does the last estimation method in a model have maxeval=0?
 
+- [`load_data_wrapper()`](https://insightrx.github.io/pharmr.extra/reference/load_data_wrapper.md)
+  : Wrapper to load data from either filename or data.frame
+
 - [`nlmixr2_pk_1cmt_iv_linear()`](https://insightrx.github.io/pharmr.extra/reference/nlmixr2_pk_1cmt_iv_linear.md)
   : nlmixr2 model: 2-cmt linear model (iv)
 
