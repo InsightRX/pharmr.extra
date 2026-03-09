@@ -1,6 +1,8 @@
 #' Clean / check the dataset before passing to model fitting tool
 #'
 #' @inheritParams run_nlme
+#' @param data a data.frame (if not specified, will use `dataset` object in 
+#' `model`).
 #' @param try_make_numeric should function try to turn character columns
 #' into numeric columns? If `FALSE` will just set all values to 0 (but
 #' retain column to avoid issues).
