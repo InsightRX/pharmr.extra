@@ -67,6 +67,10 @@ jobs:
 
       - name: Downgrade Pandas to 2.3.3
         run: /home/runner/.virtualenvs/r-reticulate/bin/pip install pandas==2.3.3
+
+      - name: Install pydarwin
+        run: pharmr.extra::install_pydarwin()
+        shell: Rscript {0}
       
       - uses: r-lib/actions/check-r-package@v2
         with:
