@@ -13,7 +13,7 @@ add_covariates_to_model(model, covariates, data = NULL)
 \verb{list(CL = list(WT = "pow", CRCL = "lin"), V = list(WT = "pow")}
 Values in list need to match one of the effects allowed by pharmpy.}
 
-\item{data}{data.frame as input to NONMEM / nlmixr.}
+\item{data}{filename of dataset or data.frame as input to NONMEM / nlmixr.}
 }
 \value{
 TODO

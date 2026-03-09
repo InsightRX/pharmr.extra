@@ -1240,3 +1240,44 @@ test_that("create_model force_ode with invalid ADVAN number errors", {
     "force_ode.*can only be"
   )
 })
+
+
+test_that("create_model accepts data as CSV filename", {
+  test_data <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0)
+  )
+  tmp <- tempfile(fileext = ".csv")
+  write.csv(test_data, tmp, row.names = FALSE)
+  on.exit(unlink(tmp))
+
+  mod <- create_model(route = "iv", data = tmp, auto_stack_encounters = FALSE, verbose = FALSE)
+  expect_s3_class(mod, "pharmpy.model.external.nonmem.model.Model")
+  expect_true(grepl("POP_CL", mod$code))
+})
+
+
+test_that("create_model with filename data warns when auto_stack_encounters is TRUE", {
+  test_data <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0)
+  )
+  tmp <- tempfile(fileext = ".csv")
+  write.csv(test_data, tmp, row.names = FALSE)
+  on.exit(unlink(tmp))
+
+  expect_warning(
+    create_model(route = "iv", data = tmp, auto_stack_encounters = TRUE, verbose = FALSE),
+    "auto_stack_encounters.*can only be used when.*data.frame"
+  )
+})

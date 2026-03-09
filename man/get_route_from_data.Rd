@@ -9,9 +9,12 @@ then assume IV administration, else oral absorption (or sc, im, etc).}
 get_route_from_data(data, default = "iv")
 }
 \arguments{
-\item{data}{TODO}
+\item{data}{filename of dataset or data.frame as input to NONMEM / nlmixr.}
 
-\item{default}{TODO}
+\item{default}{default route (\code{iv} by default)}
+}
+\value{
+route (character)
 }
 \description{
 Get route from data.

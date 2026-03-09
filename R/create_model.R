@@ -3,7 +3,7 @@
 #' This is essentially a wrapper around the model-creation and -modification
 #' functionality in pharmr/Pharmpy.
 #'
-#' @param data data.frame as input to NONMEM / nlmixr.
+#' @param data filename of dataset or data.frame as input to NONMEM / nlmixr.
 #' @param route route of administration, either `oral` or `iv`
 #' @param lag_time add a lag time, default is `FALSE`
 #' @param n_transit_compartments number of transit-compartments for absorption
@@ -283,10 +283,17 @@ create_model <- function(
   steps <- mod$execution_steps$to_dataframe()
   n_steps <- nrow(steps)
   first_method <- tolower(estimation_method[1])
-  per_step_options <- parse_estimation_options(estimation_method, estimation_options)
+  per_step_options <- parse_estimation_options(
+    estimation_method, 
+    estimation_options
+  )
   if(tool == "nonmem") {
     if(verbose) cli::cli_alert_info("Setting estimation options")
-    tool_options <- get_estimation_options(tool, first_method, per_step_options[[1]])
+    tool_options <- get_estimation_options(
+      tool = tool, 
+      estimation_method = first_method, 
+      estimation_options = per_step_options[[1]]
+    )
   } else {
     tool_options <- list()
     cli::cli_alert_warning(paste0("Skipping estimation options for ", tool, ", since not supported by Pharmpy. Please set manually"))
@@ -374,24 +381,38 @@ create_model <- function(
 
   ## Add dataset (needed if we want to add covariates to the model)
   if(!is.null(data)) {
-    if(isTRUE(auto_stack_encounters)) {
-      data <- stack_encounters(
-        data = data,
-        verbose = verbose
-      )
+    if(inherits(data, "character")) {
+      if(isTRUE(auto_stack_encounters)) {
+        cli::cli_warn("`auto_stack_encounters` can only be used when `data` is specified as data.frame, not when it is a CSV filename.")
+      }
+      if(verbose) cli::cli_alert_info("Updating model dataset with provided dataset.")
+      mod <- mod |>
+        pharmr::unload_dataset() |>
+        pharmr::set_dataset(
+          path_or_df = load_data_wrapper(data),
+          datatype = "nonmem"
+        )
+      if(verbose) cli::cli_alert_info("`data` provided as filename: skipping check of dataset and using as-is.")
+    } else {
+      if(isTRUE(auto_stack_encounters)) {
+        data <- stack_encounters(
+          data = data,
+          verbose = verbose
+        )
+      }
+      if(verbose) cli::cli_alert_info("Updating model dataset with provided dataset.")
+      mod <- mod |>
+        pharmr::unload_dataset() |>
+        pharmr::set_dataset(
+          path_or_df = data,
+          datatype = "nonmem"
+        )
+      if(verbose) cli::cli_alert_info("Checking and cleaning dataset.")
+      mod <- clean_modelfit_data(
+        model = mod,
+        try_make_numeric = TRUE
+      ) 
     }
-    if(verbose) cli::cli_alert_info("Updating model dataset with provided dataset.")
-    mod <- mod |>
-      pharmr::unload_dataset() |>
-      pharmr::set_dataset(
-        path_or_df = data,
-        datatype = "nonmem"
-      )
-    if(verbose) cli::cli_alert_info("Checking and cleaning dataset.")
-    mod <- clean_modelfit_data(
-      model = mod,
-      try_make_numeric = TRUE
-    )
   }
   
   ## Handle BLQ
@@ -408,12 +429,19 @@ create_model <- function(
     if(is.null(lloq) && ! "LLOQ" %in% names(mod$dataset) && blq_method %in% c("m2", "m3", "m4", "m5", "m6")) {
       cli::cli_abort("For {blq_method}-method, need either `lloq` argument or a LLOQ column in the dataset.")
     }
-    mod <- pharmr::transform_blq(mod, method = blq_method, lloq = lloq)
+    mod <- pharmr::transform_blq(
+      model = mod, 
+      method = blq_method, 
+      lloq = lloq
+    )
   }
 
   ## Set name?
   if(!is.null(name)) {
-    mod <- pharmr::set_name(mod, new_name = name)
+    mod <- pharmr::set_name(
+      mod, 
+      new_name = name
+    )
   }
 
   if(verbose) cli::cli_alert_success("Done")
@@ -580,17 +608,22 @@ set_residual_error <- function(mod, ruv) {
 #' If dose and observation events all happen in the same compartment,
 #' then assume IV administration, else oral absorption (or sc, im, etc).
 #'
-#' @param data TODO
-#' @param default TODO
+#' @inheritParams create_model
+#' 
+#' @param default default route (`iv` by default)
+#' 
+#' @returns route (character)
+#' 
 get_route_from_data <- function(data, default = "iv") {
   if(is.null(data)) {
     return(default)
   }
-  dose_cmt <- data |>
+  dataset <- load_data_wrapper(data)
+  dose_cmt <- dataset |>
     dplyr::filter(.data$EVID == 1) |>
     dplyr::pull("CMT") |>
     unique()
-  obs_cmt <- data |>
+  obs_cmt <- dataset |>
     dplyr::filter(.data$EVID == 0) |>
     dplyr::pull("CMT") |>
     unique()

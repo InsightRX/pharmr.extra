@@ -11,11 +11,12 @@ add_covariates_to_model <- function(
   covariates,
   data = NULL
 ) {
+  dataset <- load_data_wrapper(data)
   allowed_effects <- c("lin", "pow", "exp", "piece_lin", "cat", "cat2")
   for(par in names(covariates)) {
     for(covt in names(covariates[[par]])) {
       effect <- covariates[[par]][[covt]]
-      if(!is.null(data) && !covt %in% names(data)) {
+      if(!is.null(dataset) && !covt %in% names(dataset)) {
         warning("Covariate `", covt, "` not found in data, skipping.")
       } else {
         if(!effect %in% allowed_effects) {
