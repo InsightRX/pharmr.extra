@@ -4,6 +4,7 @@ skip_on_ci()
 
 test_that("Basic simulation works (using `model` argument, not `fit`)", {
   local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
   
   mod <- pharmr::load_example_model("pheno")
@@ -25,6 +26,7 @@ test_that("Basic simulation works (using `model` argument, not `fit`)", {
 
 test_that("Basic simulation works (using model file specified to `model`)", {
   local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
 
   mod <- pharmr::load_example_model("pheno")
@@ -51,6 +53,7 @@ test_that("Basic simulation works (using model file specified to `model`)", {
 
 test_that("Errors on invalid variables when update_table = TRUE", {
   local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
 
   dat <- data.frame(
@@ -91,6 +94,7 @@ test_that("Errors on invalid variables when update_table = TRUE", {
 
 test_that("run_sim: no data, regimen + t_obs produces 1-subject output by default", {
   local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
 
   mod <- .make_iv_model()
@@ -109,6 +113,7 @@ test_that("run_sim: no data, regimen + t_obs produces 1-subject output by defaul
 
 test_that("run_sim: no data, n_subjects controls number of simulated subjects", {
   local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
 
   mod <- .make_iv_model()
@@ -126,6 +131,7 @@ test_that("run_sim: no data, n_subjects controls number of simulated subjects", 
 
 test_that("run_sim: no data, covariates determines n_subjects and appears in output", {
   local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
 
   mod <- pharmr::load_example_model("pheno")
@@ -147,6 +153,7 @@ test_that("run_sim: no data, covariates determines n_subjects and appears in out
 
 test_that("run_sim: no data, covariates values are correctly carried into output", {
   local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
 
   mod <- pharmr::load_example_model("pheno")
@@ -168,6 +175,7 @@ test_that("run_sim: no data, covariates values are correctly carried into output
 
 test_that("run_sim: no data, multiple regimens produce separate regimen_label values", {
   local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
 
   mod <- .make_iv_model()
