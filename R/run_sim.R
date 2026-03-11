@@ -331,10 +331,8 @@ run_sim <- function(
 
     if(verbose) cli::cli_alert_info("Updating dataset reference")
     ## Update dataset (in safe way, avoiding pharmr::set_dataset)
-    new_dataset_file <- tempfile(pattern = "data", fileext = ".csv")
-    write.csv(sim_data_regimen, new_dataset_file, quote = F, row.names = F)
     sim_model <- sim_model |>
-      set_dataset_clean(path_or_df = new_dataset_file)
+      set_dataset_clean(path_or_df = sim_data_regimen)
 
     ## Add tables
     if(update_table) {
@@ -363,7 +361,7 @@ run_sim <- function(
     if(verbose) cli::cli_alert_info("Running simulation ({reg_label})")
     results <- run_nlme(
       model = sim_model,
-      data = new_dataset_file,
+      data = NULL,
       id = id,
       force = TRUE,
       auto_stack_encounters = FALSE,
