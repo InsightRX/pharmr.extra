@@ -35,7 +35,9 @@
 #' specifed in the model. However, in the return object, only the first table
 #' is returned back. If `FALSE`, the `add_pk_variables` argument will be ignored.
 #' @param tool the tool to run the model in, either `nonmem`, or `nlmixr`.
-#' @param variables vector of variables to output.
+#' @param variables vector of variables to output. If `NULL`, will output 
+#' default variables `c("ID", "TIME", "DV", "EVID", "PRED")` as well as
+#' all variables declared in the NONMEM code.
 #' @param output_file TODO
 #' @param seed TODO
 #'
@@ -49,20 +51,13 @@ run_sim <- function(
     id = irxutils::get_random_id("sim_"),
     force = FALSE,
     t_obs = NULL,
-    dictionary = list(
-      ID = "ID",
-      DV = "DV",
-      EVID = "EVID",
-      AMT = "AMT",
-      CMT = "CMT",
-      MDV = "MDV"
-    ),
+    dictionary = NULL,
     regimen = NULL,
     covariates = NULL,
     tool = c("auto", "nonmem", "nlmixr2"),
     n_subjects = NULL,
     n_iterations = 1,
-    variables = c("ID", "TIME", "DV", "EVID", "IPRED", "PRED"),
+    variables = NULL,
     add_pk_variables = TRUE,
     output_file = "simtab",
     update_table = TRUE,
@@ -114,6 +109,20 @@ run_sim <- function(
       cli::cli_abort("`regimen` needs to be either a data.frame or a list, or NULL.")
     }
   }
+  default_dictionary <- list(
+    ID = "ID",
+    DV = "DV",
+    EVID = "EVID",
+    AMT = "AMT",
+    CMT = "CMT",
+    MDV = "MDV"
+  )
+  merge_dictionary <- function(user = list(), default_dictionary) {
+    defaults <- default_dictionary
+    defaults[names(user)] <- user
+    defaults
+  }
+  dictionary <- merge_dictionary(dictionary, default_dictionary)
 
   ## Prepare data
   ## When regimen + t_obs are both given without data, build the dataset from scratch
@@ -174,25 +183,42 @@ run_sim <- function(
       }
     }
     ## Set CMT to NA if not in dataset
-    if(is.null(input_data[[dictionary$CMT]])) {
+    if(!is.null(dictionary$CMT) && is.null(input_data[[dictionary$CMT]])) {
       input_data[[dictionary$CMT]] <- NA
     }
     if(is.null(covariates)) { # use original dataset
       if(verbose) cli::cli_alert_info("Using input dataset for simulation")
       sim_data <- input_data
       if(!is.null(dictionary)) {
+        for(key in names(dictionary)) {
+          if(! dictionary[[key]] %in% names(sim_data)) {
+            cli::cli_alert_warning("Dictionary value for {key} ('{dictionary[[key]]}') not found in dataset.")
+            dictionary[[key]] <- NULL
+          }
+          if(key %in% names(sim_data) && key != dictionary[[key]]) {
+            sim_data <- sim_data |>
+              dplyr::rename(
+                !!!rlang::set_names(
+                  key,
+                  paste0(key, "_old")
+                ))
+          }
+        }
         sim_data <- sim_data |>
           dplyr::rename(
             !!!rlang::set_names(
-              dictionary,
+              as.character(dictionary),
               names(dictionary)
             )
           )
       }
-      if(!is.null(n_subjects)) {
-        cli::cli_warn("`n_subjects` argument can only be used when sampling `covariates`, and will be ignored for this simulation.")
+      if(is.null(n_subjects)) {
+        n_subjects <- length(unique(input_data[[dictionary$ID]]))
+      } else {
+        ids <- unique(sim_data$ID)
+        sim_data <- sim_data |>
+          dplyr::filter(.data$ID %in% ids[1:n_subjects])
       }
-      n_subjects <- length(unique(sim_data[[dictionary$ID]]))
     } else { ## user provided sampled covariates in `data`
       if(is.null(n_subjects)) {
         cli::cli_abort("For sampling new datasets, need `n_subjects` argument.")
@@ -242,6 +268,9 @@ run_sim <- function(
       dictionary,
       advan
     )
+
+    ## match type of columns to existing dataset (possibly user-supplied)
+    doses <- match_type(doses, sim_data, c("AMT", "RATE", "DV"))
     ## remove old doses and add new
     sim_data <- sim_data |>
       dplyr::filter(.data$EVID != 1) |>
@@ -270,6 +299,7 @@ run_sim <- function(
       model
     )
     ## remove old obs and add new
+    obs <- match_type(obs, sim_data, c("AMT", "RATE", "DV"))
     sim_data <- sim_data |>
       dplyr::filter(.data$EVID != 0) |>
       dplyr::bind_rows(obs) |>
@@ -293,27 +323,27 @@ run_sim <- function(
       dplyr::filter(.data$.regimen == reg_label) |>
       dplyr::arrange(.data$ID, .data$TIME, -.data$EVID) |>
       dplyr::select(-".regimen")
-    
-    ## Set simulation
+
+    ## Set simulation (pharmr::set_simulation() modifies the model that sometimes invalidate the model, so add manually)
     if(verbose) cli::cli_alert_info("Changing model to simulation model")
     sim_model <- model |>
-      pharmr::set_simulation(seed = 12345)
-    
+      set_simulation_clean(seed = 1234, n = 1)
+
+    if(verbose) cli::cli_alert_info("Updating dataset reference")
     ## Update dataset (in safe way, avoiding pharmr::set_dataset)
-    if(is.null(dataset_file)) {
-      dataset_file <- tempfile(pattern = "data", fileext = ".csv")
-      write.csv(sim_data, dataset_file, quote = F, row.names = F)
-    }
-    sim_model_code <- sim_model$code
-    sim_model_path <- tempfile(fileext = ".mod")
-    sim_model_code <- change_nonmem_dataset(sim_model_code, dataset_file)
-    writeLines(sim_model_code, sim_model_path)
-    sim_model <- pharmr::read_model(path = model_path)
+    new_dataset_file <- tempfile(pattern = "data", fileext = ".csv")
+    write.csv(sim_data_regimen, new_dataset_file, quote = F, row.names = F)
+    sim_model <- sim_model |>
+      set_dataset_clean(path_or_df = new_dataset_file)
 
     ## Add tables
     if(update_table) {
       if(verbose) cli::cli_alert_info("Updating table record(s)")
       parameter_names <- get_defined_pk_parameters(sim_model)
+      if(is.null(variables)) {
+        default_variables <- c("ID", "TIME", "DV", "EVID", "PRED")
+        variables <- c(default_variables, get_declared_variables(sim_model))
+      }
       checked_variables <- c()
       for(variab in variables) {
         check_var <- check_nm_table_variables(sim_model, variab, throw_error = FALSE)
@@ -333,8 +363,10 @@ run_sim <- function(
     if(verbose) cli::cli_alert_info("Running simulation ({reg_label})")
     results <- run_nlme(
       model = sim_model,
+      data = new_dataset_file,
       id = id,
       force = TRUE,
+      auto_stack_encounters = FALSE,
       verbose = FALSE
     )
 
@@ -377,6 +409,12 @@ run_sim <- function(
     }
   }) |>
     dplyr::bind_rows()
+  
+  ## Ensure only t_obs is outputted
+  if(!is.null(t_obs)) {
+    out <- out |>
+      dplyr::filter(.data$TIME %in% t_obs)
+  }
 
   if(verbose) cli::cli_alert_success("Done")
   out
@@ -403,22 +441,27 @@ calc_pk_variables <- function(
       dplyr::mutate(TMAX_OBS = .data$TIME[match(.data$CMAX_OBS[1], .data$DV)][1])
 
     ## Find Cmin for each ID, for last interval
-    tmp_data <- data |>
-      dplyr::group_by(.data$ID) |>
-      dplyr::mutate(.dose_id = cumsum(.data$EVID == 1))
-    last_obs_dose_id <- tmp_data |>
-      dplyr::filter(.data$EVID == 0) |>
-      dplyr::pull(".dose_id") |>
-      utils::tail(1)
-    cmin_data <- tmp_data |>
-      dplyr::mutate(.dose_cmin = max(c(1, last_obs_dose_id))) |> # last full interval (before last dose)
-      dplyr::filter(.data$.dose_id == .data$.dose_cmin & .data$EVID == 0) |>
-      dplyr::summarise(CMIN_OBS = min(.data$DV))
-    data <- dplyr::left_join(data, cmin_data, by = "ID")
+    if(all(c("ID", "EVID") %in% names(data))) {
+      tmp_data <- data |>
+        dplyr::group_by(.data$ID) |>
+        dplyr::mutate(.dose_id = cumsum(.data$EVID == 1))
+      last_obs_dose_id <- tmp_data |>
+        dplyr::filter(.data$EVID == 0) |>
+        dplyr::pull(".dose_id") |>
+        utils::tail(1)
+      cmin_data <- tmp_data |>
+        dplyr::mutate(.dose_cmin = max(c(1, last_obs_dose_id))) |> # last full interval (before last dose)
+        dplyr::filter(.data$.dose_id == .data$.dose_cmin & .data$EVID == 0) |>
+        dplyr::summarise(CMIN_OBS = min(.data$DV))
+      data <- dplyr::left_join(data, cmin_data, by = "ID")      
+    } else {
+      cli::cli_alert_info("Skipping Cmin calculation, some required columns not in output data.")      
+    }
 
     ## Add AUC_SS as CL/dose, if we're simulating a specific regimen
     if(!is.null(regimen) && "CL" %in% names(data)) {
-      data <- dplyr::mutate(data, AUC_SS = utils::tail(regimen$dose, 1) / .data$CL)
+      data <- data |>
+        dplyr::mutate(AUC_SS = utils::tail(regimen$dose, 1) / .data$CL)
     }
   }
 
@@ -441,6 +484,10 @@ create_dosing_records <- function(
     dictionary,
     advan = NULL
 ) {
+  ids <- unique(data$ID)
+  if(length(ids) < n_subjects) {
+    ids <- c(ids, max(ids) + 1:(n_subjects-length(ids)))
+  }
   if(!is.null(regimen$regimen)) {
     unq_reg <- unique(regimen$regimen)
   } else {
@@ -479,7 +526,7 @@ create_dosing_records <- function(
     ))
   dose_df <- lapply(1:n_subjects, function(i) {
     dose |>
-      dplyr::mutate(ID = i)
+      dplyr::mutate(ID = ids[i])
   }) |>
     dplyr::bind_rows()
   dose_df
@@ -498,6 +545,10 @@ create_obs_records <- function(
     dictionary,
     model
 ) {
+  ids <- unique(data$ID)
+  if(length(ids) < n_subjects) {
+    ids <- c(ids, max(ids) + 1:(n_subjects-length(ids)))
+  }
   unq_reg <- unique(data[[".regimen"]])
   ## create a template row
   ## first try pull CMT from data. if not available in data, try based on ADVAN
@@ -528,7 +579,7 @@ create_obs_records <- function(
   ## extend single sampling design to multiple subjects
   obs_df <- lapply(1:n_subjects, function(i) {
     obs |>
-      dplyr::mutate(ID = i)
+      dplyr::mutate(ID = ids[i])
   }) |>
     dplyr::bind_rows()
   ## extend to multiple regimens, if needed
@@ -538,4 +589,13 @@ create_obs_records <- function(
   }) |>
     dplyr::bind_rows()
   obs_df
+}
+
+match_type <- function(x, reference, cols = c("AMT", "RATE", "DV")) {
+  for(key in cols) {
+    if(inherits(reference[[key]], "character")) {
+      x[[key]] <- as.character(x[[key]])
+    }
+  }
+  x
 }

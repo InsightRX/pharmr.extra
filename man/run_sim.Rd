@@ -11,14 +11,13 @@ run_sim(
   id = irxutils::get_random_id("sim_"),
   force = FALSE,
   t_obs = NULL,
-  dictionary = list(ID = "ID", DV = "DV", EVID = "EVID", AMT = "AMT", CMT = "CMT", MDV =
-    "MDV"),
+  dictionary = NULL,
   regimen = NULL,
   covariates = NULL,
   tool = c("auto", "nonmem", "nlmixr2"),
   n_subjects = NULL,
   n_iterations = 1,
-  variables = c("ID", "TIME", "DV", "EVID", "IPRED", "PRED"),
+  variables = NULL,
   add_pk_variables = TRUE,
   output_file = "simtab",
   update_table = TRUE,
@@ -76,7 +75,9 @@ it will be assumed covariates are not changing over time).}
 perform. The dataset for the simulation will stay the same between each
 iterations.}
 
-\item{variables}{vector of variables to output.}
+\item{variables}{vector of variables to output. If \code{NULL}, will output
+default variables \code{c("ID", "TIME", "DV", "EVID", "PRED")} as well as
+all variables declared in the NONMEM code.}
 
 \item{add_pk_variables}{calculate basic PK variables that can be extracted
 in post-processing, such as CMAX_OBS, TMAX_OBS, AUC_SS.}

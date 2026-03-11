@@ -17,7 +17,6 @@ add_sir <- function(
     cli::cli_abort("`options` should be a `list`.")
   } else {
     if(isFALSE(options$niter > 0)) {
-      cli::cli_alert_info("Not running SIR (`niter` <= 0).")
       return(model)
     }
     if(! has_cov) {
