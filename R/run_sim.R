@@ -159,10 +159,19 @@ run_sim <- function(
       }))
     }
   } else {
+    dataset_file <- NULL
     if(is.null(data)) {
       input_data <- model$dataset
     } else {
-      input_data <- data
+      if(inherits(data, "character")) {
+        dataset_file <- data
+        if (!file.exists(dataset_file)) {
+          cli::cli_abort("Data file {dataset_file} does not exist")
+        }
+        input_data <- read.csv(dataset_file)
+      } else {
+        input_data <- data
+      }
     }
     ## Set CMT to NA if not in dataset
     if(is.null(input_data[[dictionary$CMT]])) {
@@ -284,12 +293,22 @@ run_sim <- function(
       dplyr::filter(.data$.regimen == reg_label) |>
       dplyr::arrange(.data$ID, .data$TIME, -.data$EVID) |>
       dplyr::select(-".regimen")
-
-    ## Set simulation, and set sim dataset:
+    
+    ## Set simulation
     if(verbose) cli::cli_alert_info("Changing model to simulation model")
     sim_model <- model |>
-      pharmr::set_simulation(seed = 12345) |>
-      pharmr::set_dataset(sim_data_regimen)
+      pharmr::set_simulation(seed = 12345)
+    
+    ## Update dataset (in safe way, avoiding pharmr::set_dataset)
+    if(is.null(dataset_file)) {
+      dataset_file <- tempfile(pattern = "data", fileext = ".csv")
+      write.csv(sim_data, dataset_file, quote = F, row.names = F)
+    }
+    sim_model_code <- sim_model$code
+    sim_model_path <- tempfile(fileext = ".mod")
+    sim_model_code <- change_nonmem_dataset(sim_model_code, dataset_file)
+    writeLines(sim_model_code, sim_model_path)
+    sim_model <- pharmr::read_model(path = model_path)
 
     ## Add tables
     if(update_table) {
