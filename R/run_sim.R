@@ -304,7 +304,7 @@ run_sim <- function(
     ## Set simulation (pharmr::set_simulation() modifies the model that sometimes invalidate the model, so add manually)
     if(verbose) cli::cli_alert_info("Changing model to simulation model")
     sim_model <- model |>
-      set_simulation_clean(seed = 1234, n = 1)
+      set_simulation_clean(seed = seed, n = n_iterations)
 
     if(verbose) cli::cli_alert_info("Updating dataset reference")
     ## Update dataset (in safe way, avoiding pharmr::set_dataset)
