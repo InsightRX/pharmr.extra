@@ -16,12 +16,9 @@ test_that("run_nlme warns when SAEM model is not mu-referenced", {
 test_that("run_nlme does not warn when SAEM model is mu-referenced", {
   mod_saem <- create_model(estimation_method = "saem", mu_reference = TRUE)
   expect_no_warning(
-    expect_warning(
-      tryCatch(
-        run_nlme(mod_saem, id = "run1", path = withr::local_tempdir()),
-        error = function(e) NULL
-      ),
-      "No parameter estimates"
+    tryCatch(
+      run_nlme(mod_saem, id = "run1", path = withr::local_tempdir()),
+      error = function(e) NULL
     )
   )
 })
@@ -29,13 +26,10 @@ test_that("run_nlme does not warn when SAEM model is mu-referenced", {
 test_that("run_nlme does not warn when FOCE model is not mu-referenced", {
   mod_foce <- create_model(estimation_method = "foce")
   expect_no_warning(
-    expect_warning(
       tryCatch(
         run_nlme(mod_foce, id = "run1", path = withr::local_tempdir()),
         error = function(e) NULL
-      ),
-      "No parameter estimates"
-    )
+      )
   )
 })
 
