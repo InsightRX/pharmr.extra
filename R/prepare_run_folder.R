@@ -53,6 +53,29 @@ prepare_run_folder <- function(
       data <- model$dataset
       write.csv(data, file = dataset_path, quote=F, row.names=F)
     }
+  } else {
+    # When `data` is NULL, prefer using an in-memory dataset if available
+    if (!is.null(model$dataset)) {
+      if (verbose) cli::cli_process_start("Copying dataset from model object")
+      write.csv(model$dataset, file = dataset_path, quote = FALSE, row.names = FALSE)
+    } else {
+      obj <- nm_read_model(code = model$code)
+      data_block <- stringr::str_replace_all(obj$DATA, "\\$DATA\\s*", "")
+      data_elem <- unlist(stringr::str_split(data_block, "\\s"))
+      data_elem <- data_elem[!grepl("(IGNORE=|ACCEPT=)", data_elem)]
+      dataset_file <- NULL
+      for (f in data_elem) {
+        if (file.exists(f)) {
+          dataset_file <- f
+          break()
+        }
+      }
+      if (!is.null(dataset_file)) {
+        file.copy(from = dataset_file, to = dataset_path)
+      } else {
+        cli::cli_abort("No dataset could be resolved: `model$dataset` is NULL and no existing file was found from the model's $DATA record.")
+      }
+    }
   }
 
   ## Copy modelfile

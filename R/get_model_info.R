@@ -76,7 +76,6 @@ get_absorption <- function(model) {
     pharmr::has_first_order_absorption(model) ~ "first_order",
     pharmr::has_seq_zo_fo_absorption(model) ~ "sequential_zero_first_order",
     pharmr::has_zero_order_absorption(model) ~ "zero_order",
-    pharmr::has_weibull_absorption(model) ~ "weibull",
     TRUE ~ "other"
   )
 }

@@ -17,6 +17,7 @@ create_model_from_file <- function(
 ) {
   
   ## Checks
+  dataset_file <- NULL
   if(! inherits(model_file, "character")) {
     cli::cli_abort("Model file should be a string.")
   }
@@ -26,11 +27,11 @@ create_model_from_file <- function(
   if(inherits(data, "data.frame") || inherits(data, "tibble")) {
     ## do nothing
   } else if (inherits(data, "character")) {
-    data_file <- data
-    if (!file.exists(data_file)) {
-      cli::cli_abort("Data file {data_file} does not exist")
+    dataset_file <- data
+    if (!file.exists(dataset_file)) {
+      cli::cli_abort("Data file {dataset_file} does not exist")
     }
-    data <- read.csv(data_file)
+    data <- read.csv(dataset_file)
   }
   
   ## Create Pharmpy object
@@ -69,17 +70,22 @@ create_model_from_file <- function(
   }
   
   if(!is.null(data)) {
-    dataset_file <- tempfile(pattern = "data", fileext = ".csv")
-    write.csv(data, dataset_file, quote = F, row.names = F)
-    model <- model |>
-      pharmr::set_dataset(path_or_df = dataset_file, datatype = "nonmem") |>
-      pharmr::load_dataset()
-    if(verbose) cli::cli_alert_info("Checking and cleaning dataset.")
-    model <- clean_modelfit_data(
-      model = model,
-      try_make_numeric = TRUE,
-      verbose = verbose
-    )
+    if(is.null(dataset_file)) {
+      dataset_file <- tempfile(pattern = "data", fileext = ".csv")
+      write.csv(data, dataset_file, quote = F, row.names = F)
+      model <- model |>
+        pharmr::set_dataset(path_or_df = dataset_file, datatype = "nonmem") |>
+        pharmr::load_dataset()
+    } else {
+      model_code <- model$code
+      model_path <- tempfile(fileext = ".mod")
+      model_code <- change_nonmem_dataset(
+        model_code,
+        dataset_file
+      )
+      writeLines(model_code, model_path)
+      model <- pharmr::read_model(path = model_path)
+    }
   }
   
   model

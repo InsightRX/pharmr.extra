@@ -3,13 +3,12 @@ test_that("finds and compares run folders", {
   local_pharmr.extra_options()
   # Create multiple run folders using fixtures:
   tmp_dir <- withr::local_tempdir()
-  fixture_mod <- test_path("fixtures", "run_folder", "run.mod")
-  fixture_lst <- test_path("fixtures", "run_folder", "run.lst")
+  fixture_dir <- test_path("fixtures", "run_folder")
+  fixture_files <- list.files(fixture_dir, full.names = TRUE)
   for (i in 1:3) {
     run_folder <- file.path(tmp_dir, paste0("run", i))
     dir.create(run_folder)
-    file.copy(fixture_mod, file.path(run_folder, "run.mod"))
-    file.copy(fixture_lst, file.path(run_folder, "run.lst"))
+    file.copy(fixture_files, run_folder)
     # Small delay to ensure different creation times
     Sys.sleep(0.1)
   }
@@ -28,13 +27,12 @@ test_that("selects last n runs by creation time", {
   skip_on_ci()
   local_pharmr.extra_options()
   tmp_dir <- withr::local_tempdir()
-  fixture_mod <- test_path("fixtures", "run_folder", "run.mod")
-  fixture_lst <- test_path("fixtures", "run_folder", "run.lst")
+  fixture_dir <- test_path("fixtures", "run_folder")
+  fixture_files <- list.files(fixture_dir, full.names = TRUE)
   for (i in 1:5) {
     run_folder <- file.path(tmp_dir, paste0("run", i))
     dir.create(run_folder)
-    file.copy(fixture_mod, file.path(run_folder, "run.mod"))
-    file.copy(fixture_lst, file.path(run_folder, "run.lst"))
+    file.copy(fixture_files, run_folder)
     Sys.sleep(0.1)
   }
   
@@ -50,13 +48,12 @@ test_that("filters folders correctly", {
   skip_on_ci()
   local_pharmr.extra_options()
   tmp_dir <- withr::local_tempdir()
-  fixture_mod <- test_path("fixtures", "run_folder", "run.mod")
-  fixture_lst <- test_path("fixtures", "run_folder", "run.lst")
+  fixture_dir <- test_path("fixtures", "run_folder")
+  fixture_files <- list.files(fixture_dir, full.names = TRUE)
   for (i in 1:2) {
     run_folder <- file.path(tmp_dir, paste0("run", i))
     dir.create(run_folder)
-    file.copy(fixture_mod, file.path(run_folder, "run.mod"))
-    file.copy(fixture_lst, file.path(run_folder, "run.lst"))
+    file.copy(fixture_files, run_folder)
     Sys.sleep(0.1)
   }
   
@@ -75,13 +72,12 @@ test_that("can save info to csv", {
   skip_on_ci()
   local_pharmr.extra_options()
   tmp_dir <- withr::local_tempdir()
-  fixture_mod <- test_path("fixtures", "run_folder", "run.mod")
-  fixture_lst <- test_path("fixtures", "run_folder", "run.lst")
+  fixture_dir <- test_path("fixtures", "run_folder")
+  fixture_files <- list.files(fixture_dir, full.names = TRUE)
   for (i in 1:2) {
     run_folder <- file.path(tmp_dir, paste0("run", i))
     dir.create(run_folder)
-    file.copy(fixture_mod, file.path(run_folder, "run.mod"))
-    file.copy(fixture_lst, file.path(run_folder, "run.lst"))
+    file.copy(fixture_files, run_folder)
     Sys.sleep(0.1)
   }
   
@@ -104,13 +100,12 @@ test_that("can save parameters to csv", {
   skip_on_ci()
   local_pharmr.extra_options()
   tmp_dir <- withr::local_tempdir()
-  fixture_mod <- test_path("fixtures", "run_folder", "run.mod")
-  fixture_lst <- test_path("fixtures", "run_folder", "run.lst")
+  fixture_dir <- test_path("fixtures", "run_folder")
+  fixture_files <- list.files(fixture_dir, full.names = TRUE)
   for (i in 1:2) {
     run_folder <- file.path(tmp_dir, paste0("run", i))
     dir.create(run_folder)
-    file.copy(fixture_mod, file.path(run_folder, "run.mod"))
-    file.copy(fixture_lst, file.path(run_folder, "run.lst"))
+    file.copy(fixture_files, run_folder)
     Sys.sleep(0.1)
   }
   

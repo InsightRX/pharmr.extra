@@ -227,3 +227,4 @@ test_that("create_dosing_records handles multiple subjects correctly", {
     expect_true(all(subject_data$AMT == 250))
   }
 })
+

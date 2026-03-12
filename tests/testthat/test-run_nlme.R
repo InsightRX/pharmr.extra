@@ -26,10 +26,10 @@ test_that("run_nlme does not warn when SAEM model is mu-referenced", {
 test_that("run_nlme does not warn when FOCE model is not mu-referenced", {
   mod_foce <- create_model(estimation_method = "foce")
   expect_no_warning(
-    tryCatch(
-      run_nlme(mod_foce, id = "run1", path = withr::local_tempdir()),
-      error = function(e) NULL
-    )
+      tryCatch(
+        run_nlme(mod_foce, id = "run1", path = withr::local_tempdir()),
+        error = function(e) NULL
+      )
   )
 })
 
@@ -149,3 +149,4 @@ test_that("change_nonmem_dataset preserves whitespace and formatting", {
   result <- change_nonmem_dataset(model_code_tabs, "new_data.csv")
   expect_match(result, "\\$DATA new_data\\.csv IGNORE=@")
 })
+
