@@ -4,7 +4,7 @@ OFV:                         NaN ()
 Condition number:            NA                             
 ETA Shrinkage:               1: NA %                        
 Run info:                                                   
-- Estimation step(s):        SAEM                           
+- Estimation step(s):        FOCE                           
 - Minimization success:      no                             
 - Covariance step success:   - Covariance step success:     
 - Evaluations:               - Evaluations:                 

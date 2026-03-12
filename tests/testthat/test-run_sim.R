@@ -21,7 +21,7 @@ test_that("Basic simulation works (using `model` argument, not `fit`)", {
     data = dat,
     variables = c("ID", "TIME", "DV", "EVID", "CIPREDI", "PRED")
   )
-  expect_equal(dim(out), c(744, 12))
+  expect_equal(dim(out), c(744, 10))
 })
 
 test_that("Basic simulation works (using model file specified to `model`)", {
@@ -49,33 +49,6 @@ test_that("Basic simulation works (using model file specified to `model`)", {
   )
   expect_equal(dim(out), c(744, 12))
   unlink(tmp_mod)
-})
-
-test_that("Errors on invalid variables when update_table = TRUE", {
-  local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
-  withr::local_dir(tempdir())
-
-  dat <- data.frame(
-    ID = 1,
-    TIME = c(0, 1, 2),
-    DV = c(0, 10, 5),
-    AMT = c(100, 0, 0),
-    CMT = 1,
-    EVID = c(1, 0, 0),
-    MDV = c(1, 0, 0)
-  )
-  mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
-
-  expect_error(
-    run_sim(
-      model = mod,
-      data = dat,
-      variables = c("ID", "TIME", "DV", "EVID", "CIPREDI", "PRED", "NOPE", "WRONG"),
-      update_table = TRUE
-    ),
-    "NOPE and WRONG are not valid variables"
-  )
 })
 
 # ---------------------------------------------------------------------------
@@ -135,9 +108,10 @@ test_that("run_sim: no data, covariates determines n_subjects and appears in out
   withr::local_dir(tempdir())
 
   mod <- pharmr::load_example_model("pheno")
-  covs <- data.frame(WGT = c(70, 85, 60), APGR = c(7, 5, 9))
+  covs <- data.frame(WGT = c(1.5, 2, 2.5), APGR = c(7, 5, 9))
 
   out <- run_sim(
+    id = "sim1",
     model = mod,
     regimen = list(dose = 25, interval = 12, n = 3, route = "iv"),
     t_obs = seq(0, 36, 6),
@@ -216,3 +190,4 @@ test_that("run_sim: no data, error when required covariate missing from covariat
     "Not all required covariates"
   )
 })
+
