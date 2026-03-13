@@ -216,6 +216,9 @@ MIT © InsightRX
 - [`get_covariance_record()`](https://insightrx.github.io/pharmr.extra/reference/get_covariance_record.md)
   : Extract covariance record from a Pharmpy NONMEM model object
 
+- [`get_declared_variables()`](https://insightrx.github.io/pharmr.extra/reference/get_declared_variables.md)
+  : Get declared variables in Pharmpy model
+
 - [`get_defined_pk_parameters()`](https://insightrx.github.io/pharmr.extra/reference/get_defined_pk_parameters.md)
   : Get all parameters that are defined (from a predefined vector of
   possible parameters)
@@ -429,11 +432,18 @@ MIT © InsightRX
 - [`set_covariance()`](https://insightrx.github.io/pharmr.extra/reference/set_covariance.md)
   : Function to set covariance between parameters in the omega block
 
+- [`set_dataset_clean()`](https://insightrx.github.io/pharmr.extra/reference/set_dataset_clean.md)
+  : Drop-in replacement for pharmr::set_dataset_clean that avoids any
+  type-conversion issues.
+
 - [`set_iiv()`](https://insightrx.github.io/pharmr.extra/reference/set_iiv.md)
   : Set inter-individual variability on parameters
 
 - [`set_residual_error()`](https://insightrx.github.io/pharmr.extra/reference/set_residual_error.md)
   : Logic to set the residual error model structure for the model
+
+- [`set_simulation_clean()`](https://insightrx.github.io/pharmr.extra/reference/set_simulation_clean.md)
+  : Set model to be a simulation (only) model
 
 - [`stack_encounters()`](https://insightrx.github.io/pharmr.extra/reference/stack_encounters.md)
   : Stack encounters when data from multiple encounters is available for

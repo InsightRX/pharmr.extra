@@ -57,6 +57,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_condition_number_for_fit.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_cov_matrix.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_covariance_record.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/get_declared_variables.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_defined_pk_parameters.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_estimation_options.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_final_results_from_search.html</loc></url>
@@ -120,8 +121,10 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/scale_initial_estimates_pk.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/set_compartment_scale.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/set_covariance.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/set_dataset_clean.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/set_iiv.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/set_residual_error.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/set_simulation_clean.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/stack_encounters.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/update_advan.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/update_covariance_record.html</loc></url>

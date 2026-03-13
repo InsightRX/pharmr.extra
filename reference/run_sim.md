@@ -12,14 +12,13 @@ run_sim(
   id = irxutils::get_random_id("sim_"),
   force = FALSE,
   t_obs = NULL,
-  dictionary = list(ID = "ID", DV = "DV", EVID = "EVID", AMT = "AMT", CMT = "CMT", MDV =
-    "MDV"),
+  dictionary = NULL,
   regimen = NULL,
   covariates = NULL,
   tool = c("auto", "nonmem", "nlmixr2"),
   n_subjects = NULL,
   n_iterations = 1,
-  variables = c("ID", "TIME", "DV", "EVID", "IPRED", "PRED"),
+  variables = NULL,
   add_pk_variables = TRUE,
   output_file = "simtab",
   update_table = TRUE,
@@ -105,7 +104,9 @@ run_sim(
 
 - variables:
 
-  vector of variables to output.
+  vector of variables to output. If `NULL`, will output default
+  variables `c("ID", "TIME", "DV", "EVID", "PRED")` as well as all
+  variables declared in the NONMEM code.
 
 - add_pk_variables:
 
