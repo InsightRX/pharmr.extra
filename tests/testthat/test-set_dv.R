@@ -55,6 +55,7 @@ test_that("set_dv returns a valid Pharmpy model object", {
   expect_true(inherits(result, "pharmpy.model.model.Model"))
 })
 
+
 test_that("set_dv does not modify other column types", {
   model <- pharmr::read_model_from_string(base_model_code)
   result <- set_dv(model, "CONC")

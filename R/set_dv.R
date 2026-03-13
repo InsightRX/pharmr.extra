@@ -10,7 +10,7 @@
 #'
 #' @export
 set_dv <- function(model, dv) {
-  if (!is.character(dv) || length(dv) != 1L) {
+  if (!is.character(dv) || length(dv) != 1L || is.na(dv)) {
     cli::cli_abort("`dv` must be a single character string.")
   }
   di <- model$datainfo
@@ -34,5 +34,10 @@ set_dv <- function(model, dv) {
   # Apply to model and update source
   new_model <- model$replace(datainfo = di)
   new_model$update_source()
+  # Confirm the update took effect
+  actual_dv <- tryCatch(new_model$datainfo$dv_column$name, error = function(e) NULL)
+  if (!identical(actual_dv, dv)) {
+    cli::cli_abort("Failed to set DV column to {.val {dv}}: datainfo was not updated as expected.")
+  }
   new_model
 }
