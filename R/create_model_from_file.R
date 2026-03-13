@@ -41,7 +41,7 @@ create_model_from_file <- function(
       fix_eta_dummy_bug()
     model <- pharmr::read_model_from_string(model_code)
   })
-  
+
   ## If .ext file provided, update initial estimates
   if(!is.null(ext_file)) {
     if(file.exists(ext_file)) {
@@ -74,18 +74,20 @@ create_model_from_file <- function(
       dataset_file <- tempfile(pattern = "data", fileext = ".csv")
       write.csv(data, dataset_file, quote = F, row.names = F)
       model <- model |>
-        pharmr::set_dataset(path_or_df = dataset_file, datatype = "nonmem") |>
+        pharmr::set_dataset(
+          path_or_df = dataset_file, datatype = "nonmem") |>
         pharmr::load_dataset()
-    } else {
-      model_code <- model$code
-      model_path <- tempfile(fileext = ".mod")
-      model_code <- change_nonmem_dataset(
-        model_code,
-        dataset_file
-      )
-      writeLines(model_code, model_path)
-      model <- pharmr::read_model(path = model_path)
     }
+    model_code <- model$code
+    model_path <- tempfile(fileext = ".mod")
+    model_code <- change_nonmem_dataset(
+      model_code,
+      dataset_file
+    ) |>
+      fix_eta_dummy_bug()
+    tryCatch({
+      model <- pharmr::read_model_from_string(model_code)
+    })
   }
   
   model

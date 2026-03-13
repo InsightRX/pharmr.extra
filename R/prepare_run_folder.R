@@ -43,15 +43,7 @@ prepare_run_folder <- function(
         )
       }
       if(verbose) cli::cli_alert_info("Updating model dataset with provided dataset")
-      model <- model |>
-        pharmr::unload_dataset() |>
-        pharmr::set_dataset(
-          path_or_df = data,
-          datatype = "nonmem"
-        )
-      model <- clean_modelfit_data(model)
-      data <- model$dataset
-      write.csv(data, file = dataset_path, quote=F, row.names=F)
+      write.csv(data, file = dataset_path, quote = FALSE, row.names = FALSE)
     }
   } else {
     # When `data` is NULL, prefer using an in-memory dataset if available
