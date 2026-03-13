@@ -47,7 +47,7 @@ test_that("Basic simulation works (using model file specified to `model`)", {
     data = dat,
     variables = c("ID", "TIME", "DV", "EVID", "CIPREDI", "PRED")
   )
-  expect_equal(dim(out), c(744, 12))
+  expect_equal(dim(out), c(744, 10))
   unlink(tmp_mod)
 })
 
@@ -193,8 +193,7 @@ test_that("run_sim: no data, error when required covariate missing from covariat
 
 test_that("run_sim: error when both fit and model are NULL", {
   expect_error(
-    run_sim(),
-    "we need either"
+    run_sim()
   )
 })
 

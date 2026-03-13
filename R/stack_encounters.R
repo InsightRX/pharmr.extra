@@ -20,6 +20,10 @@ stack_encounters <- function(
   time = "TIME",
   verbose = FALSE
 ) {
+  if(! is.numeric(data[[time]])) {
+    if(verbose) cli::cli_alert_info("TIME column is not numeric, not stacking encounters for subjects.")
+    return(data)
+  }
   if(time_is_always_increasing(data, time = time)) {
     ## Still add the column ENC_TIME, for safer post-processing
     data$ENC_TIME <- data$TIME

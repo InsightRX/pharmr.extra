@@ -64,6 +64,29 @@ run_sim <- function(
     seed = 12345,
     verbose = TRUE
 ) {
+  
+  ## Make sure `data` is passed around as filename, to avoid passing data to Pharmpy (error prone)
+  if(is.null(data)) {
+    if(inherits(model, "character")) {
+      tmp_model <- pharmr::read_model(model)
+    } else {
+      tmp_model <- model
+    }
+    data <- tmp_model$dataset
+  }
+  if(!inherits(data, "character")) {
+    datafile <- tempfile(fileext = ".csv")
+    write.csv(data, datafile, quote=F, row.names=F)
+    data <- datafile
+  }
+  if (!file.exists(data)) {
+    cli::cli_abort("Data file {dataset_file} does not exist")
+  }
+  input_data <- read.csv(data)
+  input_has_column <- list()
+  for(key in c("CMT", "EVID", "MDV", "RATE")) {
+    input_has_column[[key]] <- key %in% names(input_data)
+  }
 
   ## parse arguments
   if(is.null(fit) && is.null(model)) {
@@ -124,28 +147,8 @@ run_sim <- function(
   }
   dictionary <- merge_dictionary(dictionary, default_dictionary)
 
-  ## Prepare data
-  ## A dataset has to be provided to provide info on column names and typing. 
-  ## If `data` is not provided by user, then will read from model object
-  if(is.null(data)) { 
-    data <- model$dataset
-  }
-  dataset_file <- NULL
-  if(is.null(data)) {
-    input_data <- model$dataset
-  } else {
-    if(inherits(data, "character")) {
-      dataset_file <- data
-      if (!file.exists(dataset_file)) {
-        cli::cli_abort("Data file {dataset_file} does not exist")
-      }
-      input_data <- read.csv(dataset_file)
-    } else {
-      input_data <- data
-    }
-  }
   ## Set CMT to NA if not in dataset
-  if(!is.null(dictionary$CMT) && is.null(input_data[[dictionary$CMT]])) {
+  if(!is.null(dictionary$CMT) && !input_has_column[["CMT"]]) {
     input_data[[dictionary$CMT]] <- NA
   }
   if(is.null(covariates)) { # use original dataset
@@ -212,12 +215,12 @@ run_sim <- function(
     new_covariates <- names(covariates)
     new_covariates <- new_covariates[(! new_covariates %in% c("ID", "TIME")) & new_covariates %in% names(sim_data)]
     sim_data <- sim_data |>
-      dplyr::select(- new_covariates) |> ## remove existing covariates
+      dplyr::select(- dplyr::all_of(new_covariates)) |> ## remove existing covariates
       dplyr::left_join(
         covariates,
         by = c("ID", "TIME")
       ) |>
-      tidyr::fill(new_covariates, .direction = "downup")
+      tidyr::fill(dplyr::all_of(new_covariates), .direction = "downup")
   }
     
   if(!is.null(regimen_df)) {
@@ -278,10 +281,14 @@ run_sim <- function(
       dplyr::mutate(dplyr::across(dplyr::everything(), ~ fill_missing(.x)))
   }
   
-  ## Make sure columns are in right order
-  sim_data <- sim_data |>
-    dplyr::select(!!c(names(data), ".regimen"))
-
+  ## Remove CMT, EVID, MDV, RATE column, if not in input dataset
+  for(key in names(input_has_column)) {
+    if(! input_has_column[[key]]) {
+      sim_data[[key]] <- NULL
+      input_data[[key]] <- NULL
+    }
+  }
+  
   ## get unique regimens / datasets to simulate
   unique_regimens <- unique(sim_data[[".regimen"]])
   comb <- list()
@@ -299,6 +306,11 @@ run_sim <- function(
     } else {
       sim_data_regimen <- sim_data_regimen |>
         dplyr::arrange(.data$ID, .data$TIME)
+    }
+    
+    ## Ensure column names & order matches
+    if(all(names(sim_data_regimen) %in% names(input_data))) {
+      sim_data_regimen <- sim_data_regimen[, names(input_data)]
     }
 
     ## Set simulation (pharmr::set_simulation() modifies the model that sometimes invalidate the model, so add manually)
