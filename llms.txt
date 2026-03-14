@@ -436,6 +436,9 @@ MIT © InsightRX
   : Drop-in replacement for pharmr::set_dataset_clean that avoids any
   type-conversion issues.
 
+- [`set_dv()`](https://insightrx.github.io/pharmr.extra/reference/set_dv.md)
+  : Set the dependent variable (DV) column in a Pharmpy model's datainfo
+
 - [`set_iiv()`](https://insightrx.github.io/pharmr.extra/reference/set_iiv.md)
   : Set inter-individual variability on parameters
 
