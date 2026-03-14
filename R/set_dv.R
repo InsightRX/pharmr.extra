@@ -24,13 +24,10 @@ set_dv <- function(model, dv) {
   tryCatch({
     current_dv_col <- di$dv_column
     if (current_dv_col$name == dv) return(model)
-    new_old_col <- current_dv_col$replace(type = 'unknown')
-    di <- di$set_column(new_old_col)
+    di <- di$set_column(.col_with_type(current_dv_col, 'unknown'))
   }, error = function(e) NULL)
   # Promote the target column to 'dv'
-  target_col <- di[[dv]]
-  new_col <- target_col$replace(type = 'dv')
-  di <- di$set_column(new_col)
+  di <- di$set_column(.col_with_type(di[[dv]], 'dv'))
   # Apply to model and update source
   new_model <- model$replace(datainfo = di)
   new_model$update_source()
@@ -40,4 +37,17 @@ set_dv <- function(model, dv) {
     cli::cli_abort("Failed to set DV column to {.val {dv}}: datainfo was not updated as expected.")
   }
   new_model
+}
+
+# Set the type on a ColumnInfo, handling pharmpy API differences between v1 and v2.
+# In pharmpy < 2.0, `type` is a direct attribute of ColumnInfo.
+# In pharmpy >= 2.0, `type` lives inside the DataVariable (variable_mapping).
+.col_with_type <- function(col, type) {
+  tryCatch(
+    col$replace(type = type),
+    error = function(e) {
+      vm <- col$variable_mapping
+      col$replace(variable_mapping = vm$replace(type = type))
+    }
+  )
 }
