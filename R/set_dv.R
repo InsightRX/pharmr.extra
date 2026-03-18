@@ -30,8 +30,12 @@ set_dv <- function(model, dv) {
   # Re-reading is simpler and more reliable than manipulating pharmpy's internal
   # parse tree: pharmpy auto-derives the correct datainfo from the new $INPUT.
   model_name <- tryCatch(model$name, error = function(e) NULL)
+
+  ## Update $INPUT, and reload dataset
   new_code <- .update_input_dv_in_code(model$code, old_dv = old_dv, new_dv = dv)
-  new_model <- pharmr::read_model_from_string(new_code)
+  tmpmod <- tempfile(fileext = ".mod")
+  writeLines(new_code, tmpmod)
+  new_model <- create_model_from_file(tmpmod, data = model$dataset)
   if (!is.null(model_name)) {
     new_model <- pharmr::set_name(new_model, model_name)
   }
