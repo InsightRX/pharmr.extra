@@ -87,3 +87,31 @@ test_that("set_dv updates $INPUT record: old DV column is DROPped", {
   expect_true("DROP" %in% names(input_pairs))
   expect_false("DV" %in% names(input_pairs) && is.null(input_pairs[["DV"]]))
 })
+
+# Dataset retention ----
+
+test_that("set_dv retains the dataset from the input model", {
+  dataset <- data.frame(
+    ID = 1L, TIME = c(0, 1, 2), DV = c(0, 1.5, 2.3),
+    AMT = c(100, 0, 0), EVID = c(1L, 0L, 0L), MDV = c(1L, 0L, 0L),
+    CONC = c(0, 1.5, 2.3)
+  )
+  tmpmod <- withr::local_tempfile(fileext = ".mod")
+  writeLines(base_model_code, tmpmod)
+  model <- create_model_from_file(tmpmod, data = dataset)
+
+  result <- set_dv(model, "CONC")
+
+  ## Dataset is retained
+  expect_false(is.null(result$dataset))
+  expect_equal(nrow(result$dataset), nrow(dataset))
+  ## The new DV column is present and its values are unchanged
+  expect_true("CONC" %in% names(result$dataset))
+  expect_equal(result$dataset$CONC, dataset$CONC)
+})
+
+test_that("set_dv with no dataset on input model does not error", {
+  model <- pharmr::read_model_from_string(base_model_code)
+  result <- set_dv(model, "CONC")
+  expect_equal(result$datainfo$dv_column$name, "CONC")
+})
