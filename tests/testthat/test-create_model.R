@@ -492,13 +492,11 @@ test_that("LTBS model is handled, and LNDV is set to DV", {
     ruv = "ltbs",
     data = nm_data
   )
-  expect_equal(
-    mod$dataset$DV,
-    mod$dataset$LNDV
-  )
-  expect_true(
-    "ODV" %in% names(mod$dataset)
-  )
+  # LNDV is mapped to NONMEM's DV variable via $INPUT (DV=LNDV).
+  # The dataset columns are left untouched; the $INPUT record carries the mapping.
+  expect_equal(mod$datainfo$dv_column$name, "LNDV")
+  input_pairs <- mod$internals$control_stream$get_records("INPUT")[[1]]$option_pairs
+  expect_equal(input_pairs[["DV"]], "LNDV")
 })
 
 test_that("mu_reference argument works correctly", {

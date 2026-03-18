@@ -12,9 +12,11 @@ set_dv(model, dv)
 \item{dv}{Name of the column to set as the dependent variable}
 }
 \value{
-Pharmpy model object with updated datainfo
+Pharmpy model object with updated datainfo and $INPUT record
 }
 \description{
-Updates the \code{datainfo} object so that the specified column has type \code{'dv'}.
-Any column that previously had type \code{'dv'} is demoted to type \code{'unknown'}.
+Updates the \verb{$INPUT} record in the NONMEM model code so that the specified
+column is mapped to NONMEM's internal \code{DV} variable, and updates the
+\code{datainfo} accordingly. Any column that previously had type \code{'dv'} is
+demoted to type \code{'unknown'}.
 }
