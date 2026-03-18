@@ -1,8 +1,9 @@
 # Set the dependent variable (DV) column in a Pharmpy model's datainfo
 
-Updates the `datainfo` object so that the specified column has type
-`'dv'`. Any column that previously had type `'dv'` is demoted to type
-`'unknown'`.
+Updates the `$INPUT` record in the NONMEM model code so that the
+specified column is mapped to NONMEM's internal `DV` variable, and
+updates the `datainfo` accordingly. Any column that previously had type
+`'dv'` is demoted to type `'unknown'`.
 
 ## Usage
 
@@ -22,4 +23,4 @@ set_dv(model, dv)
 
 ## Value
 
-Pharmpy model object with updated datainfo
+Pharmpy model object with updated datainfo and \$INPUT record
