@@ -42,11 +42,13 @@ test_that("set_dv sets the new column as DV", {
   expect_equal(result$datainfo$dv_column$name, "CONC")
 })
 
-test_that("set_dv demotes the old DV column to type 'unknown'", {
+test_that("set_dv demotes the old DV column: 'DV' is DROPped from $INPUT", {
+  # When old DV is the reserved name 'DV', it is DROPped entirely from $INPUT
+  # (NONMEM's reserved 'DV' cannot be kept as an ordinary passthrough column).
   model <- pharmr::read_model_from_string(base_model_code)
   result <- set_dv(model, "CONC")
-  old_dv_col <- result$datainfo[["DV"]]
-  expect_equal(old_dv_col$type, "unknown")
+  col_names <- result$datainfo$names
+  expect_false("DV" %in% col_names)
 })
 
 test_that("set_dv returns a valid Pharmpy model object", {
@@ -65,4 +67,51 @@ test_that("set_dv does not modify other column types", {
     after  <- result$datainfo[[col_name]]$type
     expect_equal(after, before, info = paste("type of", col_name, "should not change"))
   }
+})
+
+# $INPUT record update ----
+
+test_that("set_dv updates $INPUT record: new column becomes DV=col", {
+  model <- pharmr::read_model_from_string(base_model_code)
+  result <- set_dv(model, "CONC")
+  input_pairs <- result$internals$control_stream$get_records("INPUT")[[1]]$option_pairs
+  # CONC should now be mapped as DV=CONC
+  expect_equal(input_pairs[["DV"]], "CONC")
+})
+
+test_that("set_dv updates $INPUT record: old DV column is DROPped", {
+  model <- pharmr::read_model_from_string(base_model_code)
+  result <- set_dv(model, "CONC")
+  input_pairs <- result$internals$control_stream$get_records("INPUT")[[1]]$option_pairs
+  # Old DV (reserved name) should be DROPped
+  expect_true("DROP" %in% names(input_pairs))
+  expect_false("DV" %in% names(input_pairs) && is.null(input_pairs[["DV"]]))
+})
+
+# Dataset retention ----
+
+test_that("set_dv retains the dataset from the input model", {
+  dataset <- data.frame(
+    ID = 1L, TIME = c(0, 1, 2), DV = c(0, 1.5, 2.3),
+    AMT = c(100, 0, 0), EVID = c(1L, 0L, 0L), MDV = c(1L, 0L, 0L),
+    CONC = c(0, 1.5, 2.3)
+  )
+  tmpmod <- withr::local_tempfile(fileext = ".mod")
+  writeLines(base_model_code, tmpmod)
+  model <- create_model_from_file(tmpmod, data = dataset)
+
+  result <- set_dv(model, "CONC")
+
+  ## Dataset is retained
+  expect_false(is.null(result$dataset))
+  expect_equal(nrow(result$dataset), nrow(dataset))
+  ## The new DV column is present and its values are unchanged
+  expect_true("CONC" %in% names(result$dataset))
+  expect_equal(result$dataset$CONC, dataset$CONC)
+})
+
+test_that("set_dv with no dataset on input model does not error", {
+  model <- pharmr::read_model_from_string(base_model_code)
+  result <- set_dv(model, "CONC")
+  expect_equal(result$datainfo$dv_column$name, "CONC")
 })
