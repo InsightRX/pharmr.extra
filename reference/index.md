@@ -342,6 +342,9 @@
 - [`parse_psn_args()`](https://insightrx.github.io/pharmr.extra/reference/parse_psn_args.md)
   : Parse tool options specified in YAML into PsN commandline args
 
+- [`plot_bootstrap()`](https://insightrx.github.io/pharmr.extra/reference/plot_bootstrap.md)
+  : Plot bootstrap parameter distributions
+
 - [`prepare_run_folder()`](https://insightrx.github.io/pharmr.extra/reference/prepare_run_folder.md)
   : Create a folder for running model, with the model and dataset
 
