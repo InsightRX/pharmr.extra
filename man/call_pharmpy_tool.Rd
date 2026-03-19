@@ -51,3 +51,24 @@ fit object
 Generic function for running a pharmpy tool, like bootstrap,
 or modelsearch. A separate function is available for \code{fit()}
 }
+\examples{
+\dontrun{
+# Run 200 bootstrap samples on a fitted model
+bs <- call_pharmpy_tool(
+  id      = "run1",
+  model   = model,
+  results = results,
+  tool    = "bootstrap",
+  options = list(samples = 200)
+)
+
+# Inspect parameter estimates (one row per sample)
+head(as.data.frame(bs$parameter_estimates))
+
+# Plot distributions and overlay original estimates
+orig <- setNames(results$parameter_estimates$estimates,
+                 results$parameter_estimates$parameter)
+plot_bootstrap(bs, original_estimates = orig)
+}
+
+}

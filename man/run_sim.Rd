@@ -18,7 +18,7 @@ run_sim(
   n_subjects = NULL,
   n_iterations = 1,
   variables = NULL,
-  add_pk_variables = TRUE,
+  add_pk_variables = FALSE,
   output_file = "simtab",
   update_table = TRUE,
   seed = 12345,
