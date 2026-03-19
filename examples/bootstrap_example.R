@@ -1,5 +1,17 @@
 ## Bootstrap workflow example
 ##
+## What is bootstrapping?
+## Bootstrapping is a way to assess how reliable your model's parameter
+## estimates are. It works by repeatedly resampling your original dataset
+## (drawing random subjects with replacement) and re-fitting the model each
+## time. This produces a distribution of estimates for each parameter. If a
+## parameter's distribution is tight, the estimate is stable; if it's wide,
+## there is more uncertainty. The result is a confidence interval for every
+## parameter — no formulas or assumptions required.
+##
+## Bootstrap is a fairly computationally expensive procedure. Commonly it is
+## only run on a final model, or on certain key models.
+##
 ## This script demonstrates the full end-to-end bootstrap workflow using
 ## pharmr.extra:
 ##   1. Build a NONMEM model with create_model()
@@ -22,39 +34,33 @@ dataset <- data.frame(
   AMT  = rep(c(100, 0, 0, 0, 0), times = 20),
   EVID = rep(c(1, 0, 0, 0, 0), times = 20),
   MDV  = rep(c(1, 0, 0, 0, 0), times = 20),
-  DV   = c(replicate(20, c(0, round(rnorm(4, mean = c(5, 3, 1.5, 0.5), sd = 0.3), 2))))
+  DV   = c(replicate(20, c(0, round(rnorm(4, mean = c(5, 3, 1.5, 0.5), sd = 0.3), 2)))),
+  CMT = 1
 )
 
 model <- create_model(
-  dataset = dataset,
-  id      = "run1",
-  advan   = "ADVAN1",
-  trans   = "TRANS2"
+  data    = dataset, tables = c()
 )
 
 # ── 2. Fit the model ──────────────────────────────────────────────────────────
-
-results <- run_nlme(id = "run1", model = model)
+results <- run_nlme(id = "run1", model = model, force = TRUE)
 
 # Inspect parameter estimates
 print(results)
 
 # Extract original estimates as a named vector for later overlay
-orig_estimates <- setNames(
-  results$parameter_estimates$estimates,
-  results$parameter_estimates$parameter
-)
+orig_estimates <- results$parameter_estimates
 print(orig_estimates)
 
 # ── 3. Run bootstrap ──────────────────────────────────────────────────────────
 
 # Use samples = 200 for a quick run; increase to 1000+ for publication-quality
 bs_results <- call_pharmpy_tool(
-  id      = "run1",
+  id      = "bs1",
   model   = model,
   results = results,
   tool    = "bootstrap",
-  options = list(samples = 200)
+  options = list(samples = 20)
 )
 
 # ── 4. Inspect bootstrap results ──────────────────────────────────────────────
@@ -70,7 +76,7 @@ summary(pe)
 
 # Basic plot — all parameters, no overlay
 p_basic <- plot_bootstrap(bs_results)
-print(p_basic)
+p_basic
 
 # With original estimates overlaid (solid vertical line) and 95% CI (dashed)
 p_annotated <- plot_bootstrap(
@@ -78,7 +84,7 @@ p_annotated <- plot_bootstrap(
   original_estimates = orig_estimates,
   ci                 = 0.95
 )
-print(p_annotated)
+p_annotated
 
 # Subset to only structural parameters
 p_structural <- plot_bootstrap(
@@ -86,16 +92,4 @@ p_structural <- plot_bootstrap(
   original_estimates = orig_estimates,
   parameters         = c("POP_CL", "POP_V")
 )
-print(p_structural)
-
-# ── 6. Save the plot ──────────────────────────────────────────────────────────
-
-ggplot2::ggsave(
-  filename = "bootstrap_parameters.png",
-  plot     = p_annotated,
-  width    = 10,
-  height   = 8,
-  dpi      = 150
-)
-
-cat("Bootstrap example complete. Plot saved to bootstrap_parameters.png\n")
+p_structural
