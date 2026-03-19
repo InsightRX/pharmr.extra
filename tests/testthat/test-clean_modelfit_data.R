@@ -135,10 +135,11 @@ test_that("handles LTBS model with LNDV column", {
   mod <- create_model(route = "iv", data = dat, ruv = "ltbs", verbose = FALSE)
   out <- clean_modelfit_data(mod, data = dat, verbose = FALSE)
 
-  # Check that LNDV becomes DV and original DV becomes ODV
-  expect_true("ODV" %in% names(out$dataset))
-  expect_equal(out$dataset$DV, dat$LNDV)
-  expect_equal(out$dataset$ODV, dat$DV)
+  # LNDV is mapped to NONMEM's DV variable via $INPUT (DV=LNDV).
+  # The dataset columns are left untouched; the $INPUT record carries the mapping.
+  expect_equal(out$datainfo$dv_column$name, "LNDV")
+  input_pairs <- out$internals$control_stream$get_records("INPUT")[[1]]$option_pairs
+  expect_equal(input_pairs[["DV"]], "LNDV")
 })
 
 test_that("handles LTBS model without LNDV column", {
