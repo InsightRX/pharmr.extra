@@ -58,7 +58,7 @@ run_sim <- function(
     n_subjects = NULL,
     n_iterations = 1,
     variables = NULL,
-    add_pk_variables = TRUE,
+    add_pk_variables = FALSE,
     output_file = "simtab",
     update_table = TRUE,
     seed = 12345,
@@ -180,9 +180,9 @@ run_sim <- function(
     if(is.null(n_subjects)) {
       n_subjects <- length(unique(input_data[[dictionary$ID]]))
     } else {
-      ids <- unique(sim_data$ID)
+      ids <- unique(sim_data[[dictionary$ID]])
       sim_data <- sim_data |>
-        dplyr::filter(.data$ID %in% ids[1:n_subjects])
+        dplyr::filter(.data[[dictionary$ID]] %in% ids[1:n_subjects])
     }
   } else { ## user provided sampled covariates in `covariates`
     if(is.null(n_subjects)) {
@@ -193,7 +193,7 @@ run_sim <- function(
     random_sample <- sample(ids, n_subjects, replace = TRUE)
     sim_data <- lapply(seq_along(random_sample), function(i) {
       input_data |>
-        dplyr::filter(.data$ID == random_sample[i]) |>
+        dplyr::filter(.data[[dictionary$ID]] == random_sample[i]) |>
         dplyr::mutate(ID = i)
     }) %>%
       dplyr::bind_rows()
@@ -204,22 +204,25 @@ run_sim <- function(
     ))
     if(! all(covs_reqd %in% names(covariates))) {
       missing <- covs_reqd[! covs_reqd %in% names(covariates)]
-      cli::cli_abort("Not all required covariates supplied in `covariates` data, missing: {missing}")
+      cli::cli_alert_warning("Not all required covariates supplied in `covariates` data, missing: {missing}. This could be due to renaming of covariates in $INPUT.")
     }
-    if(! "ID" %in% names(covariates)) {
-      covariates$ID <- 1:nrow(covariates)
+    if(! dictionary$ID %in% names(covariates)) {
+      covariates[[dictionary$ID]] <- 1:nrow(covariates)
     }
-    if(! "TIME" %in% names(covariates)) {
-        covariates$TIME <- 0
+    if(! dictionary$TIME %in% names(covariates)) {
+      covariates[[dictionary$TIME]] <- 0
     }
     new_covariates <- names(covariates)
-    new_covariates <- new_covariates[(! new_covariates %in% c("ID", "TIME")) & new_covariates %in% names(sim_data)]
+    new_covariates <- new_covariates[(! new_covariates %in% c(dictionary[["ID"]], dictionary[["TIME"]])) & new_covariates %in% names(sim_data)]
+  
+    sim_data_cols <- names(sim_data)
     sim_data <- sim_data |>
       dplyr::select(- dplyr::all_of(new_covariates)) |> ## remove existing covariates
       dplyr::left_join(
         covariates,
-        by = c("ID", "TIME")
+        by = c(dictionary[["ID"]], dictionary[["TIME"]])
       ) |>
+      dplyr::select(!!sim_data_cols) |> # ensure order is kept, after left join
       tidyr::fill(dplyr::all_of(new_covariates), .direction = "downup")
   }
     
@@ -243,8 +246,8 @@ run_sim <- function(
     }
     sim_data <- sim_data |>
       dplyr::bind_rows(doses) |>
-      dplyr::arrange(.data$.regimen, .data$ID, .data$TIME) |>
-      dplyr::group_by(.data$ID) |>
+      dplyr::arrange(.data$.regimen, .data[[dictionary$ID]], .data[[dictionary$TIME]]) |>
+      dplyr::group_by(.data[[dictionary$ID]]) |>
       tidyr::fill(
         tidyselect::everything(),
         .direction = "downup"
@@ -252,7 +255,7 @@ run_sim <- function(
       dplyr::mutate(dplyr::across(dplyr::everything(), ~ fill_missing(.x)))
     if(is.null(t_obs)) {
       ## TODO: could be made somewhat smarter, based on e.g. original dataset or
-      t_max <- max(sim_data$TIME) + round(diff(utils::tail(sim_data$TIME, 2)))
+      t_max <- max(sim_data[[dictionary$TIME]]) + round(diff(utils::tail(sim_data[[dictionary$TIME]], 2)))
       t_obs <- seq(0, t_max, 4)
     }
   } else {
@@ -272,15 +275,15 @@ run_sim <- function(
     sim_data <- sim_data |>
       dplyr::filter(.data$EVID != 0) |>
       dplyr::bind_rows(obs) |>
-      dplyr::arrange(.data$.regimen, .data$ID, .data$TIME) |>
-      dplyr::group_by(.data$ID) |>
+      dplyr::arrange(.data$.regimen, .data[[dictionary$ID]], .data[[dictionary$TIME]]) |>
+      dplyr::group_by(.data[[dictionary$ID]]) |>
       tidyr::fill(
         dplyr::everything(),
         .direction = "downup"
       ) |>
       dplyr::mutate(dplyr::across(dplyr::everything(), ~ fill_missing(.x)))
   }
-  
+
   ## Remove CMT, EVID, MDV, RATE column, if not in input dataset
   for(key in names(input_has_column)) {
     if(! input_has_column[[key]]) {
@@ -302,10 +305,10 @@ run_sim <- function(
       dplyr::select(-".regimen")
     if("EVID" %in% names(sim_data_regimen)) {
       sim_data_regimen <- sim_data_regimen |>
-        dplyr::arrange(.data$ID, .data$TIME, -.data$EVID)
+        dplyr::arrange(.data[[dictionary$ID]], .data[[dictionary$TIME]], -.data$EVID)
     } else {
       sim_data_regimen <- sim_data_regimen |>
-        dplyr::arrange(.data$ID, .data$TIME)
+        dplyr::arrange(.data[[dictionary$ID]], .data[[dictionary$TIME]])
     }
     
     ## Ensure column names & order matches
@@ -314,16 +317,9 @@ run_sim <- function(
     }
 
     ## Set simulation (pharmr::set_simulation() modifies the model that sometimes invalidate the model, so add manually)
-    if(verbose) cli::cli_alert_info("Changing model to simulation model")
+    if(verbose) cli::cli_alert_info("Changing model to simulation-only model")
     sim_model <- model |>
       set_simulation_clean(seed = seed, n = n_iterations)
-
-    if(verbose) cli::cli_alert_info("Updating dataset reference")
-    ## Update dataset (in safe way, avoiding pharmr::set_dataset)
-    new_dataset_file <- tempfile(pattern = "data", fileext = ".csv")
-    write.csv(sim_data_regimen, new_dataset_file, quote = F, row.names = F)
-    sim_model <- sim_model |>
-      set_dataset_clean(path_or_df = new_dataset_file)
 
     ## Add tables
     if(update_table) {
@@ -340,13 +336,23 @@ run_sim <- function(
           checked_variables <- c(checked_variables, variab)
         }
       }
-      variables <- unique(c(checked_variables, parameter_names, names(covariates)))
+      variables <- unique(c(checked_variables, parameter_names))
       sim_model <- sim_model |>
         remove_tables_from_model() |>
-        add_table_to_model(variables, file = output_file)
+        add_table_to_model(checked_variables, file = output_file)
     } else {
       if(verbose) cli::cli_alert_info("Using existing table record(s)")
     }
+
+    ## Update dataset (in safe way, avoiding pharmr::set_dataset)
+    if(verbose) cli::cli_alert_info("Updating dataset reference")
+    new_dataset_file <- tempfile(pattern = "data", fileext = ".csv")
+    write.csv(sim_data_regimen, new_dataset_file, quote = F, row.names = F)
+    # sim_model <- sim_model |>
+    #   set_dataset_clean(path_or_df = new_dataset_file)
+    
+    names(sim_data_regimen)
+    ## TODO: order of data columns is messed up in bootstrap
 
     ## Run simulation
     if(verbose) cli::cli_alert_info("Running simulation ({reg_label})")
@@ -475,7 +481,8 @@ create_dosing_records <- function(
     dictionary,
     advan = NULL
 ) {
-  ids <- unique(data$ID)
+  id_col <- dictionary$ID
+  ids <- unique(data[[id_col]])
   if(length(ids) < n_subjects) {
     ids <- c(ids, max(ids) + 1:(n_subjects-length(ids)))
   }
@@ -506,6 +513,12 @@ create_dosing_records <- function(
     CMT = 1,
     .regimen = regimen$regimen
   )
+  ## Rename columns to match dictionary
+  for(key in names(dictionary)) {
+    if (key %in% names(dose) && dictionary[[key]] != key) {
+      dose <- dplyr::rename(dose, !!dictionary[[key]] := !!rlang::sym(key))
+    }
+  }
   if(is.null(regimen$t_inf)) regimen$t_inf <- 0
   dose$RATE <- 0
   dose$RATE[regimen$t_inf != 0] <- dose$AMT[regimen$t_inf != 0] / regimen$t_inf[regimen$t_inf != 0]
@@ -517,7 +530,7 @@ create_dosing_records <- function(
     ))
   dose_df <- lapply(1:n_subjects, function(i) {
     dose |>
-      dplyr::mutate(ID = ids[i])
+      dplyr::mutate(!!id_col := ids[i])
   }) |>
     dplyr::bind_rows()
   dose_df
@@ -536,7 +549,7 @@ create_obs_records <- function(
     dictionary,
     model
 ) {
-  ids <- unique(data$ID)
+  ids <- unique(data[[dictionary$ID]])
   if(length(ids) < n_subjects) {
     ids <- c(ids, max(ids) + 1:(n_subjects-length(ids)))
   }
@@ -545,14 +558,14 @@ create_obs_records <- function(
   ## first try pull CMT from data. if not available in data, try based on ADVAN
   if("MDV" %in% names(data)) {
     cmt <- data |>
-      dplyr::filter(.data$ID == 1 & .data$EVID == 0 & .data$MDV == 0) |> 
+      dplyr::filter(.data[[dictionary$ID]] == 1 & .data$EVID == 0 & .data$MDV == 0) |> 
       dplyr::slice(1) |>
-      dplyr::pull("CMT")
+      dplyr::pull(dictionary$CMT)
   } else {
     cmt <- data |>
-      dplyr::filter(.data$ID == 1 & .data$EVID == 0) |> 
+      dplyr::filter(.data[[dictionary$ID]] == 1 & .data$EVID == 0) |> 
       dplyr::slice(1) |>
-      dplyr::pull("CMT")
+      dplyr::pull(dictionary$CMT)
   }
   if(is.null(cmt) || is.na(cmt) || length(cmt) == 0) {
     cmt <- get_obs_compartment(model)
@@ -567,10 +580,16 @@ create_obs_records <- function(
     CMT = cmt,
     RATE = 0
   )
+  for(key in names(dictionary)) {
+    if (key %in% names(obs) && dictionary[[key]] != key) {
+      obs <- dplyr::rename(obs, !!dictionary[[key]] := !!rlang::sym(key))
+    }
+  }
+  id_col <- dictionary$ID
   ## extend single sampling design to multiple subjects
   obs_df <- lapply(1:n_subjects, function(i) {
     obs |>
-      dplyr::mutate(ID = ids[i])
+      dplyr::mutate(!!id_col := ids[i])
   }) |>
     dplyr::bind_rows()
   ## extend to multiple regimens, if needed

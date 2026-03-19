@@ -26,7 +26,7 @@ set_simulation_clean <- function(model, seed, n) {
   model_code <- model$code
   model_code <- paste0(
     paste(stringr::str_replace_all(model$code, "\\t", " "), collapse = ""),
-    glue::glue("\n$SIMULATION ({seed}) SUBPROBLEMS={n} ONLYSIMULATION\n")
+    glue::glue("\n\n$SIMULATION ({seed}) SUBPROBLEMS={n} ONLYSIMULATION\n")
   )
   sim_model <- pharmr::read_model_from_string(model_code)  
   sim_model
