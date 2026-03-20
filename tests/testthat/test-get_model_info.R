@@ -8,7 +8,8 @@ test_that("returns named list with expected structure", {
   expect_named(
     out,
     c(
-      "id", "description", "advan", "code", "covariates", "parameters",
+      "id", "description", "advan", "code", "covariates", "covariates_idx",
+      "parameters",
       "compartments", "error_model", "absorption", "elimination",
       "linearity", "ltbs", "estimation_steps"
     )
@@ -37,7 +38,8 @@ test_that("gets model info from Pharmpy model objects", {
   expect_named(
     out,
     c(
-      "id", "description", "advan", "code", "covariates", "parameters",
+      "id", "description", "advan", "code", "covariates", "covariates_idx",
+      "parameters",
       "compartments", "error_model", "absorption", "elimination",
       "linearity", "ltbs", "estimation_steps"
     )

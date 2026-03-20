@@ -20,8 +20,7 @@ test_that("create_dosing_records creates correct basic dosing schedule", {
   result <- create_dosing_records(
     regimen = regimen,
     data = test_data,
-    n_subjects = 2,
-    dictionary = NULL
+    n_subjects = 2
   )
   
   # Test basic structure
@@ -62,8 +61,7 @@ test_that("create_dosing_records handles IV route with infusion time", {
   result <- create_dosing_records(
     regimen = regimen,
     data = test_data,
-    n_subjects = 1,
-    dictionary = NULL
+    n_subjects = 1
   )
   
   # Test that RATE is calculated correctly
@@ -94,8 +92,7 @@ test_that("create_dosing_records handles SC route with infusion time", {
   result <- create_dosing_records(
     regimen = regimen,
     data = test_data,
-    n_subjects = 1,
-    dictionary = NULL
+    n_subjects = 1
   )
   
   expect_true("RATE" %in% names(result))
@@ -123,8 +120,7 @@ test_that("create_dosing_records handles vector doses correctly", {
   result <- create_dosing_records(
     regimen = regimen,
     data = test_data,
-    n_subjects = 1,
-    dictionary = NULL
+    n_subjects = 1
   )
   
   expect_equal(unique(result$AMT), c(500, 750)) # Should use first dose
@@ -146,7 +142,7 @@ test_that("create_dosing_records fails with missing required arguments", {
   )
   
   expect_error(
-    create_dosing_records(regimen_no_dose, test_data, 1, NULL)
+    create_dosing_records(regimen_no_dose, test_data, 1)
   )
     
   # Missing 'route'
@@ -157,7 +153,7 @@ test_that("create_dosing_records fails with missing required arguments", {
   )
   
   expect_error(
-    create_dosing_records(regimen_no_route, test_data, 1, NULL)
+    create_dosing_records(regimen_no_route, test_data, 1)
   )
 })
 
@@ -182,8 +178,7 @@ test_that("create_dosing_records handles single dose correctly", {
   result <- create_dosing_records(
     regimen = regimen,
     data = test_data,
-    n_subjects = 2,
-    dictionary = NULL
+    n_subjects = 2
   )
   
   expect_equal(nrow(result), 2) # 1 dose × 2 subjects
@@ -213,8 +208,7 @@ test_that("create_dosing_records handles multiple subjects correctly", {
   result <- create_dosing_records(
     regimen = regimen,
     data = test_data,
-    n_subjects = n_subjects,
-    dictionary = NULL
+    n_subjects = n_subjects
   )
   
   expect_equal(length(unique(result$ID)), n_subjects)
