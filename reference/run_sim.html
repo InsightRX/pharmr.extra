@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9005</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9006</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -112,8 +112,9 @@ regimens.</p></dd>
 <dt id="arg-covariates">covariates<a class="anchor" aria-label="anchor" href="#arg-covariates"></a></dt>
 <dd><p>if specified, will replace subjects with subjects specified
 in a data.frame. In the data.frame, the column names should correspond
-exactly to any covariates included in the model. An <code>ID</code> column is required,
-and for time-varying covariates, a <code>TIME</code> column is also required (otherwise
+exactly to any covariates included in the model. An <code>ID</code> column is optional;
+if absent, IDs are generated as <code>1:nrow(covariates)</code>. For time-varying
+covariates, a <code>TIME</code> column is also required (otherwise
 it will be assumed covariates are not changing over time).</p></dd>
 
 

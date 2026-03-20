@@ -79,9 +79,9 @@ run_sim(
   if specified, will replace subjects with subjects specified in a
   data.frame. In the data.frame, the column names should correspond
   exactly to any covariates included in the model. An `ID` column is
-  required, and for time-varying covariates, a `TIME` column is also
-  required (otherwise it will be assumed covariates are not changing
-  over time).
+  optional; if absent, IDs are generated as `1:nrow(covariates)`. For
+  time-varying covariates, a `TIME` column is also required (otherwise
+  it will be assumed covariates are not changing over time).
 
 - tool:
 
