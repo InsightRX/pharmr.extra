@@ -9,19 +9,34 @@
 #' @returns For `get_model_info()`: a named list providing a structured summary
 #'   of the model. For other `get_*` functions: a character string.
 #' @export
-get_model_info <- function(model) {
+get_model_info <- function(model, data) {
   # TODO: add safeguards for empty outputs in list? (i.e., no character(0)s)
   model <- as_pharmpy_model(model)
+  central_volume_info <- c()
+  tryCatch(
+    central_volume_info <- pharmr::get_central_volume_and_clearance(model),
+    error = function(e) {
+      cli::cli_alert_info("Couldn't get central volume and clearance for model.")
+    }
+  )
+  covariates <- c()
+  tryCatch(
+    covariates <- to_chr_vector(pharmr::get_model_covariates(model)),
+    error = function(e) {
+      cli::cli_alert_info("Couldn't get covariates for model.")
+    }
+  )
   list(
     id = model$name,
     description = model$description,
     advan = get_advan(model),
     code = pharmr::get_model_code(model),
-    covariates = to_chr_vector(pharmr::get_model_covariates(model)),
+    covariates = covariates,
+    covariates_idx = match(covariates, model$datainfo$names), # idx in dataset, useful to get original names in dataset
     parameters = list(
       pk_parameter_names = pharmr::get_pk_parameters(model),
-      central_clearance = to_chr_vector(pharmr::get_central_volume_and_clearance(model))[2],
-      central_volume = to_chr_vector(pharmr::get_central_volume_and_clearance(model))[1],
+      central_clearance = to_chr_vector(central_volume_info)[2],
+      central_volume = to_chr_vector(central_volume_info)[1],
       theta = pharmr::get_thetas(model)$inits,
       omega = pharmr::get_omegas(model)$inits,
       sigma = pharmr::get_sigmas(model)$inits
