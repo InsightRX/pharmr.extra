@@ -15,8 +15,6 @@ create_dosing_records(regimen, data, n_subjects, advan = NULL)
 \item{n_subjects}{TODO}
 
 \item{advan}{TODO}
-
-\item{dictionary}{TODO}
 }
 \description{
 Create dosing records, given a specified regimen as a data frame with

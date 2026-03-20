@@ -11,7 +11,6 @@ run_sim(
   id = irxutils::get_random_id("sim_"),
   force = FALSE,
   t_obs = NULL,
-  dictionary = NULL,
   regimen = NULL,
   covariates = NULL,
   tool = c("auto", "nonmem", "nlmixr2"),
@@ -46,8 +45,6 @@ removed before rerunning NONMEM? Default \code{FALSE}.}
 
 \item{t_obs}{a vector of observations times. If specified, will override
 the observations in each subject in the input dataset.}
-
-\item{dictionary}{a dataset dictionary.}
 
 \item{regimen}{if specified, will replace the regimens for each subject with
 a custom regimen. Can be specified in two ways. The simplest way is to just
