@@ -526,3 +526,105 @@ test_that("run_sim (stub): regimen as data.frame (not list) works", {
   expect_equal(unique(out$regimen_label), "100mg_iv")
 })
 
+# ===========================================================================
+# covariates without ID column
+# ===========================================================================
+
+## Helper: mock result with n subjects, for covariate tests
+.mock_nlme_n <- function(n) {
+  tab <- lapply(seq_len(n), function(i) {
+    data.frame(ID = i, TIME = c(0, 6, 12), DV = c(0, 5, 3),
+               EVID = c(1L, 0L, 0L), PRED = 0, WGT = 1, APGR = 5)
+  }) |> dplyr::bind_rows()
+  result <- list()
+  attr(result, "tables") <- list(simtab = tab)
+  result
+}
+
+test_that("run_sim (stub): covariates without ID generates IDs 1:n", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- pharmr::load_example_model("pheno")
+  covs_no_id <- data.frame(WGT = c(1.5, 2.0, 2.5), APGR = c(7, 5, 9))
+
+  ## Capture the dataset written for NONMEM so we can inspect IDs
+  captured_sim_data <- NULL
+  local_mocked_bindings(
+    run_nlme = function(data, ...) {
+      captured_sim_data <<- utils::read.csv(data)
+      .mock_nlme_n(3)
+    },
+    .package = "pharmr.extra"
+  )
+
+  out <- run_sim(
+    model = mod,
+    regimen = list(dose = 25, interval = 12, n = 3, route = "iv"),
+    t_obs = seq(0, 36, 6),
+    covariates = covs_no_id,
+    verbose = FALSE
+  )
+
+  expect_s3_class(out, "data.frame")
+  ## Correct number of subjects
+  expect_equal(length(unique(out$ID)), 3)
+  ## IDs in the dataset sent to NONMEM are sequential integers
+  expect_equal(sort(unique(captured_sim_data$ID)), 1:3)
+})
+
+test_that("run_sim (stub): covariates without ID infers n_subjects from nrow(covariates)", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- pharmr::load_example_model("pheno")
+  covs_no_id <- data.frame(WGT = c(1.5, 2.0), APGR = c(7, 5))  # 2 rows → 2 subjects
+
+  local_mocked_bindings(
+    run_nlme = function(...) .mock_nlme_n(2),
+    .package = "pharmr.extra"
+  )
+
+  out <- run_sim(
+    model = mod,
+    regimen = list(dose = 25, interval = 12, n = 3, route = "iv"),
+    t_obs = seq(0, 36, 6),
+    covariates = covs_no_id,
+    verbose = FALSE
+  )
+
+  expect_equal(length(unique(out$ID)), 2)
+})
+
+test_that("run_sim (stub): covariates with ID column still works (regression)", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- pharmr::load_example_model("pheno")
+  covs_with_id <- data.frame(ID = c(10L, 20L), WGT = c(1.5, 2.0), APGR = c(7, 5))
+
+  captured_sim_data <- NULL
+  local_mocked_bindings(
+    run_nlme = function(data, ...) {
+      captured_sim_data <<- utils::read.csv(data)
+      .mock_nlme_n(2)
+    },
+    .package = "pharmr.extra"
+  )
+
+  out <- run_sim(
+    model = mod,
+    regimen = list(dose = 25, interval = 12, n = 3, route = "iv"),
+    t_obs = seq(0, 36, 6),
+    covariates = covs_with_id,
+    verbose = FALSE
+  )
+
+  expect_equal(length(unique(out$ID)), 2)
+  ## IDs are re-indexed to 1:n (existing behaviour preserved)
+  expect_equal(sort(unique(captured_sim_data$ID)), 1:2)
+})
+

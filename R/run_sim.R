@@ -17,8 +17,9 @@
 #' regimens.
 #' @param covariates if specified, will replace subjects with subjects specified
 #' in a data.frame. In the data.frame, the column names should correspond
-#' exactly to any covariates included in the model. An `ID` column is required,
-#' and for time-varying covariates, a `TIME` column is also required (otherwise
+#' exactly to any covariates included in the model. An `ID` column is optional;
+#' if absent, IDs are generated as `1:nrow(covariates)`. For time-varying
+#' covariates, a `TIME` column is also required (otherwise
 #' it will be assumed covariates are not changing over time).
 #' @param t_obs a vector of observations times. If specified, will override
 #' the observations in each subject in the input dataset.
@@ -149,6 +150,9 @@ run_sim <- function(
   } else { ## user provided sampled covariates in `covariates`
     if(is.null(n_subjects)) {
       n_subjects <- nrow(covariates)
+    }
+    if(!"ID" %in% names(covariates)) {
+      covariates$ID <- seq_len(nrow(covariates))
     }
     if(verbose) cli::cli_alert_info("Preparing sampled dataset for simulation")
     ids <- unique(input_data$ID)
