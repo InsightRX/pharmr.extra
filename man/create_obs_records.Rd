@@ -4,7 +4,7 @@
 \alias{create_obs_records}
 \title{Create observation records, given a specified t_obs vector}
 \usage{
-create_obs_records(data, t_obs, n_subjects, dictionary, model)
+create_obs_records(data, t_obs, n_subjects, model)
 }
 \arguments{
 \item{data}{TODO}
@@ -12,8 +12,6 @@ create_obs_records(data, t_obs, n_subjects, dictionary, model)
 \item{t_obs}{TODO}
 
 \item{n_subjects}{TODO}
-
-\item{dictionary}{TODO}
 }
 \description{
 Create observation records, given a specified t_obs vector

@@ -5,7 +5,7 @@
 \title{Create dosing records, given a specified regimen as a data frame with
 potentially multiple regimens and varying dosing times / doses}
 \usage{
-create_dosing_records(regimen, data, n_subjects, dictionary, advan = NULL)
+create_dosing_records(regimen, data, n_subjects, advan = NULL)
 }
 \arguments{
 \item{regimen}{TODO}
@@ -13,8 +13,6 @@ create_dosing_records(regimen, data, n_subjects, dictionary, advan = NULL)
 \item{data}{TODO}
 
 \item{n_subjects}{TODO}
-
-\item{dictionary}{TODO}
 
 \item{advan}{TODO}
 }

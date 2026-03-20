@@ -310,30 +310,25 @@ test_that("calc_pk_variables: AUC_SS absent when regimen is NULL", {
 # ── create_dosing_records() ─────────────────────────────────────────────────
 
 .dose_data2 <- function() data.frame(ID = 1:2, TIME = 0, DV = 0, EVID = 1)
-.dose_dict  <- function() list(ID = "ID", DV = "DV", EVID = "EVID",
-                               AMT = "AMT", CMT = "CMT", MDV = "MDV")
 
 test_that("create_dosing_records: oral route assigns CMT = 1", {
   reg <- create_regimen(dose = 100, interval = 12, n = 2, route = "oral") |>
     dplyr::mutate(regimen = "oral")
-  out <- create_dosing_records(reg, .dose_data2(), n_subjects = 2,
-                               dictionary = .dose_dict(), advan = 2)
+  out <- create_dosing_records(reg, .dose_data2(), n_subjects = 2, advan = 2)
   expect_true(all(out$CMT == 1))
 })
 
 test_that("create_dosing_records: iv route assigns CMT = 2 for ADVAN2", {
   reg <- create_regimen(dose = 100, interval = 12, n = 2, route = "iv") |>
     dplyr::mutate(regimen = "iv")
-  out <- create_dosing_records(reg, .dose_data2(), n_subjects = 2,
-                               dictionary = .dose_dict(), advan = 2)
+  out <- create_dosing_records(reg, .dose_data2(), n_subjects = 2, advan = 2)
   expect_true(all(out$CMT == 2))
 })
 
 test_that("create_dosing_records: iv route uses CMT = 1 for ADVAN1 (no depot)", {
   reg <- create_regimen(dose = 100, interval = 12, n = 2, route = "iv") |>
     dplyr::mutate(regimen = "iv")
-  out <- create_dosing_records(reg, .dose_data2(), n_subjects = 1,
-                               dictionary = .dose_dict(), advan = 1)
+  out <- create_dosing_records(reg, .dose_data2(), n_subjects = 1, advan = 1)
   expect_true(all(out$CMT == 1))
 })
 
@@ -341,8 +336,7 @@ test_that("create_dosing_records: ADVAN1 with oral route errors", {
   reg <- create_regimen(dose = 100, interval = 12, n = 2, route = "oral") |>
     dplyr::mutate(regimen = "oral")
   expect_error(
-    create_dosing_records(reg, .dose_data2(), n_subjects = 1,
-                          dictionary = .dose_dict(), advan = 1),
+    create_dosing_records(reg, .dose_data2(), n_subjects = 1, advan = 1),
     "does not support oral"
   )
 })
@@ -351,8 +345,7 @@ test_that("create_dosing_records: t_inf > 0 gives RATE = AMT / t_inf", {
   reg <- create_regimen(dose = 120, interval = 12, n = 2, route = "iv",
                         t_inf = 2) |>
     dplyr::mutate(regimen = "iv")
-  out <- create_dosing_records(reg, .dose_data2(), n_subjects = 1,
-                               dictionary = .dose_dict(), advan = 2)
+  out <- create_dosing_records(reg, .dose_data2(), n_subjects = 1, advan = 2)
   expect_equal(unique(out$RATE[out$RATE > 0]), 60)  # 120 / 2
 })
 
@@ -360,8 +353,7 @@ test_that("create_dosing_records: n_subjects > data IDs extends ID list", {
   reg <- create_regimen(dose = 100, interval = 12, n = 2, route = "oral") |>
     dplyr::mutate(regimen = "oral")
   single_id <- data.frame(ID = 1, TIME = 0, DV = 0, EVID = 0)
-  out <- create_dosing_records(reg, single_id, n_subjects = 3,
-                               dictionary = .dose_dict(), advan = 2)
+  out <- create_dosing_records(reg, single_id, n_subjects = 3, advan = 2)
   expect_equal(sort(unique(out$ID)), 1:3)
 })
 
@@ -372,8 +364,7 @@ test_that("create_dosing_records: multiple regimens propagate to .regimen column
     create_regimen(dose = 200, interval = 12, n = 2, route = "oral") |>
       dplyr::mutate(regimen = "high")
   )
-  out <- create_dosing_records(reg, .dose_data2(), n_subjects = 1,
-                               dictionary = .dose_dict(), advan = 2)
+  out <- create_dosing_records(reg, .dose_data2(), n_subjects = 1, advan = 2)
   expect_setequal(unique(out$.regimen), c("low", "high"))
 })
 

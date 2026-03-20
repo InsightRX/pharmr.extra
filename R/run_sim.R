@@ -22,7 +22,6 @@
 #' it will be assumed covariates are not changing over time).
 #' @param t_obs a vector of observations times. If specified, will override
 #' the observations in each subject in the input dataset.
-#' @param dictionary a dataset dictionary.
 #' @param n_subjects number of subjects to simulate, when using sampled data
 #' (i.e. requires `covariates` argument)
 #' @param n_iterations number of iterations of the entire simulation to
@@ -51,14 +50,13 @@ run_sim <- function(
     id = irxutils::get_random_id("sim_"),
     force = FALSE,
     t_obs = NULL,
-    dictionary = NULL,
     regimen = NULL,
     covariates = NULL,
     tool = c("auto", "nonmem", "nlmixr2"),
     n_subjects = NULL,
     n_iterations = 1,
     variables = NULL,
-    add_pk_variables = TRUE,
+    add_pk_variables = FALSE,
     output_file = "simtab",
     update_table = TRUE,
     seed = 12345,
@@ -82,12 +80,7 @@ run_sim <- function(
   if (!file.exists(data)) {
     cli::cli_abort("Data file {dataset_file} does not exist")
   }
-  input_data <- read.csv(data)
-  input_has_column <- list()
-  for(key in c("CMT", "EVID", "MDV", "RATE")) {
-    input_has_column[[key]] <- key %in% names(input_data)
-  }
-
+  
   ## parse arguments
   if(is.null(fit) && is.null(model)) {
     cli::cli_abort("For simulations we need either a `fit` object, or a `model` file (with updated estimates)")
@@ -111,6 +104,12 @@ run_sim <- function(
       }
     }
   }
+  input_data <- model$dataset
+  input_has_column <- list()
+  for(key in c("CMT", "EVID", "MDV", "RATE")) {
+    input_has_column[[key]] <- key %in% names(input_data)
+  }
+  
   tool <- match.arg(tool)
   if(tool == "auto") {
     if(inherits(model, "pharmpy.model.external.nonmem.model.Model")) {
@@ -132,53 +131,16 @@ run_sim <- function(
       cli::cli_abort("`regimen` needs to be either a data.frame or a list, or NULL.")
     }
   }
-  default_dictionary <- list(
-    ID = "ID",
-    DV = "DV",
-    EVID = "EVID",
-    AMT = "AMT",
-    CMT = "CMT",
-    MDV = "MDV"
-  )
-  merge_dictionary <- function(user = list(), default_dictionary) {
-    defaults <- default_dictionary
-    defaults[names(user)] <- user
-    defaults
-  }
-  dictionary <- merge_dictionary(dictionary, default_dictionary)
 
   ## Set CMT to NA if not in dataset
-  if(!is.null(dictionary$CMT) && !input_has_column[["CMT"]]) {
-    input_data[[dictionary$CMT]] <- NA
+  if(! input_has_column[["CMT"]]) {
+    input_data$CMT <- NA
   }
   if(is.null(covariates)) { # use original dataset
     if(verbose) cli::cli_alert_info("Using input dataset for simulation")
     sim_data <- input_data
-    if(!is.null(dictionary)) {
-      for(key in names(dictionary)) {
-        if(! dictionary[[key]] %in% names(sim_data)) {
-          cli::cli_alert_warning("Dictionary value for {key} ('{dictionary[[key]]}') not found in dataset.")
-          dictionary[[key]] <- NULL
-        }
-        if(key %in% names(sim_data) && key != dictionary[[key]]) {
-          sim_data <- sim_data |>
-            dplyr::rename(
-              !!!rlang::set_names(
-                key,
-                paste0(key, "_old")
-              ))
-        }
-      }
-      sim_data <- sim_data |>
-        dplyr::rename(
-          !!!rlang::set_names(
-            as.character(dictionary),
-            names(dictionary)
-          )
-        )
-    }
     if(is.null(n_subjects)) {
-      n_subjects <- length(unique(input_data[[dictionary$ID]]))
+      n_subjects <- length(unique(input_data$ID))
     } else {
       ids <- unique(sim_data$ID)
       sim_data <- sim_data |>
@@ -189,14 +151,17 @@ run_sim <- function(
       n_subjects <- nrow(covariates)
     }
     if(verbose) cli::cli_alert_info("Preparing sampled dataset for simulation")
-    ids <- unique(input_data[[dictionary$ID]])
+    ids <- unique(input_data$ID)
     random_sample <- sample(ids, n_subjects, replace = TRUE)
     sim_data <- lapply(seq_along(random_sample), function(i) {
       input_data |>
         dplyr::filter(.data$ID == random_sample[i]) |>
-        dplyr::mutate(ID = i)
+        dplyr::mutate(ID := i)
     }) %>%
       dplyr::bind_rows()
+    cov_ids <- unique(covariates$ID)
+    covariates <- covariates |> # ensure covaraites ID also run from 1:n
+      dplyr::mutate(ID = match(ID, cov_ids))
     if(verbose) cli::cli_alert_info("Updating covariates for subjects in simulation")
     covs_reqd <- unlist(lapply(
       pharmr::get_model_covariates(model),
@@ -204,25 +169,23 @@ run_sim <- function(
     ))
     if(! all(covs_reqd %in% names(covariates))) {
       missing <- covs_reqd[! covs_reqd %in% names(covariates)]
-      cli::cli_abort("Not all required covariates supplied in `covariates` data, missing: {missing}")
-    }
-    if(! "ID" %in% names(covariates)) {
-      covariates$ID <- 1:nrow(covariates)
-    }
-    if(! "TIME" %in% names(covariates)) {
-        covariates$TIME <- 0
+      cli::cli_alert_warning("Not all required covariates supplied in `covariates` data, missing: {missing}. This could be due to renaming of covariates in $INPUT.")
     }
     new_covariates <- names(covariates)
-    new_covariates <- new_covariates[(! new_covariates %in% c("ID", "TIME")) & new_covariates %in% names(sim_data)]
+    new_covariates <- new_covariates[new_covariates != "ID" & new_covariates %in% names(sim_data)]
+    cli::cli_alert_info("Updating covariates: {new_covariates}")
+    
+    sim_data_cols <- names(sim_data)
     sim_data <- sim_data |>
       dplyr::select(- dplyr::all_of(new_covariates)) |> ## remove existing covariates
       dplyr::left_join(
         covariates,
-        by = c("ID", "TIME")
+        by = "ID"
       ) |>
+      dplyr::select(dplyr::all_of(sim_data_cols)) |> # ensure order is kept, after left join
       tidyr::fill(dplyr::all_of(new_covariates), .direction = "downup")
   }
-    
+
   if(!is.null(regimen_df)) {
     if(verbose) cli::cli_alert_info("Creating new regimens for subjects in simulation")
     advan <- get_advan(model)
@@ -230,7 +193,6 @@ run_sim <- function(
       regimen_df,
       sim_data,
       n_subjects,
-      dictionary,
       advan
     )
 
@@ -264,7 +226,6 @@ run_sim <- function(
       sim_data,
       t_obs,
       n_subjects,
-      dictionary,
       model
     )
     ## remove old obs and add new
@@ -280,7 +241,7 @@ run_sim <- function(
       ) |>
       dplyr::mutate(dplyr::across(dplyr::everything(), ~ fill_missing(.x)))
   }
-  
+
   ## Remove CMT, EVID, MDV, RATE column, if not in input dataset
   for(key in names(input_has_column)) {
     if(! input_has_column[[key]]) {
@@ -314,16 +275,9 @@ run_sim <- function(
     }
 
     ## Set simulation (pharmr::set_simulation() modifies the model that sometimes invalidate the model, so add manually)
-    if(verbose) cli::cli_alert_info("Changing model to simulation model")
+    if(verbose) cli::cli_alert_info("Changing model to simulation-only model")
     sim_model <- model |>
       set_simulation_clean(seed = seed, n = n_iterations)
-
-    if(verbose) cli::cli_alert_info("Updating dataset reference")
-    ## Update dataset (in safe way, avoiding pharmr::set_dataset)
-    new_dataset_file <- tempfile(pattern = "data", fileext = ".csv")
-    write.csv(sim_data_regimen, new_dataset_file, quote = F, row.names = F)
-    sim_model <- sim_model |>
-      set_dataset_clean(path_or_df = new_dataset_file)
 
     ## Add tables
     if(update_table) {
@@ -340,14 +294,19 @@ run_sim <- function(
           checked_variables <- c(checked_variables, variab)
         }
       }
-      variables <- unique(c(checked_variables, parameter_names, names(covariates)))
+      variables <- unique(c(checked_variables, parameter_names))
       sim_model <- sim_model |>
         remove_tables_from_model() |>
-        add_table_to_model(variables, file = output_file)
+        add_table_to_model(checked_variables, file = output_file)
     } else {
       if(verbose) cli::cli_alert_info("Using existing table record(s)")
     }
 
+    ## Update dataset (in safe way, avoiding pharmr::set_dataset)
+    if(verbose) cli::cli_alert_info("Updating dataset reference")
+    new_dataset_file <- tempfile(pattern = "data", fileext = ".csv")
+    write.csv(sim_data_regimen, new_dataset_file, quote = F, row.names = F)
+    
     ## Run simulation
     if(verbose) cli::cli_alert_info("Running simulation ({reg_label})")
 
@@ -414,14 +373,12 @@ run_sim <- function(
 #' Calculate some basic PK variables from simulated or observed data
 #'
 #' @param data data.frame in NONMEM format
-#' @param dictionary TODO
 #' @inheritParams run_sim
 #'
 #' @returns data.frame
 calc_pk_variables <- function(
     data,
-    regimen = NULL,
-    dictionary = NULL
+    regimen = NULL
 ) {
 
   if(!is.null(data)) {
@@ -465,14 +422,12 @@ calc_pk_variables <- function(
 #' @param regimen TODO
 #' @param data TODO
 #' @param n_subjects TODO
-#' @param dictionary TODO
 #' @param advan TODO
 #' 
 create_dosing_records <- function(
     regimen,
     data,
     n_subjects,
-    dictionary,
     advan = NULL
 ) {
   ids <- unique(data$ID)
@@ -528,12 +483,10 @@ create_dosing_records <- function(
 #' @param data TODO
 #' @param t_obs TODO
 #' @param n_subjects TODO
-#' @param dictionary TODO
 create_obs_records <- function(
     data,
     t_obs,
     n_subjects,
-    dictionary,
     model
 ) {
   ids <- unique(data$ID)
@@ -547,12 +500,12 @@ create_obs_records <- function(
     cmt <- data |>
       dplyr::filter(.data$ID == 1 & .data$EVID == 0 & .data$MDV == 0) |> 
       dplyr::slice(1) |>
-      dplyr::pull("CMT")
+      dplyr::pull(CMT)
   } else {
     cmt <- data |>
       dplyr::filter(.data$ID == 1 & .data$EVID == 0) |> 
       dplyr::slice(1) |>
-      dplyr::pull("CMT")
+      dplyr::pull(CMT)
   }
   if(is.null(cmt) || is.na(cmt) || length(cmt) == 0) {
     cmt <- get_obs_compartment(model)
@@ -601,4 +554,23 @@ fill_missing <- function(x, default = NA) {
   } else {
     x
   }
+}
+
+#' Create a dictionary from given specs and default dictionary as fallback
+#' 
+parse_data_dictionary <- function(
+  dictionary,
+  default = list(
+    ID = "ID",
+    TIME = "TIME",
+    DV = "DV",
+    EVID = "EVID",
+    AMT = "AMT",
+    CMT = "CMT",
+    MDV = "MDV"
+  )
+) {
+  updated <- default
+  updated[names(dictionary)] <- dictionary
+  updated
 }

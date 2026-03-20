@@ -9,7 +9,7 @@
 \alias{get_estimation_steps}
 \title{Get model info}
 \usage{
-get_model_info(model)
+get_model_info(model, data)
 
 get_error_model(model)
 

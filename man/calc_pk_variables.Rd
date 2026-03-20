@@ -4,7 +4,7 @@
 \alias{calc_pk_variables}
 \title{Calculate some basic PK variables from simulated or observed data}
 \usage{
-calc_pk_variables(data, regimen = NULL, dictionary = NULL)
+calc_pk_variables(data, regimen = NULL)
 }
 \arguments{
 \item{data}{data.frame in NONMEM format}
@@ -19,8 +19,6 @@ specified all dosing times (\code{dose}, \code{time} columns) and \code{route} a
 \code{rate}. The data.frame may also optionally contain a \code{regimen} column that
 specifies a name for the regimen. This can be used to simulate multiple
 regimens.}
-
-\item{dictionary}{TODO}
 }
 \value{
 data.frame
