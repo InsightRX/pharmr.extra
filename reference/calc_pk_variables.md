@@ -5,7 +5,7 @@ Calculate some basic PK variables from simulated or observed data
 ## Usage
 
 ``` r
-calc_pk_variables(data, regimen = NULL, dictionary = NULL)
+calc_pk_variables(data, regimen = NULL)
 ```
 
 ## Arguments
@@ -26,10 +26,6 @@ calc_pk_variables(data, regimen = NULL, dictionary = NULL)
   `route` and `t_inf` / `rate`. The data.frame may also optionally
   contain a `regimen` column that specifies a name for the regimen. This
   can be used to simulate multiple regimens.
-
-- dictionary:
-
-  TODO
 
 ## Value
 

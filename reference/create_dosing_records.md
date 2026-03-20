@@ -6,7 +6,7 @@ potentially multiple regimens and varying dosing times / doses
 ## Usage
 
 ``` r
-create_dosing_records(regimen, data, n_subjects, dictionary, advan = NULL)
+create_dosing_records(regimen, data, n_subjects, advan = NULL)
 ```
 
 ## Arguments
@@ -20,10 +20,6 @@ create_dosing_records(regimen, data, n_subjects, dictionary, advan = NULL)
   TODO
 
 - n_subjects:
-
-  TODO
-
-- dictionary:
 
   TODO
 

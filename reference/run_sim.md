@@ -12,7 +12,6 @@ run_sim(
   id = irxutils::get_random_id("sim_"),
   force = FALSE,
   t_obs = NULL,
-  dictionary = NULL,
   regimen = NULL,
   covariates = NULL,
   tool = c("auto", "nonmem", "nlmixr2"),
@@ -61,10 +60,6 @@ run_sim(
 
   a vector of observations times. If specified, will override the
   observations in each subject in the input dataset.
-
-- dictionary:
-
-  a dataset dictionary.
 
 - regimen:
 

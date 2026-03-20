@@ -5,7 +5,7 @@ Create observation records, given a specified t_obs vector
 ## Usage
 
 ``` r
-create_obs_records(data, t_obs, n_subjects, dictionary, model)
+create_obs_records(data, t_obs, n_subjects, model)
 ```
 
 ## Arguments
@@ -19,9 +19,5 @@ create_obs_records(data, t_obs, n_subjects, dictionary, model)
   TODO
 
 - n_subjects:
-
-  TODO
-
-- dictionary:
 
   TODO

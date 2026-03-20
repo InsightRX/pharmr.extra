@@ -6,7 +6,7 @@ model information from a Pharmpy model.
 ## Usage
 
 ``` r
-get_model_info(model)
+get_model_info(model, data)
 
 get_error_model(model)
 
