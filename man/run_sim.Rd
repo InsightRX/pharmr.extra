@@ -59,8 +59,9 @@ regimens.}
 
 \item{covariates}{if specified, will replace subjects with subjects specified
 in a data.frame. In the data.frame, the column names should correspond
-exactly to any covariates included in the model. An \code{ID} column is required,
-and for time-varying covariates, a \code{TIME} column is also required (otherwise
+exactly to any covariates included in the model. An \code{ID} column is optional;
+if absent, IDs are generated as \code{1:nrow(covariates)}. For time-varying
+covariates, a \code{TIME} column is also required (otherwise
 it will be assumed covariates are not changing over time).}
 
 \item{tool}{the tool to run the model in, either \code{nonmem}, or \code{nlmixr}.}
