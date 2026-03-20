@@ -134,6 +134,7 @@ run_sim <- function(
   }
   default_dictionary <- list(
     ID = "ID",
+    TIME = "TIME",
     DV = "DV",
     EVID = "EVID",
     AMT = "AMT",
@@ -194,7 +195,7 @@ run_sim <- function(
     sim_data <- lapply(seq_along(random_sample), function(i) {
       input_data |>
         dplyr::filter(.data[[dictionary$ID]] == random_sample[i]) |>
-        dplyr::mutate(ID = i)
+        dplyr::mutate(!!rlang::sym(dictionary$ID) := i)
     }) %>%
       dplyr::bind_rows()
     if(verbose) cli::cli_alert_info("Updating covariates for subjects in simulation")
@@ -222,7 +223,7 @@ run_sim <- function(
         covariates,
         by = c(dictionary[["ID"]], dictionary[["TIME"]])
       ) |>
-      dplyr::select(!!sim_data_cols) |> # ensure order is kept, after left join
+      dplyr::select(dplyr::all_of(sim_data_cols)) |> # ensure order is kept, after left join
       tidyr::fill(dplyr::all_of(new_covariates), .direction = "downup")
   }
     
@@ -348,12 +349,7 @@ run_sim <- function(
     if(verbose) cli::cli_alert_info("Updating dataset reference")
     new_dataset_file <- tempfile(pattern = "data", fileext = ".csv")
     write.csv(sim_data_regimen, new_dataset_file, quote = F, row.names = F)
-    # sim_model <- sim_model |>
-    #   set_dataset_clean(path_or_df = new_dataset_file)
     
-    names(sim_data_regimen)
-    ## TODO: order of data columns is messed up in bootstrap
-
     ## Run simulation
     if(verbose) cli::cli_alert_info("Running simulation ({reg_label})")
 
@@ -481,6 +477,7 @@ create_dosing_records <- function(
     dictionary,
     advan = NULL
 ) {
+  if(is.null(dictionary)) dictionary <- list(ID = "ID")
   id_col <- dictionary$ID
   ids <- unique(data[[id_col]])
   if(length(ids) < n_subjects) {
