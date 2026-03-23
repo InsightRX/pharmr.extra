@@ -403,6 +403,10 @@ MIT © InsightRX
 - [`read_ini()`](https://insightrx.github.io/pharmr.extra/reference/read_ini.md)
   : Read ini file core function
 
+- [`read_modelfit_results()`](https://insightrx.github.io/pharmr.extra/reference/read_modelfit_results.md)
+  : Read NONMEM modelfit results, with bug fixes for SIR covariance
+  models
+
 - [`read_table_nm()`](https://insightrx.github.io/pharmr.extra/reference/read_table_nm.md)
   : NONMEM output table import function
 
@@ -487,3 +491,9 @@ MIT © InsightRX
 - [`validate_model()`](https://insightrx.github.io/pharmr.extra/reference/validate_model.md)
   : Validate the specified model, ensure it's valid Pharmpy model
 
+# Articles
+
+### All vignettes
+
+- [SIR covariance estimation in
+  NONMEM](https://insightrx.github.io/pharmr.extra/articles/sir-covariance.md):

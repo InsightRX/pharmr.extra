@@ -366,6 +366,10 @@
 - [`read_ini()`](https://insightrx.github.io/pharmr.extra/reference/read_ini.md)
   : Read ini file core function
 
+- [`read_modelfit_results()`](https://insightrx.github.io/pharmr.extra/reference/read_modelfit_results.md)
+  : Read NONMEM modelfit results, with bug fixes for SIR covariance
+  models
+
 - [`read_table_nm()`](https://insightrx.github.io/pharmr.extra/reference/read_table_nm.md)
   : NONMEM output table import function
 

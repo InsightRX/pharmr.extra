@@ -3,6 +3,8 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/CLAUDE.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/LICENSE-text.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/LICENSE.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/articles/index.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/articles/sir-covariance.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/authors.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/index.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/news/index.html</loc></url>
@@ -112,6 +114,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/print.pharmpy.workflows.results.ModelfitResults.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/print_nmfe_output.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/read_ini.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/read_modelfit_results.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/read_table_nm.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/remove_data_section.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/remove_estimation_steps_from_model.html</loc></url>

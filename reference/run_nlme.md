@@ -108,7 +108,9 @@ run_nlme(
 
   options for running SIR in covariance step. A list with options
   `niter` (number of SIR iterations) and `samples` (number of samples).
-  Default `NULL` leaves the model unchanged.
+  Default `NULL` leaves the model unchanged. `samples` should be between
+  300 and 10000 (suggested to use 1000 by default). `niter` should be 1
+  or higher (suggest to use 1 by default).
 
 - auto_stack_encounters:
 
