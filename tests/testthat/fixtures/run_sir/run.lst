@@ -1,0 +1,3816 @@
+Mon Mar 23 08:46:37 PM UTC 2026
+$SIZES PD=100
+
+$PROBLEM Base linear model with oral input
+
+$INPUT ID TIME CMT EVID MDV DV AMT GROUP ORIGID WEIGHT HEIGHT ALBUMIN BILIRUBIN CREATININE HEMATOCRIT ENC_TIME
+$DATA /home/rstudio/git/pharmaai/pharmr.extra/1/data.csv IGNORE=@
+
+$SUBROUTINES ADVAN2 TRANS2
+
+$ABBR REPLACE ETA_V=ETA(1)
+$ABBR REPLACE ETA_CL=ETA(2)
+$PK
+TVKA = THETA(1)
+TVCL = THETA(2)
+TVV  = THETA(3)
+
+KA=TVKA
+CL = TVCL*EXP(ETA_CL)
+V = TVV*EXP(ETA_V)
+
+S2 = V
+
+$ERROR
+W = 1
+IPRED = F
+Y = IPRED + W * EPS(1)
+
+$THETA  (0, 0.5) ; POP_KA
+$THETA  (0, 5.41)  ; POP_CL
+$THETA  (0, 153.0)   ; POP_V
+$OMEGA  0.04 ; IIV_V
+$OMEGA  0.04 ; IIV_CL
+$SIGMA  0.5 ; RUV_ADD
+
+$ESTIMATION METHOD=COND INTER MAXEVAL=2000 PRINT=5
+$COVARIANCE UNCONDITIONAL PRINT=E PRECOND=1  SIRSAMPLE=500 SIRNITER=10 
+$TABLE
+  ID TIME DV EVID MDV IPRED PRED CWRES CIWRES NPDE
+
+ NOAPPEND NOPRINT FILE=sdtab
+
+
+
+NM-TRAN MESSAGES
+  
+ WARNINGS AND ERRORS (IF ANY) FOR PROBLEM    1
+             
+ (WARNING  2) NM-TRAN INFERS THAT THE DATA ARE POPULATION.
+  
+Note: Analytical 2nd Derivatives are constructed in FSUBS but are never used.
+      You may insert $ABBR DERIV2=NO after the first $PROB to save FSUBS construction and compilation time
+  
+
+License Registered to: InsightRX
+Expiration Date:    14 AUG 2026
+Current Date:       23 MAR 2026
+Days until program expires : 141
+1NONLINEAR MIXED EFFECTS MODEL PROGRAM (NONMEM) VERSION 7.6.0 (nm760)
+ ORIGINALLY DEVELOPED BY STUART BEAL, LEWIS SHEINER, AND ALISON BOECKMANN
+ CURRENT DEVELOPERS ARE ROBERT BAUER, ICON DEVELOPMENT SOLUTIONS,
+ AND ALISON BOECKMANN. IMPLEMENTATION, EFFICIENCY, AND STANDARDIZATION
+ PERFORMED BY NOUS INFOSYSTEMS.
+
+ PROBLEM NO.:         1
+ Base linear model with oral input
+0DATA CHECKOUT RUN:              NO
+ DATA SET LOCATED ON UNIT NO.:    2
+ THIS UNIT TO BE REWOUND:        NO
+ CREATE/ADD TO FDATA.csv:        YES
+ NO. OF DATA RECS IN DATA SET:     2352
+ NO. OF DATA ITEMS IN DATA SET:  16
+ ID DATA ITEM IS DATA ITEM NO.:   1
+ DEP VARIABLE IS DATA ITEM NO.:   6
+ MDV DATA ITEM IS DATA ITEM NO.:  5
+0INDICES PASSED TO SUBROUTINE PRED:
+   4   2   7   0   0   0   3   0   0   0   0
+0LABELS FOR DATA ITEMS:
+ ID TIME CMT EVID MDV DV AMT GROUP ORIGID WEIGHT HEIGHT ALBUMIN BILIRUBIN CREATININE HEMATOCRIT ENC_TIME
+0(NONBLANK) LABELS FOR PRED-DEFINED ITEMS:
+ IPRED
+0LABELS FOR ETAS
+ ETA(1)=ETA_V
+ ETA(2)=ETA_CL
+0FORMAT FOR DATA:
+ (E4.0,E5.0,3E2.0,E7.0,E5.0,E2.0,E4.0,2E7.0,E3.0,E6.0,E7.0,2E5.0)
+
+ TOT. NO. OF OBS RECS:     2184
+ TOT. NO. OF INDIVIDUALS:      168
+0LENGTH OF THETA:   3
+0DEFAULT THETA BOUNDARY TEST OMITTED:    NO
+0OMEGA HAS SIMPLE DIAGONAL FORM WITH DIMENSION:   2
+0DEFAULT OMEGA BOUNDARY TEST OMITTED:    NO
+0SIGMA HAS SIMPLE DIAGONAL FORM WITH DIMENSION:   1
+0DEFAULT SIGMA BOUNDARY TEST OMITTED:    NO
+0INITIAL ESTIMATE OF THETA:
+ LOWER BOUND    INITIAL EST    UPPER BOUND
+  0.0000E+00     0.5000E+00     0.1000E+07
+  0.0000E+00     0.5410E+01     0.1000E+07
+  0.0000E+00     0.1530E+03     0.1000E+07
+0INITIAL ESTIMATE OF OMEGA:
+ 0.4000E-01
+ 0.0000E+00   0.4000E-01
+0INITIAL ESTIMATE OF SIGMA:
+ 0.5000E+00
+0COVARIANCE STEP OMITTED:        NO
+ EIGENVLS. PRINTED:             YES
+ SPECIAL COMPUTATION:            NO
+ COMPRESSED FORMAT:              NO
+ GRADIENT METHOD USED:     NOSLOW
+ SIGDIGITS ETAHAT (SIGLO):                  -1
+ SIGDIGITS GRADIENTS (SIGL):                -1
+ EXCLUDE COV FOR FOCE (NOFCOV):              NO
+ Cholesky Transposition of R Matrix (CHOLROFF):0
+ KNUTHSUMOFF:                                -1
+ RESUME COV ANALYSIS (RESUME):               NO
+ SIR SAMPLE SIZE (SIRSAMPLE):              500
+ NON-LINEARLY TRANSFORM THETAS DURING COV (THBND): 1
+ PRECONDTIONING CYCLES (PRECOND):        1
+ PRECONDTIONING TYPES (PRECONDS):        TOS
+ FORCED PRECONDTIONING CYCLES (PFCOND):0
+ PRECONDTIONING TYPE (PRETYPE):        0
+ FORCED POS. DEFINITE SETTING DURING PRECONDITIONING: (FPOSDEF):0
+ SIMPLE POS. DEFINITE SETTING: (POSDEF):-1
+ SIR SAMPLE ITERATIONS (SIRNITER):          10
+ SIR SAMPLE CENTERED ABOUT ESTIMATE
+ SIR CAP_CORRELATION:                              1.00000000000000
+ SIR MIN WEIGHT:                              1.000000000000000E-03
+ SIR MAX WEIGHT:                              1000.00000000000
+ SIR IACCEPT:                              1.00000000000000
+ SIR IACCEPTL:                             0.00000000000000
+ SIR DF (SIRDF,T-DIST SAMPLING):           0.00000000000000
+ SIR SEED (SIRSEED):          11456
+ SIR RANMETHOD:
+ SIR PRINT ITERATIONS (SIRPRINT):          0
+ SIR FILE:
+ SIR FORMAT:
+ NON-LINEARLY TRANSFORM THETAS DURING SIR COV (SIRTHBND): 1
+0TABLES STEP OMITTED:    NO
+ NO. OF TABLES:           1
+ SEED NUMBER (SEED):    11456
+ NPDTYPE:    0
+ INTERPTYPE:    0
+ RANMETHOD:             3U
+ MC SAMPLES (ESAMPLE):    300
+ WRES SQUARE ROOT TYPE (WRESCHOL): EIGENVALUE
+0-- TABLE   1 --
+0RECORDS ONLY:    ALL
+04 COLUMNS APPENDED:    NO
+ PRINTED:                NO
+ HEADERS:               YES
+ FILE TO BE FORWARDED:   NO
+ FORMAT:                S1PE11.4
+ IDFORMAT:
+ LFORMAT:
+ RFORMAT:
+ FIXED_EFFECT_ETAS:
+0USER-CHOSEN ITEMS:
+ ID TIME DV EVID MDV IPRED PRED CWRES CIWRES NPDE
+1DOUBLE PRECISION PREDPP VERSION 7.6.0 (nm760)
+
+ ONE COMPARTMENT MODEL WITH FIRST-ORDER ABSORPTION (ADVAN2)
+0MAXIMUM NO. OF BASIC PK PARAMETERS:   3
+0BASIC PK PARAMETERS (AFTER TRANSLATION):
+   ELIMINATION RATE (K) IS BASIC PK PARAMETER NO.:  1
+   ABSORPTION RATE (KA) IS BASIC PK PARAMETER NO.:  3
+
+ TRANSLATOR WILL CONVERT PARAMETERS
+ CLEARANCE (CL) AND VOLUME (V) TO K (TRANS2)
+0COMPARTMENT ATTRIBUTES
+ COMPT. NO.   FUNCTION   INITIAL    ON/OFF      DOSE      DEFAULT    DEFAULT
+                         STATUS     ALLOWED    ALLOWED    FOR DOSE   FOR OBS.
+    1         DEPOT        OFF        YES        YES        YES        NO
+    2         CENTRAL      ON         NO         YES        NO         YES
+    3         OUTPUT       OFF        YES        NO         NO         NO
+1
+ ADDITIONAL PK PARAMETERS - ASSIGNMENT OF ROWS IN GG
+ COMPT. NO.                             INDICES
+              SCALE      BIOAVAIL.   ZERO-ORDER  ZERO-ORDER  ABSORB
+                         FRACTION    RATE        DURATION    LAG
+    1            *           *           *           *           *
+    2            4           *           *           *           *
+    3            *           -           -           -           -
+             - PARAMETER IS NOT ALLOWED FOR THIS MODEL
+             * PARAMETER IS NOT SUPPLIED BY PK SUBROUTINE;
+               WILL DEFAULT TO ONE IF APPLICABLE
+0DATA ITEM INDICES USED BY PRED ARE:
+   EVENT ID DATA ITEM IS DATA ITEM NO.:      4
+   TIME DATA ITEM IS DATA ITEM NO.:          2
+   DOSE AMOUNT DATA ITEM IS DATA ITEM NO.:   7
+   COMPT. NO. DATA ITEM IS DATA ITEM NO.:    3
+
+0PK SUBROUTINE CALLED WITH EVERY EVENT RECORD.
+ PK SUBROUTINE NOT CALLED AT NONEVENT (ADDITIONAL OR LAGGED) DOSE TIMES.
+0ERROR SUBROUTINE CALLED WITH EVERY EVENT RECORD.
+1
+
+
+ #TBLN:      1
+ #METH: First Order Conditional Estimation with Interaction
+
+ ESTIMATION STEP OMITTED:                 NO
+ SHRINK INFO WITH EVALUATION (EVALSHRINK) NO
+ ANALYSIS TYPE:                           POPULATION
+ NUMBER OF SADDLE POINT RESET ITERATIONS:      0
+ GRADIENT METHOD USED:               NOSLOW
+ CONDITIONAL ESTIMATES USED:              YES
+ CENTERED ETA:                            NO
+ EPS-ETA INTERACTION:                     YES
+ LAPLACIAN OBJ. FUNC.:                    NO
+ NO. OF FUNCT. EVALS. ALLOWED:            2000
+ NO. OF SIG. FIGURES REQUIRED:            3
+ INTERMEDIATE PRINTOUT:                   YES
+ ESTIMATE OUTPUT TO MSF:                  NO
+ IND. OBJ. FUNC. VALUES SORTED:           NO
+ NUMERICAL DERIVATIVE
+       FILE REQUEST (NUMDER):               NONE
+ MAP (ETAHAT) ESTIMATION METHOD (OPTMAP):   0
+ ETA HESSIAN EVALUATION METHOD (ETADER):    0
+ INITIAL ETA FOR MAP ESTIMATION (MCETA):    0
+ SIGDIGITS FOR MAP ESTIMATION (SIGLO):      100
+ GRADIENT SIGDIGITS OF
+       FIXED EFFECTS PARAMETERS (SIGL):     100
+ NOPRIOR SETTING (NOPRIOR):                 0
+ NOCOV SETTING (NOCOV):                     OFF
+ DERCONT SETTING (DERCONT):                 OFF
+ FINAL ETA RE-EVALUATION (FNLETA):          1
+ EXCLUDE NON-INFLUENTIAL (NON-INFL.) ETAS
+       IN SHRINKAGE (ETASTYPE):             NO
+ NON-INFL. ETA CORRECTION (NONINFETA):      0
+ RAW OUTPUT FILE (FILE): run.ext
+ EXCLUDE TITLE (NOTITLE):                   NO
+ EXCLUDE COLUMN LABELS (NOLABEL):           NO
+ FORMAT FOR ADDITIONAL FILES (FORMAT):      S1PE12.5
+ PARAMETER ORDER FOR OUTPUTS (ORDER):       TSOL
+ KNUTHSUMOFF:                               0
+ INCLUDE LNTWOPI:                           NO
+ INCLUDE CONSTANT TERM TO PRIOR (PRIORC):   NO
+ INCLUDE CONSTANT TERM TO OMEGA (ETA) (OLNTWOPI):NO
+ ADDITIONAL CONVERGENCE TEST (CTYPE=4)?:    NO
+ EM OR BAYESIAN METHOD USED:                 NONE
+
+
+ THE FOLLOWING LABELS ARE EQUIVALENT
+ PRED=PREDI
+ RES=RESI
+ WRES=WRESI
+ IWRS=IWRESI
+ IPRD=IPREDI
+ IRS=IRESI
+
+ MONITORING OF SEARCH:
+
+
+0ITERATION NO.:    0    OBJECTIVE VALUE:   2467.79446077622        NO. OF FUNC. EVALS.:   6
+ CUMULATIVE NO. OF FUNC. EVALS.:        6
+ NPARAMETR:  5.0000E-01  5.4100E+00  1.5300E+02  4.0000E-02  4.0000E-02  5.0000E-01
+ PARAMETER:  1.0000E-01  1.0000E-01  1.0000E-01  1.0000E-01  1.0000E-01  1.0000E-01
+ GRADIENT:  -2.6659E+03 -3.0020E+03  2.5925E+03 -2.1062E+03 -1.4119E+03  8.3683E+02
+
+0ITERATION NO.:    5    OBJECTIVE VALUE:  -155.665329295623        NO. OF FUNC. EVALS.:  43
+ CUMULATIVE NO. OF FUNC. EVALS.:       49
+ NPARAMETR:  2.9120E-01  1.1273E+01  8.7086E+01  2.7272E-01  7.9206E-02  1.7675E-01
+ PARAMETER: -4.4061E-01  8.3418E-01 -4.6354E-01  1.0598E+00  4.4159E-01 -4.1992E-01
+ GRADIENT:  -6.6490E+02 -1.5133E+02  3.9123E+02 -1.8581E+02 -1.2765E+02 -3.0048E+02
+
+0ITERATION NO.:   10    OBJECTIVE VALUE:  -454.015604684833        NO. OF FUNC. EVALS.:  47
+ CUMULATIVE NO. OF FUNC. EVALS.:       96
+ NPARAMETR:  4.7322E-01  1.0371E+01  9.1268E+01  2.5409E-01  1.4510E-01  1.6847E-01
+ PARAMETER:  4.4950E-02  7.5080E-01 -4.1664E-01  1.0244E+00  7.4427E-01 -4.4393E-01
+ GRADIENT:  -3.7792E+00 -7.6517E+01  8.1541E+00  6.2266E+00  1.0732E+01 -6.9762E+01
+
+0ITERATION NO.:   15    OBJECTIVE VALUE:  -457.451034866493        NO. OF FUNC. EVALS.:  51
+ CUMULATIVE NO. OF FUNC. EVALS.:      147
+ NPARAMETR:  4.7266E-01  1.0882E+01  9.1653E+01  2.5149E-01  1.3627E-01  1.7176E-01
+ PARAMETER:  4.3775E-02  7.9890E-01 -4.1243E-01  1.0193E+00  7.1289E-01 -4.3427E-01
+ GRADIENT:   4.9357E+00 -6.5923E+00 -1.3217E+01  3.6117E+00 -1.0216E+00 -1.4508E+00
+
+0ITERATION NO.:   20    OBJECTIVE VALUE:  -457.539480391693        NO. OF FUNC. EVALS.:  60
+ CUMULATIVE NO. OF FUNC. EVALS.:      207
+ NPARAMETR:  4.7296E-01  1.0912E+01  9.2607E+01  2.4849E-01  1.3684E-01  1.7183E-01
+ PARAMETER:  4.4413E-02  8.0163E-01 -4.0208E-01  1.0133E+00  7.1495E-01 -4.3405E-01
+ GRADIENT:  -1.3142E-02  3.0022E-02 -8.4556E-02 -2.8161E-02  8.4206E-02  2.1596E-02
+
+ #TERM:
+0MINIMIZATION SUCCESSFUL
+ NO. OF FUNCTION EVALUATIONS USED:      207
+ NO. OF SIG. DIGITS IN FINAL EST.:  3.8
+
+ ETABAR IS THE ARITHMETIC MEAN OF THE ETA-ESTIMATES,
+ AND THE P-VALUE IS GIVEN FOR THE NULL HYPOTHESIS THAT THE TRUE MEAN IS 0.
+
+ ETABAR:        -6.0536E-03 -2.7310E-03
+ SE:             3.7747E-02  2.7245E-02
+ N:                     168         168
+
+ P VAL.:         8.7259E-01  9.2015E-01
+
+ ETASHRINKSD(%)  1.8440E+00  4.5339E+00
+ ETASHRINKVR(%)  3.6539E+00  8.8622E+00
+ EBVSHRINKSD(%)  1.1937E+00  4.2310E+00
+ EBVSHRINKVR(%)  2.3732E+00  8.2831E+00
+ RELATIVEINF(%)  9.7610E+01  9.1701E+01
+ EPSSHRINKSD(%)  7.4925E+00
+ EPSSHRINKVR(%)  1.4424E+01
+
+  
+ TOTAL DATA POINTS NORMALLY DISTRIBUTED (N):         2184
+ N*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    4013.9235130380102     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -457.53948039169308     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       3556.3840326463173     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ TOTAL EFFECTIVE ETAS (NIND*NETA):                           336
+  
+ #TERE:
+ Elapsed estimation  time in seconds:     1.54
+ TESTING R MATRIX FOR POSITIVE DEFINITNESS
+ R MATRIX IS POSITIVE DEFINITE
+ Elapsed covariance  time in seconds:     0.76
+ Elapsed postprocess time in seconds:     0.30
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************               FIRST ORDER CONDITIONAL ESTIMATION WITH INTERACTION              ********************
+ #OBJT:**************                       MINIMUM VALUE OF OBJECTIVE FUNCTION                      ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+
+
+
+ #OBJV:********************************************          -457.539       *********************************************
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************               FIRST ORDER CONDITIONAL ESTIMATION WITH INTERACTION              ********************
+ ********************                             FINAL PARAMETER ESTIMATE                           ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         4.73E-01  1.09E+01  9.26E+01
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.48E-01
+ 
+ ETA_CL
++        0.00E+00  1.37E-01
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        1.72E-01
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        4.98E-01
+ 
+ ETA_CL
++        0.00E+00  3.70E-01
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        4.15E-01
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************               FIRST ORDER CONDITIONAL ESTIMATION WITH INTERACTION              ********************
+ ********************                            STANDARD ERROR OF ESTIMATE                          ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         2.21E-02  3.30E-01  3.37E+00
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.46E-02
+ 
+ ETA_CL
++       .........  1.45E-02
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        1.90E-02
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.47E-02
+ 
+ ETA_CL
++       .........  1.96E-02
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        2.29E-02
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************               FIRST ORDER CONDITIONAL ESTIMATION WITH INTERACTION              ********************
+ ********************                          COVARIANCE MATRIX OF ESTIMATE                         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        4.87E-04
+ 
+ TH 2
++       -1.61E-03  1.09E-01
+ 
+ TH 3
++        2.39E-02 -5.43E-02  1.13E+01
+ 
+ OM11
++       -1.93E-05  4.50E-04  3.90E-03  6.05E-04
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++       -3.55E-05  1.53E-04  3.63E-03 -3.61E-05 .........  2.10E-04
+ 
+ SG11
++        7.78E-05 -1.74E-03 -2.17E-02  6.71E-05 ......... -3.90E-05  3.60E-04
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************               FIRST ORDER CONDITIONAL ESTIMATION WITH INTERACTION              ********************
+ ********************                          CORRELATION MATRIX OF ESTIMATE                        ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        2.21E-02
+ 
+ TH 2
++       -2.21E-01  3.30E-01
+ 
+ TH 3
++        3.21E-01 -4.88E-02  3.37E+00
+ 
+ OM11
++       -3.56E-02  5.53E-02  4.71E-02  2.46E-02
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++       -1.11E-01  3.20E-02  7.46E-02 -1.01E-01 .........  1.45E-02
+ 
+ SG11
++        1.86E-01 -2.78E-01 -3.40E-01  1.44E-01 ......... -1.42E-01  1.90E-02
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************               FIRST ORDER CONDITIONAL ESTIMATION WITH INTERACTION              ********************
+ ********************                      INVERSE COVARIANCE MATRIX OF ESTIMATE                     ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        2.68E+03
+ 
+ TH 2
++        1.90E+01  1.05E+01
+ 
+ TH 3
++       -7.60E+00  1.24E-01  1.26E-01
+ 
+ OM11
++        2.51E+02 -1.42E+01 -2.38E+00  1.77E+03
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        4.39E+02  1.57E+00 -2.09E+00  2.93E+02 .........  4.98E+03
+ 
+ SG11
++       -9.45E+02  5.69E+01  1.00E+01 -5.64E+02 .........  2.72E+02  4.00E+03
+ 
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************               FIRST ORDER CONDITIONAL ESTIMATION WITH INTERACTION              ********************
+ ********************                      EIGENVALUES OF COR MATRIX OF ESTIMATE                     ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+             1         2         3         4         5         6
+ 
+         3.84E-01  7.03E-01  9.05E-01  1.09E+00  1.40E+00  1.52E+00
+ 
+ Elapsed finaloutput time in seconds:     0.02
+SIR SAMPLING ITERATION      1 OF     10
+1
+
+
+ #TBLN:      2
+ #METH: Importance Sampling of Variance-Covariance (SIR)
+
+ Sampling Mode
+ iteration            0 OBJ=   -457.53948039169319     
+ iteration          500 OBJ=   -450.39394822750063     
+
+ #TERM:
+ STATISTICAL PORTION WAS COMPLETED
+  
+ TOTAL DATA POINTS NORMALLY DISTRIBUTED (N):         2184
+ N*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    4013.9235130380102     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -451.67524701817143     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       3562.2482660198389     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ TOTAL EFFECTIVE ETAS (NIND*NETA):                           336
+ NIND*NETA*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    617.52669431354002     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -451.67524701817143     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       165.85144729536859     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ #TERE:
+ Elapsed estimation  time in seconds:     9.55
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ #OBJT:**************                    AVERAGE FITNESS VALUE OF PROPOSAL DENSITY                   ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+
+
+
+ #OBJV:********************************************          -451.675       *********************************************
+ #OBJS:********************************************             2.936 (STD) *********************************************
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                             FINAL PARAMETER ESTIMATE                           ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         4.73E-01  1.09E+01  9.35E+01
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.53E-01
+ 
+ ETA_CL
++        0.00E+00  1.43E-01
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        1.72E-01
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        5.02E-01
+ 
+ ETA_CL
++        0.00E+00  3.77E-01
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        4.15E-01
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                STANDARD ERROR OF ESTIMATE (From Sample Variance)               ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         9.41E-03  3.16E-01  3.81E+00
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.64E-02
+ 
+ ETA_CL
++        0.00E+00  1.82E-02
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        5.46E-03
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.63E-02
+ 
+ ETA_CL
++        0.00E+00  2.41E-02
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        6.58E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************               COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        8.86E-05
+ 
+ TH 2
++       -9.25E-05  9.98E-02
+ 
+ TH 3
++        9.74E-03  3.77E-02  1.45E+01
+ 
+ OM11
++       -5.05E-05  3.84E-04 -1.26E-03  6.99E-04
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        1.01E-05 -2.36E-04  3.67E-03 -2.58E-05  0.00E+00  3.32E-04
+ 
+ SG11
++        2.72E-06 -1.51E-04  6.62E-04  2.18E-05  0.00E+00 -1.88E-05  2.99E-05
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************              CORRELATION MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        9.41E-03
+ 
+ TH 2
++       -3.11E-02  3.16E-01
+ 
+ TH 3
++        2.72E-01  3.13E-02  3.81E+00
+ 
+ OM11
++       -2.03E-01  4.60E-02 -1.25E-02  2.64E-02
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        5.91E-02 -4.10E-02  5.29E-02 -5.35E-02  0.00E+00  1.82E-02
+ 
+ SG11
++        5.28E-02 -8.75E-02  3.18E-02  1.51E-01  0.00E+00 -1.89E-01  5.46E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           INVERSE COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        1.29E+04
+ 
+ TH 2
++        7.86E+00  1.02E+01
+ 
+ TH 3
++       -8.42E+00 -3.79E-02  7.50E-02
+ 
+ OM11
++        9.55E+02 -6.68E+00 -4.40E-01  1.54E+03
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++       -3.24E+02  1.05E+01 -7.02E-01  2.14E+01  0.00E+00  3.15E+03
+ 
+ SG11
++       -1.84E+03  6.31E+01 -1.21E+00 -1.22E+03  0.00E+00  2.07E+03  3.62E+04
+ 
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           EIGENVALUES OF COR MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+             1         2         3         4         5         6
+ 
+         6.36E-01  7.43E-01  9.65E-01  1.05E+00  1.22E+00  1.38E+00
+ 
+SIR SAMPLING ITERATION      2 OF     10
+1
+
+
+ #TBLN:      3
+ #METH: Importance Sampling of Variance-Covariance (SIR)
+
+ Sampling Mode
+ iteration            0 OBJ=   -457.53948039169319     
+ iteration          500 OBJ=   -454.07000971624780     
+
+ #TERM:
+ STATISTICAL PORTION WAS COMPLETED
+  
+ TOTAL DATA POINTS NORMALLY DISTRIBUTED (N):         2184
+ N*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    4013.9235130380102     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -451.66690238430340     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       3562.2566106537070     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ TOTAL EFFECTIVE ETAS (NIND*NETA):                           336
+ NIND*NETA*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    617.52669431354002     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -451.66690238430340     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       165.85979192923662     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ #TERE:
+ Elapsed estimation  time in seconds:     6.05
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ #OBJT:**************                    AVERAGE FITNESS VALUE OF PROPOSAL DENSITY                   ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+
+
+
+ #OBJV:********************************************          -451.667       *********************************************
+ #OBJS:********************************************             3.391 (STD) *********************************************
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                             FINAL PARAMETER ESTIMATE                           ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         4.73E-01  1.09E+01  9.29E+01
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.52E-01
+ 
+ ETA_CL
++        0.00E+00  1.39E-01
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        1.72E-01
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        5.02E-01
+ 
+ ETA_CL
++        0.00E+00  3.72E-01
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        4.14E-01
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                STANDARD ERROR OF ESTIMATE (From Sample Variance)               ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         9.37E-03  3.46E-01  3.77E+00
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.82E-02
+ 
+ ETA_CL
++        0.00E+00  1.67E-02
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        5.45E-03
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.80E-02
+ 
+ ETA_CL
++        0.00E+00  2.22E-02
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        6.57E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************               COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        8.78E-05
+ 
+ TH 2
++       -3.48E-04  1.20E-01
+ 
+ TH 3
++        1.20E-02 -6.96E-02  1.42E+01
+ 
+ OM11
++       -2.13E-05  1.50E-04 -7.77E-03  7.94E-04
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        6.08E-06  8.33E-05  1.27E-03 -7.11E-05  0.00E+00  2.79E-04
+ 
+ SG11
++        2.79E-06  5.38E-05  1.46E-04 -1.58E-06  0.00E+00 -5.42E-06  2.97E-05
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************              CORRELATION MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        9.37E-03
+ 
+ TH 2
++       -1.07E-01  3.46E-01
+ 
+ TH 3
++        3.39E-01 -5.33E-02  3.77E+00
+ 
+ OM11
++       -8.09E-02  1.54E-02 -7.31E-02  2.82E-02
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        3.88E-02  1.44E-02  2.01E-02 -1.51E-01  0.00E+00  1.67E-02
+ 
+ SG11
++        5.46E-02  2.85E-02  7.12E-03 -1.03E-02  0.00E+00 -5.96E-02  5.45E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           INVERSE COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        1.31E+04
+ 
+ TH 2
++        3.22E+01  8.44E+00
+ 
+ TH 3
++       -1.07E+01  1.42E-02  7.97E-02
+ 
+ OM11
++        2.19E+02 -9.81E-01  4.90E-01  1.30E+03
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++       -2.15E+02 -3.91E+00  4.93E-03  3.27E+02  0.00E+00  3.69E+03
+ 
+ SG11
++       -1.26E+03 -1.92E+01  6.16E-01  1.08E+02  0.00E+00  7.19E+02  3.40E+04
+ 
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           EIGENVALUES OF COR MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+             1         2         3         4         5         6
+ 
+         6.51E-01  8.31E-01  9.42E-01  1.03E+00  1.13E+00  1.42E+00
+ 
+SIR SAMPLING ITERATION      3 OF     10
+1
+
+
+ #TBLN:      4
+ #METH: Importance Sampling of Variance-Covariance (SIR)
+
+ Sampling Mode
+ iteration            0 OBJ=   -457.53948039169319     
+ iteration          500 OBJ=   -447.14541568127498     
+
+ #TERM:
+ STATISTICAL PORTION WAS COMPLETED
+  
+ TOTAL DATA POINTS NORMALLY DISTRIBUTED (N):         2184
+ N*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    4013.9235130380102     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -451.57872093154032     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       3562.3447921064699     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ TOTAL EFFECTIVE ETAS (NIND*NETA):                           336
+ NIND*NETA*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    617.52669431354002     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -451.57872093154032     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       165.94797338199970     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ #TERE:
+ Elapsed estimation  time in seconds:     6.06
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ #OBJT:**************                    AVERAGE FITNESS VALUE OF PROPOSAL DENSITY                   ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+
+
+
+ #OBJV:********************************************          -451.579       *********************************************
+ #OBJS:********************************************             3.548 (STD) *********************************************
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                             FINAL PARAMETER ESTIMATE                           ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         4.72E-01  1.09E+01  9.24E+01
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.54E-01
+ 
+ ETA_CL
++        0.00E+00  1.40E-01
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        1.73E-01
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        5.03E-01
+ 
+ ETA_CL
++        0.00E+00  3.74E-01
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        4.15E-01
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                STANDARD ERROR OF ESTIMATE (From Sample Variance)               ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         9.51E-03  3.30E-01  3.81E+00
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.68E-02
+ 
+ ETA_CL
++        0.00E+00  1.83E-02
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        5.73E-03
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.65E-02
+ 
+ ETA_CL
++        0.00E+00  2.43E-02
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        6.89E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************               COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        9.04E-05
+ 
+ TH 2
++       -7.89E-04  1.09E-01
+ 
+ TH 3
++        1.23E-02 -8.59E-02  1.46E+01
+ 
+ OM11
++       -7.99E-06  1.84E-04 -5.87E-03  7.20E-04
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        1.99E-05 -1.21E-04 -4.89E-04 -3.94E-05  0.00E+00  3.35E-04
+ 
+ SG11
++        3.27E-06  4.91E-06  8.41E-04 -1.47E-05  0.00E+00 -6.54E-06  3.28E-05
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************              CORRELATION MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        9.51E-03
+ 
+ TH 2
++       -2.52E-01  3.30E-01
+ 
+ TH 3
++        3.39E-01 -6.83E-02  3.81E+00
+ 
+ OM11
++       -3.13E-02  2.08E-02 -5.73E-02  2.68E-02
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        1.14E-01 -2.00E-02 -7.01E-03 -8.03E-02  0.00E+00  1.83E-02
+ 
+ SG11
++        5.99E-02  2.60E-03  3.85E-02 -9.54E-02  0.00E+00 -6.24E-02  5.73E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           INVERSE COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        1.35E+04
+ 
+ TH 2
++        8.88E+01  9.81E+00
+ 
+ TH 3
++       -1.09E+01 -1.74E-02  7.81E-02
+ 
+ OM11
++       -3.16E+01 -2.02E+00  5.54E-01  1.42E+03
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++       -8.17E+02 -2.21E+00  8.11E-01  1.81E+02  0.00E+00  3.07E+03
+ 
+ SG11
++       -1.26E+03 -1.12E+01 -5.05E-01  6.58E+02  0.00E+00  7.53E+02  3.10E+04
+ 
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           EIGENVALUES OF COR MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+             1         2         3         4         5         6
+ 
+         5.85E-01  8.55E-01  9.26E-01  1.06E+00  1.08E+00  1.49E+00
+ 
+SIR SAMPLING ITERATION      4 OF     10
+1
+
+
+ #TBLN:      5
+ #METH: Importance Sampling of Variance-Covariance (SIR)
+
+ Sampling Mode
+ iteration            0 OBJ=   -457.53948039169319     
+ iteration          500 OBJ=   -454.32864661778910     
+
+ #TERM:
+ STATISTICAL PORTION WAS COMPLETED
+  
+ TOTAL DATA POINTS NORMALLY DISTRIBUTED (N):         2184
+ N*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    4013.9235130380102     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -451.33868258004998     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       3562.5848304579604     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ TOTAL EFFECTIVE ETAS (NIND*NETA):                           336
+ NIND*NETA*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    617.52669431354002     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -451.33868258004998     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       166.18801173349004     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ #TERE:
+ Elapsed estimation  time in seconds:     6.09
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ #OBJT:**************                    AVERAGE FITNESS VALUE OF PROPOSAL DENSITY                   ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+
+
+
+ #OBJV:********************************************          -451.339       *********************************************
+ #OBJS:********************************************             3.644 (STD) *********************************************
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                             FINAL PARAMETER ESTIMATE                           ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         4.73E-01  1.09E+01  9.27E+01
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.57E-01
+ 
+ ETA_CL
++        0.00E+00  1.41E-01
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        1.72E-01
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        5.06E-01
+ 
+ ETA_CL
++        0.00E+00  3.75E-01
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        4.15E-01
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                STANDARD ERROR OF ESTIMATE (From Sample Variance)               ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         1.04E-02  3.60E-01  3.75E+00
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.82E-02
+ 
+ ETA_CL
++        0.00E+00  1.77E-02
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        5.69E-03
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.77E-02
+ 
+ ETA_CL
++        0.00E+00  2.34E-02
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        6.86E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************               COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        1.08E-04
+ 
+ TH 2
++       -7.33E-04  1.30E-01
+ 
+ TH 3
++        1.60E-02 -1.58E-01  1.41E+01
+ 
+ OM11
++       -3.44E-05 -4.78E-05  4.34E-03  7.96E-04
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        9.86E-06 -6.14E-04  3.16E-03  2.39E-05  0.00E+00  3.15E-04
+ 
+ SG11
++        3.13E-06  6.79E-05  1.55E-03  3.06E-06  0.00E+00 -1.78E-06  3.24E-05
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************              CORRELATION MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        1.04E-02
+ 
+ TH 2
++       -1.96E-01  3.60E-01
+ 
+ TH 3
++        4.11E-01 -1.17E-01  3.75E+00
+ 
+ OM11
++       -1.17E-01 -4.70E-03  4.10E-02  2.82E-02
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        5.34E-02 -9.60E-02  4.75E-02  4.77E-02  0.00E+00  1.77E-02
+ 
+ SG11
++        5.29E-02  3.31E-02  7.26E-02  1.91E-02  0.00E+00 -1.76E-02  5.69E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           INVERSE COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        1.17E+04
+ 
+ TH 2
++        5.01E+01  8.10E+00
+ 
+ TH 3
++       -1.28E+01  3.25E-02  8.69E-02
+ 
+ OM11
++        5.86E+02  2.15E+00 -1.00E+00  1.29E+03
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++       -1.88E+02  1.36E+01 -3.47E-01 -1.03E+02  0.00E+00  3.22E+03
+ 
+ SG11
++       -6.87E+02 -2.28E+01 -2.91E+00 -1.41E+02  0.00E+00  1.93E+02  3.11E+04
+ 
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           EIGENVALUES OF COR MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+             1         2         3         4         5         6
+ 
+         5.51E-01  8.61E-01  9.22E-01  1.05E+00  1.08E+00  1.54E+00
+ 
+SIR SAMPLING ITERATION      5 OF     10
+1
+
+
+ #TBLN:      6
+ #METH: Importance Sampling of Variance-Covariance (SIR)
+
+ Sampling Mode
+ iteration            0 OBJ=   -457.53948039169319     
+ iteration          500 OBJ=   -452.62497356091598     
+
+ #TERM:
+ STATISTICAL PORTION WAS COMPLETED
+  
+ TOTAL DATA POINTS NORMALLY DISTRIBUTED (N):         2184
+ N*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    4013.9235130380102     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -451.68993026925227     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       3562.2335827687580     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ TOTAL EFFECTIVE ETAS (NIND*NETA):                           336
+ NIND*NETA*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    617.52669431354002     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -451.68993026925227     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       165.83676404428775     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ #TERE:
+ Elapsed estimation  time in seconds:     6.09
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ #OBJT:**************                    AVERAGE FITNESS VALUE OF PROPOSAL DENSITY                   ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+
+
+
+ #OBJV:********************************************          -451.690       *********************************************
+ #OBJS:********************************************             3.668 (STD) *********************************************
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                             FINAL PARAMETER ESTIMATE                           ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         4.73E-01  1.09E+01  9.28E+01
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.56E-01
+ 
+ ETA_CL
++        0.00E+00  1.40E-01
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        1.72E-01
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        5.06E-01
+ 
+ ETA_CL
++        0.00E+00  3.74E-01
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        4.15E-01
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                STANDARD ERROR OF ESTIMATE (From Sample Variance)               ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         9.48E-03  3.35E-01  3.75E+00
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.73E-02
+ 
+ ETA_CL
++        0.00E+00  1.68E-02
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        5.74E-03
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.69E-02
+ 
+ ETA_CL
++        0.00E+00  2.24E-02
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        6.92E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************               COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        8.99E-05
+ 
+ TH 2
++       -1.82E-04  1.12E-01
+ 
+ TH 3
++        1.21E-02 -4.86E-02  1.41E+01
+ 
+ OM11
++       -2.65E-05 -4.52E-04  3.08E-03  7.44E-04
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        1.55E-05  6.36E-06  8.80E-04  1.11E-05  0.00E+00  2.83E-04
+ 
+ SG11
++        3.86E-06  1.26E-04 -8.32E-04 -2.78E-06  0.00E+00 -5.32E-06  3.30E-05
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************              CORRELATION MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        9.48E-03
+ 
+ TH 2
++       -5.73E-02  3.35E-01
+ 
+ TH 3
++        3.40E-01 -3.87E-02  3.75E+00
+ 
+ OM11
++       -1.03E-01 -4.96E-02  3.01E-02  2.73E-02
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        9.73E-02  1.13E-03  1.39E-02  2.41E-02  0.00E+00  1.68E-02
+ 
+ SG11
++        7.09E-02  6.57E-02 -3.87E-02 -1.78E-02  0.00E+00 -5.50E-02  5.74E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           INVERSE COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        1.31E+04
+ 
+ TH 2
++        2.07E+01  9.04E+00
+ 
+ TH 3
++       -1.14E+01  1.00E-02  8.13E-02
+ 
+ OM11
++        5.29E+02  6.09E+00 -7.30E-01  1.37E+03
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++       -7.38E+02 -2.29E+00  4.62E-01 -8.04E+01  0.00E+00  3.58E+03
+ 
+ SG11
++       -1.97E+03 -3.66E+01  3.36E+00 -9.96E-01  0.00E+00  6.78E+02  3.09E+04
+ 
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           EIGENVALUES OF COR MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+             1         2         3         4         5         6
+ 
+         6.03E-01  9.20E-01  9.78E-01  1.01E+00  1.12E+00  1.37E+00
+ 
+SIR SAMPLING ITERATION      6 OF     10
+1
+
+
+ #TBLN:      7
+ #METH: Importance Sampling of Variance-Covariance (SIR)
+
+ Sampling Mode
+ iteration            0 OBJ=   -457.53948039169319     
+ iteration          500 OBJ=   -450.09588998175121     
+
+ #TERM:
+ STATISTICAL PORTION WAS COMPLETED
+  
+ TOTAL DATA POINTS NORMALLY DISTRIBUTED (N):         2184
+ N*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    4013.9235130380102     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -450.82693374360412     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       3563.0965792944062     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ TOTAL EFFECTIVE ETAS (NIND*NETA):                           336
+ NIND*NETA*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    617.52669431354002     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -450.82693374360412     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       166.69976056993590     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ #TERE:
+ Elapsed estimation  time in seconds:     6.02
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ #OBJT:**************                    AVERAGE FITNESS VALUE OF PROPOSAL DENSITY                   ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+
+
+
+ #OBJV:********************************************          -450.827       *********************************************
+ #OBJS:********************************************             4.403 (STD) *********************************************
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                             FINAL PARAMETER ESTIMATE                           ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         4.72E-01  1.09E+01  9.29E+01
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.54E-01
+ 
+ ETA_CL
++        0.00E+00  1.43E-01
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        1.72E-01
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        5.03E-01
+ 
+ ETA_CL
++        0.00E+00  3.77E-01
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        4.14E-01
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                STANDARD ERROR OF ESTIMATE (From Sample Variance)               ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         1.07E-02  3.67E-01  4.04E+00
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.86E-02
+ 
+ ETA_CL
++        0.00E+00  1.96E-02
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        5.50E-03
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.81E-02
+ 
+ ETA_CL
++        0.00E+00  2.55E-02
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        6.63E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************               COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        1.14E-04
+ 
+ TH 2
++       -1.30E-03  1.35E-01
+ 
+ TH 3
++        9.29E-03  8.34E-02  1.63E+01
+ 
+ OM11
++       -5.32E-05  3.03E-04 -2.04E-03  8.16E-04
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        1.09E-06  1.25E-03  6.16E-03  9.61E-06  0.00E+00  3.83E-04
+ 
+ SG11
++        8.17E-07  1.72E-04  2.75E-03 -4.24E-06  0.00E+00  6.29E-06  3.02E-05
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************              CORRELATION MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        1.07E-02
+ 
+ TH 2
++       -3.32E-01  3.67E-01
+ 
+ TH 3
++        2.15E-01  5.62E-02  4.04E+00
+ 
+ OM11
++       -1.74E-01  2.89E-02 -1.77E-02  2.86E-02
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        5.22E-03  1.74E-01  7.78E-02  1.72E-02  0.00E+00  1.96E-02
+ 
+ SG11
++        1.39E-02  8.55E-02  1.24E-01 -2.70E-02  0.00E+00  5.84E-02  5.50E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           INVERSE COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        1.09E+04
+ 
+ TH 2
++        1.10E+02  8.84E+00
+ 
+ TH 3
++       -6.53E+00 -9.07E-02  6.65E-02
+ 
+ OM11
++        6.54E+02  3.81E+00 -2.45E-01  1.27E+03
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++       -3.00E+02 -2.72E+01 -6.61E-01 -4.49E+01  0.00E+00  2.71E+03
+ 
+ SG11
++       -1.76E+02 -3.90E+01 -5.26E+00  1.70E+02  0.00E+00 -3.48E+02  3.39E+04
+ 
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           EIGENVALUES OF COR MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+             1         2         3         4         5         6
+ 
+         5.43E-01  8.36E-01  9.41E-01  9.67E-01  1.27E+00  1.44E+00
+ 
+SIR SAMPLING ITERATION      7 OF     10
+1
+
+
+ #TBLN:      8
+ #METH: Importance Sampling of Variance-Covariance (SIR)
+
+ Sampling Mode
+ iteration            0 OBJ=   -457.53948039169319     
+ iteration          500 OBJ=   -446.54757624758582     
+
+ #TERM:
+ STATISTICAL PORTION WAS COMPLETED
+  
+ TOTAL DATA POINTS NORMALLY DISTRIBUTED (N):         2184
+ N*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    4013.9235130380102     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -451.59338253037919     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       3562.3301305076311     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ TOTAL EFFECTIVE ETAS (NIND*NETA):                           336
+ NIND*NETA*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    617.52669431354002     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -451.59338253037919     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       165.93331178316083     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ #TERE:
+ Elapsed estimation  time in seconds:     6.07
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ #OBJT:**************                    AVERAGE FITNESS VALUE OF PROPOSAL DENSITY                   ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+
+
+
+ #OBJV:********************************************          -451.593       *********************************************
+ #OBJS:********************************************             3.311 (STD) *********************************************
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                             FINAL PARAMETER ESTIMATE                           ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         4.74E-01  1.09E+01  9.31E+01
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.57E-01
+ 
+ ETA_CL
++        0.00E+00  1.39E-01
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        1.72E-01
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        5.06E-01
+ 
+ ETA_CL
++        0.00E+00  3.72E-01
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        4.14E-01
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                STANDARD ERROR OF ESTIMATE (From Sample Variance)               ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         9.35E-03  3.32E-01  3.80E+00
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.85E-02
+ 
+ ETA_CL
++        0.00E+00  1.74E-02
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        5.31E-03
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.82E-02
+ 
+ ETA_CL
++        0.00E+00  2.32E-02
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        6.40E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************               COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        8.74E-05
+ 
+ TH 2
++       -5.09E-04  1.10E-01
+ 
+ TH 3
++        8.34E-03 -3.60E-02  1.44E+01
+ 
+ OM11
++        5.46E-06  6.85E-04  4.26E-03  8.12E-04
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        1.34E-05  3.09E-04  3.18E-03 -2.62E-05  0.00E+00  3.04E-04
+ 
+ SG11
++       -2.79E-07 -4.29E-05 -1.74E-03  7.06E-06  0.00E+00 -2.65E-06  2.82E-05
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************              CORRELATION MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        9.35E-03
+ 
+ TH 2
++       -1.64E-01  3.32E-01
+ 
+ TH 3
++        2.35E-01 -2.85E-02  3.80E+00
+ 
+ OM11
++        2.05E-02  7.24E-02  3.93E-02  2.85E-02
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        8.20E-02  5.33E-02  4.79E-02 -5.27E-02  0.00E+00  1.74E-02
+ 
+ SG11
++       -5.62E-03 -2.44E-02 -8.61E-02  4.66E-02  0.00E+00 -2.86E-02  5.31E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           INVERSE COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        1.25E+04
+ 
+ TH 2
++        5.78E+01  9.44E+00
+ 
+ TH 3
++       -6.97E+00 -2.53E-03  7.40E-02
+ 
+ OM11
++       -1.12E+02 -8.88E+00 -3.93E-01  1.25E+03
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++       -5.48E+02 -1.27E+01 -4.58E-01  1.23E+02  0.00E+00  3.34E+03
+ 
+ SG11
++       -2.42E+02  1.58E+01  4.55E+00 -3.40E+02  0.00E+00  2.30E+02  3.59E+04
+ 
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           EIGENVALUES OF COR MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+             1         2         3         4         5         6
+ 
+         7.09E-01  8.26E-01  9.86E-01  1.07E+00  1.09E+00  1.32E+00
+ 
+SIR SAMPLING ITERATION      8 OF     10
+1
+
+
+ #TBLN:      9
+ #METH: Importance Sampling of Variance-Covariance (SIR)
+
+ Sampling Mode
+ iteration            0 OBJ=   -457.53948039169319     
+ iteration          500 OBJ=   -446.77396175746276     
+
+ #TERM:
+ STATISTICAL PORTION WAS COMPLETED
+  
+ TOTAL DATA POINTS NORMALLY DISTRIBUTED (N):         2184
+ N*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    4013.9235130380102     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -451.65688681032998     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       3562.2666262276803     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ TOTAL EFFECTIVE ETAS (NIND*NETA):                           336
+ NIND*NETA*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    617.52669431354002     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -451.65688681032998     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       165.86980750321004     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ #TERE:
+ Elapsed estimation  time in seconds:     6.10
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ #OBJT:**************                    AVERAGE FITNESS VALUE OF PROPOSAL DENSITY                   ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+
+
+
+ #OBJV:********************************************          -451.657       *********************************************
+ #OBJS:********************************************             3.220 (STD) *********************************************
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                             FINAL PARAMETER ESTIMATE                           ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         4.73E-01  1.09E+01  9.30E+01
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.53E-01
+ 
+ ETA_CL
++        0.00E+00  1.40E-01
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        1.73E-01
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        5.02E-01
+ 
+ ETA_CL
++        0.00E+00  3.73E-01
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        4.15E-01
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                STANDARD ERROR OF ESTIMATE (From Sample Variance)               ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         1.00E-02  3.31E-01  3.67E+00
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.81E-02
+ 
+ ETA_CL
++        0.00E+00  1.67E-02
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        5.49E-03
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.78E-02
+ 
+ ETA_CL
++        0.00E+00  2.24E-02
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        6.61E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************               COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        1.00E-04
+ 
+ TH 2
++       -4.45E-04  1.09E-01
+ 
+ TH 3
++        1.10E-02 -2.93E-02  1.34E+01
+ 
+ OM11
++       -2.79E-05  6.17E-04  1.83E-03  7.89E-04
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++       -1.07E-05  1.42E-04  1.53E-03  5.50E-06  0.00E+00  2.80E-04
+ 
+ SG11
++        4.98E-06 -3.94E-05  1.06E-03  1.80E-06  0.00E+00 -8.06E-06  3.02E-05
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************              CORRELATION MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        1.00E-02
+ 
+ TH 2
++       -1.34E-01  3.31E-01
+ 
+ TH 3
++        3.01E-01 -2.42E-02  3.67E+00
+ 
+ OM11
++       -9.93E-02  6.64E-02  1.78E-02  2.81E-02
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++       -6.38E-02  2.56E-02  2.50E-02  1.17E-02  0.00E+00  1.67E-02
+ 
+ SG11
++        9.06E-02 -2.17E-02  5.26E-02  1.17E-02  0.00E+00 -8.77E-02  5.49E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           INVERSE COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        1.14E+04
+ 
+ TH 2
++        4.06E+01  9.33E+00
+ 
+ TH 3
++       -9.29E+00 -1.23E-02  8.23E-02
+ 
+ OM11
++        3.94E+02 -5.82E+00 -5.01E-01  1.29E+03
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        4.18E+02 -2.83E+00 -8.33E-01 -8.43E+00  0.00E+00  3.62E+03
+ 
+ SG11
++       -1.42E+03  5.50E+00 -1.56E+00 -1.34E+02  0.00E+00  9.24E+02  3.37E+04
+ 
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           EIGENVALUES OF COR MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+             1         2         3         4         5         6
+ 
+         6.55E-01  8.98E-01  9.27E-01  1.06E+00  1.07E+00  1.39E+00
+ 
+SIR SAMPLING ITERATION      9 OF     10
+1
+
+
+ #TBLN:     10
+ #METH: Importance Sampling of Variance-Covariance (SIR)
+
+ Sampling Mode
+ iteration            0 OBJ=   -457.53948039169319     
+ iteration          500 OBJ=   -453.59897640426516     
+
+ #TERM:
+ STATISTICAL PORTION WAS COMPLETED
+  
+ TOTAL DATA POINTS NORMALLY DISTRIBUTED (N):         2184
+ N*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    4013.9235130380102     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -451.75423389195180     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       3562.1692791460582     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ TOTAL EFFECTIVE ETAS (NIND*NETA):                           336
+ NIND*NETA*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    617.52669431354002     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -451.75423389195180     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       165.77246042158822     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ #TERE:
+ Elapsed estimation  time in seconds:     6.07
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ #OBJT:**************                    AVERAGE FITNESS VALUE OF PROPOSAL DENSITY                   ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+
+
+
+ #OBJV:********************************************          -451.754       *********************************************
+ #OBJS:********************************************             3.154 (STD) *********************************************
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                             FINAL PARAMETER ESTIMATE                           ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         4.73E-01  1.09E+01  9.25E+01
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.54E-01
+ 
+ ETA_CL
++        0.00E+00  1.41E-01
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        1.72E-01
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        5.03E-01
+ 
+ ETA_CL
++        0.00E+00  3.75E-01
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        4.15E-01
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                STANDARD ERROR OF ESTIMATE (From Sample Variance)               ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         9.17E-03  3.21E-01  3.59E+00
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        3.02E-02
+ 
+ ETA_CL
++        0.00E+00  1.78E-02
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        5.38E-03
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.96E-02
+ 
+ ETA_CL
++        0.00E+00  2.35E-02
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        6.47E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************               COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        8.41E-05
+ 
+ TH 2
++       -3.03E-04  1.03E-01
+ 
+ TH 3
++        1.01E-02  4.78E-02  1.29E+01
+ 
+ OM11
++       -7.73E-06  2.50E-04  2.90E-03  9.14E-04
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        1.12E-06  7.01E-05 -6.71E-04 -6.25E-06  0.00E+00  3.16E-04
+ 
+ SG11
++        4.73E-08 -1.85E-06  1.67E-03 -5.31E-06  0.00E+00 -2.50E-06  2.90E-05
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************              CORRELATION MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        9.17E-03
+ 
+ TH 2
++       -1.03E-01  3.21E-01
+ 
+ TH 3
++        3.06E-01  4.14E-02  3.59E+00
+ 
+ OM11
++       -2.79E-02  2.57E-02  2.67E-02  3.02E-02
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        6.87E-03  1.23E-02 -1.05E-02 -1.16E-02  0.00E+00  1.78E-02
+ 
+ SG11
++        9.59E-04 -1.07E-03  8.62E-02 -3.26E-02  0.00E+00 -2.61E-02  5.38E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           INVERSE COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        1.33E+04
+ 
+ TH 2
++        4.39E+01  9.85E+00
+ 
+ TH 3
++       -1.07E+01 -7.10E-02  8.69E-02
+ 
+ OM11
++        1.38E+02 -2.09E+00 -3.74E-01  1.10E+03
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++       -7.23E+01 -2.51E+00  1.91E-01  2.27E+01  0.00E+00  3.17E+03
+ 
+ SG11
++        6.16E+02  4.04E+00 -5.03E+00  2.24E+02  0.00E+00  2.67E+02  3.48E+04
+ 
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           EIGENVALUES OF COR MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+             1         2         3         4         5         6
+ 
+         6.49E-01  9.38E-01  1.01E+00  1.03E+00  1.05E+00  1.32E+00
+ 
+SIR SAMPLING ITERATION     10 OF     10
+1
+
+
+ #TBLN:     11
+ #METH: Importance Sampling of Variance-Covariance (SIR)
+
+ Sampling Mode
+ iteration            0 OBJ=   -457.53948039169319     
+ iteration          500 OBJ=   -455.33984538317532     
+
+ #TERM:
+ STATISTICAL PORTION WAS COMPLETED
+  
+ TOTAL DATA POINTS NORMALLY DISTRIBUTED (N):         2184
+ N*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    4013.9235130380102     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -451.57797840807314     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       3562.3455346299370     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ TOTAL EFFECTIVE ETAS (NIND*NETA):                           336
+ NIND*NETA*LOG(2PI) CONSTANT TO OBJECTIVE FUNCTION:    617.52669431354002     
+ OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT:   -451.57797840807314     
+ OBJECTIVE FUNCTION VALUE WITH CONSTANT:       165.94871590546688     
+ REPORTED OBJECTIVE FUNCTION DOES NOT CONTAIN CONSTANT
+  
+ #TERE:
+ Elapsed estimation  time in seconds:     6.07
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ #OBJT:**************                    AVERAGE FITNESS VALUE OF PROPOSAL DENSITY                   ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+
+
+
+ #OBJV:********************************************          -451.578       *********************************************
+ #OBJS:********************************************             3.511 (STD) *********************************************
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                             FINAL PARAMETER ESTIMATE                           ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         4.72E-01  1.09E+01  9.23E+01
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.56E-01
+ 
+ ETA_CL
++        0.00E+00  1.39E-01
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        1.72E-01
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        5.05E-01
+ 
+ ETA_CL
++        0.00E+00  3.73E-01
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        4.14E-01
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************                STANDARD ERROR OF ESTIMATE (From Sample Variance)               ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+
+ THETA - VECTOR OF FIXED EFFECTS PARAMETERS   *********
+
+
+         TH 1      TH 2      TH 3     
+ 
+         1.01E-02  3.26E-01  3.80E+00
+ 
+
+
+ OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS  ********
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        3.03E-02
+ 
+ ETA_CL
++        0.00E+00  1.72E-02
+ 
+
+
+ SIGMA - COV MATRIX FOR RANDOM EFFECTS - EPSILONS  ****
+
+
+         EPS1     
+ 
+ EPS1
++        5.21E-03
+ 
+1
+
+
+ OMEGA - CORR MATRIX FOR RANDOM EFFECTS - ETAS  *******
+
+
+         ETA_V     ETA_CL   
+ 
+ ETA_V
++        2.98E-02
+ 
+ ETA_CL
++        0.00E+00  2.30E-02
+ 
+
+
+ SIGMA - CORR MATRIX FOR RANDOM EFFECTS - EPSILONS  ***
+
+
+         EPS1     
+ 
+ EPS1
++        6.28E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************               COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        1.03E-04
+ 
+ TH 2
++       -7.19E-04  1.07E-01
+ 
+ TH 3
++        1.45E-02 -6.98E-02  1.44E+01
+ 
+ OM11
++       -5.76E-05  3.09E-04 -8.01E-03  9.20E-04
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        7.85E-06  2.92E-05 -2.45E-03  1.36E-05  0.00E+00  2.97E-04
+ 
+ SG11
++        5.99E-06  9.18E-05  1.58E-04 -1.23E-05  0.00E+00 -3.00E-06  2.72E-05
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************              CORRELATION MATRIX OF ESTIMATE (From Sample Variance)             ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        1.01E-02
+ 
+ TH 2
++       -2.17E-01  3.26E-01
+ 
+ TH 3
++        3.77E-01 -5.63E-02  3.80E+00
+ 
+ OM11
++       -1.87E-01  3.12E-02 -6.95E-02  3.03E-02
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++        4.49E-02  5.20E-03 -3.74E-02  2.60E-02  0.00E+00  1.72E-02
+ 
+ SG11
++        1.13E-01  5.39E-02  7.96E-03 -7.79E-02  0.00E+00 -3.34E-02  5.21E-03
+ 
+1
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           INVERSE COVARIANCE MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+            TH 1      TH 2      TH 3      OM11      OM12      OM22      SG11  
+ 
+ TH 1
++        1.25E+04
+ 
+ TH 2
++        7.72E+01  9.93E+00
+ 
+ TH 3
++       -1.19E+01 -2.93E-02  8.12E-02
+ 
+ OM11
++        6.24E+02  6.25E-01 -1.08E-02  1.13E+03
+ 
+ OM12
++       ......... ......... ......... ......... .........
+ 
+ OM22
++       -4.92E+02 -3.80E+00  1.01E+00 -6.47E+01  0.00E+00  3.40E+03
+ 
+ SG11
++       -2.72E+03 -5.05E+01  2.35E+00  3.66E+02  0.00E+00  4.61E+02  3.77E+04
+ 
+1
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ ************************************************************************************************************************
+ ********************                                                                                ********************
+ ********************                 IMPORTANCE SAMPLING OF VARIANCE-COVARIANCE (SIR)               ********************
+ ********************           EIGENVALUES OF COR MATRIX OF ESTIMATE (From Sample Variance)         ********************
+ ********************                                                                                ********************
+ ************************************************************************************************************************
+ 
+
+             1         2         3         4         5         6
+ 
+         5.46E-01  8.96E-01  9.35E-01  9.99E-01  1.09E+00  1.54E+00
+ 
+ #CPUT: Total CPU Time in Seconds,       66.915
+Stop Time:
+Mon Mar 23 08:47:44 PM UTC 2026

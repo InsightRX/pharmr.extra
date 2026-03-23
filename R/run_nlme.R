@@ -42,7 +42,9 @@
 #' and update with methods specified in argument.
 #' @param sir_options options for running SIR in covariance step. A list with
 #' options `niter` (number of SIR iterations) and `samples` (number of
-#' samples). Default `NULL` leaves the model unchanged.
+#' samples). Default `NULL` leaves the model unchanged. `samples` should be
+#' between 300 and 10000 (suggested to use 1000 by default). `niter` should be
+#' 1 or higher (suggest to use 1 by default).
 #' @param auto_stack_encounters only invoked if `data` argument supplied as
 #' a data.frame, not if a pharmpy model object is supplied without `data` or 
 #' when `data` is a filename.
@@ -239,7 +241,7 @@ run_nlme <- function(
   } else {
     ## Read results using Pharmpy and return
     if(verbose) cli::cli_process_start("Parsing results from run")
-    fit <- pharmr::read_modelfit_results(
+    fit <- pharmr.extra::read_modelfit_results( ## pharmr.extra drop-in replacement. Original has bug with reading SIR results
       file.path(obj$fit_folder, obj$model_file)
     )
     if(verbose) cli::cli_process_done()
