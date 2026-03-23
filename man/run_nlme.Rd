@@ -75,7 +75,9 @@ and update with methods specified in argument.}
 
 \item{sir_options}{options for running SIR in covariance step. A list with
 options \code{niter} (number of SIR iterations) and \code{samples} (number of
-samples). Default \code{NULL} leaves the model unchanged.}
+samples). Default \code{NULL} leaves the model unchanged. \code{samples} should be
+between 300 and 10000 (suggested to use 1000 by default). \code{niter} should be
+1 or higher (suggest to use 1 by default).}
 
 \item{auto_stack_encounters}{only invoked if \code{data} argument supplied as
 a data.frame, not if a pharmpy model object is supplied without \code{data} or
