@@ -1,6 +1,8 @@
 #' Function to remove specific NONMEM records from model file
 #'
 #' @param text NONMEM model code
+#' @param short_name shortest name of NONMEM record to regex match. E.g. 
+#' `EST` for $ESTIMATION records, since this may be abbreviated to $EST.
 #' 
 #' @returns NONMEM model code
 #' 

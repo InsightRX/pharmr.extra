@@ -46,12 +46,19 @@ remove_estimation_steps_from_model <- function(model) {
     }
     
     ## workaround for dataset needed to circumvent issues re-reading the model file
+    data <- model$dataset
+    if(!is.null(data)) {
+      temp_csv <- tempfile(fileext = ".csv")
+      write.csv(data, temp_csv, quote=F, row.names=F)
+      model <- pharmr::set_dataset(model, temp_csv)
+    }
     code_without_est <- model$code |>
       remove_nonmem_records("EST") |>
       remove_nonmem_records("COV")
     model <- pharmr::read_model_from_string(
       code = code_without_est
     )
+    
   } else {
     cli::cli_warn("Removing $ESTIMATION steps can only be done for NONMEM models")
   }
