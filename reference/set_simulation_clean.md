@@ -16,8 +16,7 @@ set_simulation_clean(model, seed, n)
 
 - model:
 
-  pharmpy model object or NONMEM model code (character) or path to
-  NONMEM model file.
+  Pharmpy NONMEM model object
 
 - seed:
 

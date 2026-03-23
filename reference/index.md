@@ -179,6 +179,10 @@
 - [`get_covariance_record()`](https://insightrx.github.io/pharmr.extra/reference/get_covariance_record.md)
   : Extract covariance record from a Pharmpy NONMEM model object
 
+- [`get_covariate_data()`](https://insightrx.github.io/pharmr.extra/reference/get_covariate_data.md)
+  : Get covariate data (single row per subject) from a dataset given
+  model
+
 - [`get_declared_variables()`](https://insightrx.github.io/pharmr.extra/reference/get_declared_variables.md)
   : Get declared variables in Pharmpy model
 
@@ -336,6 +340,10 @@
 - [`nm_update_dataset()`](https://insightrx.github.io/pharmr.extra/reference/nm_update_dataset.md)
   : Update \$DATA in NONMEM model with new dataset
 
+- [`parse_data_dictionary()`](https://insightrx.github.io/pharmr.extra/reference/parse_data_dictionary.md)
+  : Create a dictionary from given specs and default dictionary as
+  fallback
+
 - [`parse_estimation_options()`](https://insightrx.github.io/pharmr.extra/reference/parse_estimation_options.md)
   : Parse estimation_options into a per-step list.
 
@@ -363,6 +371,12 @@
 
 - [`remove_data_section()`](https://insightrx.github.io/pharmr.extra/reference/remove_data_section.md)
   : Remove \$DATA from a NONMEM model
+
+- [`remove_estimation_steps_from_model()`](https://insightrx.github.io/pharmr.extra/reference/remove_estimation_steps_from_model.md)
+  : Remove all estimation steps from Pharmpy model object
+
+- [`remove_nonmem_records()`](https://insightrx.github.io/pharmr.extra/reference/remove_nonmem_records.md)
+  : Function to remove specific NONMEM records from model file
 
 - [`remove_table_from_model()`](https://insightrx.github.io/pharmr.extra/reference/remove_table_from_model.md)
   : Remove all \$TABLE records from a model

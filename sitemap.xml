@@ -58,6 +58,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_condition_number_for_fit.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_cov_matrix.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_covariance_record.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/get_covariate_data.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_declared_variables.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_defined_pk_parameters.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_estimation_options.html</loc></url>
@@ -102,6 +103,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/nm_save_dataset.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/nm_save_model.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/nm_update_dataset.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/parse_data_dictionary.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/parse_estimation_options.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/parse_psn_args.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/pharmr.extra-package.html</loc></url>
@@ -112,6 +114,8 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/read_ini.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/read_table_nm.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/remove_data_section.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/remove_estimation_steps_from_model.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/remove_nonmem_records.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/remove_table_from_model.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/remove_table_sections.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/remove_tables_from_model.html</loc></url>
