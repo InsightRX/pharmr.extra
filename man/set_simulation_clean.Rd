@@ -7,8 +7,7 @@
 set_simulation_clean(model, seed, n)
 }
 \arguments{
-\item{model}{pharmpy model object or NONMEM model code (character) or path
-to NONMEM model file.}
+\item{model}{Pharmpy NONMEM model object}
 
 \item{seed}{random seed number}
 
