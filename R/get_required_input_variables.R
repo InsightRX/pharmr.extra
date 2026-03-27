@@ -128,10 +128,10 @@ get_required_input_variables <- function(model, data = NULL, include_reserved_no
 #' @returns A data frame with columns \code{nonmem_name} and \code{dropped}.
 #' @keywords internal
 .parse_nm_input <- function(input_lines) {
-  # Join lines, drop the $INPUT header token and strip comments
+  # Strip inline comments per line, then join lines and drop the $INPUT header token
+  input_lines <- sub(";.*$", "", input_lines)
   text <- paste(input_lines, collapse = " ")
   text <- sub("^\\$INPUT\\s*", "", text, ignore.case = TRUE)
-  text <- gsub(";[^\n]*", " ", text)
 
   tokens <- unlist(strsplit(trimws(text), "\\s+"))
   tokens <- tokens[nzchar(tokens)]
