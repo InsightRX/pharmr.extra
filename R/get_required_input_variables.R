@@ -186,8 +186,8 @@ get_required_input_variables <- function(model, data = NULL, include_reserved_no
     if (is.null(cols)) return(NULL)
     if (length(cols) < n_input) {
       cli::cli_warn(
-        "Data source {source_desc} has only {length(cols)} column(s) but \\
-         $INPUT has {n_input} entries — cannot match positionally. \\
+        "Data source {source_desc} has only {length(cols)} column(s) but
+         $INPUT has {n_input} entries — cannot match positionally.
          Using nonmem_name for data_col."
       )
       return(NULL)
@@ -226,7 +226,7 @@ get_required_input_variables <- function(model, data = NULL, include_reserved_no
         file.path(model_dir, data_file)
       } else {
         cli::cli_warn(
-          "$DATA file {.path {data_file}} not found — using nonmem_name for data_col. \\
+          "$DATA file {.path {data_file}} not found — using nonmem_name for data_col. 
            Pass the `data` argument explicitly to supply column names."
         )
         return(NULL)
