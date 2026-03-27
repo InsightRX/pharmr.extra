@@ -4,11 +4,21 @@
 \alias{get_required_input_variables}
 \title{Get required input variables for a NONMEM model}
 \usage{
-get_required_input_variables(model, include_reserved_nonmem = TRUE)
+get_required_input_variables(
+  model,
+  data = NULL,
+  include_reserved_nonmem = TRUE
+)
 }
 \arguments{
-\item{model}{Path to a NONMEM \code{.mod}/\code{.ctl} file, or NONMEM model
-code as a single string.}
+\item{model}{Path to a NONMEM \code{.mod}/\code{.ctl} file, NONMEM model
+code as a single string, or a Pharmpy NONMEM model object.}
+
+\item{data}{Optional. A data.frame or path to a CSV file whose column names
+are used to populate \code{data_col}. Columns are matched to \code{$INPUT}
+entries positionally (same order). When omitted the filename from
+\code{$DATA} is tried automatically; if that file cannot be found,
+\code{data_col} falls back to \code{nonmem_name}.}
 
 \item{include_reserved_nonmem}{Logical. If \code{TRUE} (default), reserved
 NONMEM variables are included in the returned data frame. Set to
@@ -49,6 +59,7 @@ never referenced in model code
 \details{
 \code{"reserved"}, \code{"dose_variable"}, and \code{"used_covariate"}
 columns are all considered required for simulation. Renames in
-\code{$INPUT} (e.g. \code{WT=WEIGHT}, where \code{WT} is the data-file
-column and \code{WEIGHT} is the NONMEM internal name) are handled correctly.
+\code{$INPUT} (e.g. \code{WT=WEIGHT}, where \code{WT} is the NONMEM
+internal name and \code{WEIGHT} is the data-file column) are handled
+correctly.
 }

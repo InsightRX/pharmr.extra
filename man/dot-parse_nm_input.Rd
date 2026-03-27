@@ -10,8 +10,7 @@
 \item{input_lines}{Character vector of lines from the \code{$INPUT} record.}
 }
 \value{
-A data frame with columns \code{nonmem_name}, \code{data_col},
-\code{dropped}.
+A data frame with columns \code{nonmem_name} and \code{dropped}.
 }
 \description{
 Parse $INPUT record lines into a data frame
