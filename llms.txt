@@ -288,6 +288,9 @@ MIT © InsightRX
 - [`get_pharmpy_runfolders()`](https://insightrx.github.io/pharmr.extra/reference/get_pharmpy_runfolders.md)
   : Find last pharmpy run folder
 
+- [`get_required_input_variables()`](https://insightrx.github.io/pharmr.extra/reference/get_required_input_variables.md)
+  : Get required input variables for a NONMEM model
+
 - [`get_route_from_data()`](https://insightrx.github.io/pharmr.extra/reference/get_route_from_data.md)
   : Get route from data. If dose and observation events all happen in
   the same compartment, then assume IV administration, else oral
