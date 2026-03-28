@@ -146,38 +146,6 @@ test_that("create_sim_dataset: data.frame override is used instead of model$data
   expect_equal(sort(unique(out$ID)), 1:2)
 })
 
-test_that("create_sim_dataset: CSV with $INPUT aliases is renamed to canonical NONMEM names", {
-  local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
-
-  ## Model declares $INPUT ID=SUBJ TIME DV=CONC AMT EVID MDV
-  mod <- pharmr::read_model_from_string(paste(
-    "$PROBLEM Test",
-    "$INPUT ID=SUBJ TIME DV=CONC AMT EVID MDV",
-    "$DATA data.csv IGNORE=@",
-    "$SUBROUTINES ADVAN1 TRANS2",
-    "$PK",  "CL=THETA(1)", "V=THETA(2)", "S1=V",
-    "$ERROR", "Y=F+EPS(1)",
-    "$THETA (0,10)", "$THETA (0,50)", "$SIGMA 0.1",
-    "$EST METHOD=1",
-    sep = "\n"
-  ))
-
-  ## CSV uses the alias names as column headers
-  csv_file <- withr::local_tempfile(fileext = ".csv")
-  write.csv(
-    data.frame(SUBJ = 1L, TIME = c(0, 12), CONC = c(0, 5),
-               AMT = c(100, 0), EVID = c(1L, 0L), MDV = c(1L, 0L)),
-    csv_file, row.names = FALSE
-  )
-
-  out <- create_sim_dataset(model = mod, data = csv_file, verbose = FALSE)
-  expect_true("ID"   %in% names(out))
-  expect_true("DV"   %in% names(out))
-  expect_false("SUBJ" %in% names(out))
-  expect_false("CONC" %in% names(out))
-})
-
 test_that("create_sim_dataset: error when data file path does not exist", {
   local_pharmr.extra_options()
   skip_if_nonmem_not_available()

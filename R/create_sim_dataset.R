@@ -47,6 +47,7 @@ create_sim_dataset <- function(
     t_obs = NULL,
     covariates = NULL,
     n_subjects = NULL,
+    input_from_data = FALSE,
     verbose = TRUE
 ) {
   if (!inherits(model, "pharmpy.model.model.Model")) {
@@ -62,33 +63,21 @@ create_sim_dataset <- function(
     }
   }
   if (!is.null(data)) {
+    idx <- get_required_input_variables(model, data)
     if (inherits(data, "character")) {
       if (!file.exists(data)) cli::cli_abort("Data file {data} does not exist.")
       input_data <- utils::read.csv(data, check.names = FALSE)
-      ## Always rename positionally to the NONMEM names from $INPUT so that
-      ## aliases (e.g. ID=SUBJ, DV=CONC) and headerless CSVs are normalised to
-      ## the canonical names (ID, TIME, DV, …) that downstream code expects.
-      idx <- get_required_input_variables(model, data)
-      n_data    <- length(names(input_data))
-      n_input   <- length(idx$nonmem_name)
-      addl_cols <- n_data - n_input
-      if (addl_cols < 0) {
-        cli::cli_abort(
-          "Number of columns in the dataset ({n_data}) is lower than the \\
-          number of columns in $INPUT ({n_input}). Please check dataset and model."
-        )
-      }
-      names(input_data) <- c(idx$nonmem_name, paste0("_DUM", seq_len(addl_cols)))
-      if (addl_cols > 0) {
-        cli::cli_warn(
-          "Dataset has {addl_cols} more column(s) than $INPUT declares. \\
-          Extra column(s) renamed to _DUM1 … _DUM{addl_cols} and will be ignored."
-        )
-      }
     } else {
-      ## data.frame supplied by the caller already carries correct NONMEM column
-      ## names — use as-is without positional renaming.
       input_data <- as.data.frame(data)
+    }
+    n_data   <- length(names(input_data))
+    n_input  <- length(idx$nonmem_name)
+    addl_cols <- n_data - n_input
+    if(addl_cols > 0) {
+      names(input_data) <- c(idx$nonmem_name, paste0("_DUM", 1:addl_cols))
+      cli::cli_warn("Number of columns for input dataset is higher than number of columns in $INPUT. Please check dataset and $INPUT correctness. Will continue, assuming extra columns are not needed.")
+    } else if (addl_cols < 0) {
+      cli::cli_abort("Number of columns for input dataset is lower than number of columns in $INPUT. Please check dataset and $INPUT. Cannot continue creating dataset.")
     }
   } else {
     input_data <- as.data.frame(model$dataset)
@@ -132,7 +121,7 @@ create_sim_dataset <- function(
     } else {
       ids <- unique(sim_data$ID)
       sim_data <- sim_data |>
-        dplyr::filter(.data$ID %in% ids[1:n_subjects])
+        dplyr::filter(sim_data$ID %in% ids[1:n_subjects])
     }
   } else {
     if (is.null(n_subjects)) {
@@ -167,7 +156,7 @@ create_sim_dataset <- function(
     }
     new_covariates <- names(covariates)
     new_covariates <- new_covariates[new_covariates != "ID" & new_covariates %in% names(sim_data)]
-    if(verbose) cli::cli_alert_info("Updating covariates: {new_covariates}")
+    cli::cli_alert_info("Updating covariates: {new_covariates}")
 
     sim_data_cols <- names(sim_data)
     sim_data <- sim_data |>
