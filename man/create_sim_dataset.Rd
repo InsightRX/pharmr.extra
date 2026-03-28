@@ -11,6 +11,7 @@ create_sim_dataset(
   t_obs = NULL,
   covariates = NULL,
   n_subjects = NULL,
+  input_from_data = FALSE,
   verbose = TRUE
 )
 }
@@ -21,7 +22,10 @@ create_sim_dataset(
 
 \item{data}{optional data.frame (or path to a CSV file) to use as the base
 dataset instead of the dataset attached to \code{model}. Useful when you want to
-apply \code{t_obs} or \code{regimen} changes to an already-prepared dataset.}
+apply \code{t_obs} or \code{regimen} changes to an already-prepared dataset.
+It is assumed that the column names in the dataset match the \emph{order} of the
+columns in $INPUT in the model. If this is not the case, the creation of
+the dataset may fail, or the simulations from the dataset may fail.}
 
 \item{regimen}{if specified, will replace the regimens for each subject with
 a custom regimen. Can be specified in two ways. The simplest way is to just

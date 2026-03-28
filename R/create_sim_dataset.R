@@ -9,7 +9,10 @@
 #' `pharmr::read_model()` so that the `$DATA` path can be resolved.
 #' @param data optional data.frame (or path to a CSV file) to use as the base
 #' dataset instead of the dataset attached to `model`. Useful when you want to
-#' apply `t_obs` or `regimen` changes to an already-prepared dataset.
+#' apply `t_obs` or `regimen` changes to an already-prepared dataset. 
+#' It is assumed that the column names in the dataset match the *order* of the 
+#' columns in $INPUT in the model. If this is not the case, the creation of
+#' the dataset may fail, or the simulations from the dataset may fail.
 #' @param regimen if specified, will replace the regimens for each subject with
 #' a custom regimen. Can be specified in two ways. The simplest way is to just
 #' specify a list with elements `dose`, `interval`, `n`, and
@@ -44,6 +47,7 @@ create_sim_dataset <- function(
     t_obs = NULL,
     covariates = NULL,
     n_subjects = NULL,
+    input_from_data = FALSE,
     verbose = TRUE
 ) {
   if (!inherits(model, "pharmpy.model.model.Model")) {
@@ -71,9 +75,9 @@ create_sim_dataset <- function(
     addl_cols <- n_data - n_input
     if(addl_cols > 0) {
       names(input_data) <- c(idx$nonmem_name, paste0("_DUM", 1:addl_cols))
-      cli::cli_alert_warning("Number of columns for input dataset is higher than number of columns in $INPUT.")
-    } else if (add_cols < 0) {
-      cli::cli_abort("Number of columns for input dataset is lower than number of columns in $INPUT. Please check dataset and model.")
+      cli::cli_warn("Number of columns for input dataset is higher than number of columns in $INPUT. Please check dataset and $INPUT correctness. Will continue, assuming extra columns are not needed.")
+    } else if (addl_cols < 0) {
+      cli::cli_abort("Number of columns for input dataset is lower than number of columns in $INPUT. Please check dataset and $INPUT. Cannot continue creating dataset.")
     }
   } else {
     input_data <- as.data.frame(model$dataset)
