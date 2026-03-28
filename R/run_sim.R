@@ -2,29 +2,12 @@
 #'
 #' @inheritParams run_nlme
 #' @param model either a Pharmpy model object, or a filename (for a model
-#' with NONMEM model code). If the latter, `run_sim()` will attempt to load the 
+#' with NONMEM model code). If the latter, `run_sim()` will attempt to load the
 #' model into Pharmpy first.
 #' @param fit a Pharmpy modelfit object.
-#' @param regimen if specified, will replace the regimens for each subject with
-#' a custom regimen. Can be specified in two ways. The simplest way is to just
-#' specify a list with elements `dose`, `interval`, `n`, and
-#' `route` (and `t_inf` / `rate` for infusions).
-#' E.g. `regimen = list(dose = 500, interval = 12, n = 5, route = "oral")`.
-#' Alternatively, regimens can be specified as a data.frame. The data.frame
-#' specified all dosing times (`dose`, `time` columns) and `route` and `t_inf` /
-#' `rate`. The data.frame may also optionally contain a `regimen` column that
-#' specifies a name for the regimen. This can be used to simulate multiple
-#' regimens.
-#' @param covariates if specified, will replace subjects with subjects specified
-#' in a data.frame. In the data.frame, the column names should correspond
-#' exactly to any covariates included in the model. An `ID` column is optional;
-#' if absent, IDs are generated as `1:nrow(covariates)`. For time-varying
-#' covariates, a `TIME` column is also required (otherwise
-#' it will be assumed covariates are not changing over time).
-#' @param t_obs a vector of observations times. If specified, will override
-#' the observations in each subject in the input dataset.
-#' @param n_subjects number of subjects to simulate, when using sampled data
-#' (i.e. requires `covariates` argument)
+#' @param data a NONMEM-format data.frame to use as the simulation dataset.
+#' Typically the output of [create_sim_dataset()]. If `NULL`, the dataset
+#' attached to `model` is used as-is.
 #' @param n_iterations number of iterations of the entire simulation to
 #' perform. The dataset for the simulation will stay the same between each
 #' iterations.
@@ -35,7 +18,7 @@
 #' specifed in the model. However, in the return object, only the first table
 #' is returned back. If `FALSE`, the `add_pk_variables` argument will be ignored.
 #' @param tool the tool to run the model in, either `nonmem`, or `nlmixr`.
-#' @param variables vector of variables to output. If `NULL`, will output 
+#' @param variables vector of variables to output. If `NULL`, will output
 #' default variables `c("ID", "TIME", "DV", "EVID", "PRED")` as well as
 #' all variables declared in the NONMEM code.
 #' @param output_file TODO
@@ -50,11 +33,7 @@ run_sim <- function(
     model = NULL,
     id = irxutils::get_random_id("sim_"),
     force = FALSE,
-    t_obs = NULL,
-    regimen = NULL,
-    covariates = NULL,
     tool = c("auto", "nonmem", "nlmixr2"),
-    n_subjects = NULL,
     n_iterations = 1,
     variables = NULL,
     add_pk_variables = FALSE,
@@ -63,25 +42,6 @@ run_sim <- function(
     seed = 12345,
     verbose = TRUE
 ) {
-  
-  ## Make sure `data` is passed around as filename, to avoid passing data to Pharmpy (error prone)
-  if(is.null(data)) {
-    if(inherits(model, "character")) {
-      tmp_model <- pharmr::read_model(model)
-    } else {
-      tmp_model <- model
-    }
-    data <- tmp_model$dataset
-  }
-  if(!inherits(data, "character")) {
-    datafile <- tempfile(fileext = ".csv")
-    write.csv(data, datafile, quote=F, row.names=F)
-    data <- datafile
-  }
-  if (!file.exists(data)) {
-    cli::cli_abort("Data file {dataset_file} does not exist")
-  }
-  
   ## parse arguments
   if(is.null(fit) && is.null(model)) {
     cli::cli_abort("For simulations we need either a `fit` object, or a `model` file (with updated estimates)")
@@ -97,7 +57,13 @@ run_sim <- function(
       cli::cli_alert_info("Supplied `model` is a Pharmpy model object.")
     } else {
       cli::cli_alert_info("Supplied `model` is not a Pharmpy model object. Trying to load in Pharmpy.")
-      model <- create_model_from_file(model_file = model, data = data)
+      if(!is.null(data) && inherits(data, "data.frame")) {
+        data_file <- tempfile(fileext = ".csv")
+        write.csv(data, data_file, quote = F, row.names = F)
+        model <- create_model_from_file(model_file = model, data = data_file)
+      } else {
+        model <- create_model_from_file(model_file = model)
+      }
       if(inherits(model, "pharmpy.model.model.Model")) {
         cli::cli_alert_info("Model successfully imported as Pharmpy model object.")
       } else {
@@ -106,11 +72,7 @@ run_sim <- function(
     }
   }
   input_data <- model$dataset
-  input_has_column <- list()
-  for(key in c("CMT", "EVID", "MDV", "RATE")) {
-    input_has_column[[key]] <- key %in% names(input_data)
-  }
-  
+
   tool <- match.arg(tool)
   if(tool == "auto") {
     if(inherits(model, "pharmpy.model.external.nonmem.model.Model")) {
@@ -120,140 +82,19 @@ run_sim <- function(
   if(tool != "nonmem") {
     cli::cli_abort("Sorry, currently only supporting NONMEM simulations.")
   }
-  ## make sure we have regimen as a data.frame
-  regimen_df <- NULL
-  if(!is.null(regimen)) {
-    if(inherits(regimen, "data.frame")) {
-      regimen_df <- regimen
-    } else if (inherits(regimen, "list")) {
-      regimen_df <- do.call(create_regimen, args = regimen) |>
-        dplyr::mutate(regimen = "regimen 1")
-    } else {
-      cli::cli_abort("`regimen` needs to be either a data.frame or a list, or NULL.")
-    }
-  }
 
-  ## Set CMT to NA if not in dataset
-  if(! input_has_column[["CMT"]]) {
-    input_data$CMT <- NA
-  }
-  if(is.null(covariates)) { # use original dataset
+  ## Use provided data or fall back to model's dataset
+  if(is.null(data)) {
     if(verbose) cli::cli_alert_info("Using input dataset for simulation")
-    sim_data <- input_data
-    if(is.null(n_subjects)) {
-      n_subjects <- length(unique(input_data$ID))
-    } else {
-      ids <- unique(sim_data$ID)
-      sim_data <- sim_data |>
-        dplyr::filter(.data$ID %in% ids[1:n_subjects])
-    }
-  } else { ## user provided sampled covariates in `covariates`
-    if(is.null(n_subjects)) {
-      n_subjects <- nrow(covariates)
-    }
-    if(!"ID" %in% names(covariates)) {
-      covariates$ID <- seq_len(nrow(covariates))
-    }
-    if(verbose) cli::cli_alert_info("Preparing sampled dataset for simulation")
-    ids <- unique(input_data$ID)
-    random_sample <- sample(ids, n_subjects, replace = TRUE)
-    sim_data <- lapply(seq_along(random_sample), function(i) {
-      input_data |>
-        dplyr::filter(.data$ID == random_sample[i]) |>
-        dplyr::mutate(ID := i)
-    }) %>%
-      dplyr::bind_rows()
-    cov_ids <- unique(covariates$ID)
-    covariates <- covariates |> # ensure covaraites ID also run from 1:n
-      dplyr::mutate(ID = match(ID, cov_ids))
-    if(verbose) cli::cli_alert_info("Updating covariates for subjects in simulation")
-    covs_reqd <- unlist(lapply(
-      pharmr::get_model_covariates(model),
-      function(x) { x$name }
-    ))
-    if(! all(covs_reqd %in% names(covariates))) {
-      missing <- covs_reqd[! covs_reqd %in% names(covariates)]
-      cli::cli_alert_warning("Not all required covariates supplied in `covariates` data, missing: {missing}. This could be due to renaming of covariates in $INPUT.")
-    }
-    new_covariates <- names(covariates)
-    new_covariates <- new_covariates[new_covariates != "ID" & new_covariates %in% names(sim_data)]
-    cli::cli_alert_info("Updating covariates: {new_covariates}")
-    
-    sim_data_cols <- names(sim_data)
-    sim_data <- sim_data |>
-      dplyr::select(- dplyr::all_of(new_covariates)) |> ## remove existing covariates
-      dplyr::left_join(
-        covariates,
-        by = "ID"
-      ) |>
-      dplyr::select(dplyr::all_of(sim_data_cols)) |> # ensure order is kept, after left join
-      tidyr::fill(dplyr::all_of(new_covariates), .direction = "downup")
-  }
-
-  if(!is.null(regimen_df)) {
-    if(verbose) cli::cli_alert_info("Creating new regimens for subjects in simulation")
-    advan <- get_advan(model)
-    doses <- create_dosing_records(
-      regimen_df,
-      sim_data,
-      n_subjects,
-      advan
-    )
-
-    ## match type of columns to existing dataset (possibly user-supplied)
-    doses <- match_type(doses, sim_data, c("AMT", "RATE", "DV"))
-    ## remove old doses and add new
-    if("EVID" %in% names(sim_data)) {
-      sim_data <- sim_data |>
-        dplyr::filter(.data$EVID != 1)
-    }
-    sim_data <- sim_data |>
-      dplyr::bind_rows(doses) |>
-      dplyr::arrange(.data$.regimen, .data$ID, .data$TIME) |>
-      dplyr::group_by(.data$ID) |>
-      tidyr::fill(
-        tidyselect::everything(),
-        .direction = "downup"
-      ) |>
-      dplyr::mutate(dplyr::across(dplyr::everything(), ~ fill_missing(.x)))
-    if(is.null(t_obs)) {
-      ## TODO: could be made somewhat smarter, based on e.g. original dataset or
-      t_max <- max(sim_data$TIME) + round(diff(utils::tail(sim_data$TIME, 2)))
-      t_obs <- seq(0, t_max, 4)
-    }
-  } else {
+    sim_data <- as.data.frame(input_data)
     sim_data[[".regimen"]] <- "original regimens"
-  }
-  if(!is.null(t_obs)) {
-    if(verbose) cli::cli_alert_info("Creating new observation records for subjects in simulation")
-    obs <- create_obs_records(
-      sim_data,
-      t_obs,
-      n_subjects,
-      model
-    )
-    ## remove old obs and add new
-    obs <- match_type(obs, sim_data, c("AMT", "RATE", "DV"))
-    sim_data <- sim_data |>
-      dplyr::filter(.data$EVID != 0) |>
-      dplyr::bind_rows(obs) |>
-      dplyr::arrange(.data$.regimen, .data$ID, .data$TIME) |>
-      dplyr::group_by(.data$ID) |>
-      tidyr::fill(
-        dplyr::everything(),
-        .direction = "downup"
-      ) |>
-      dplyr::mutate(dplyr::across(dplyr::everything(), ~ fill_missing(.x)))
-  }
-
-  ## Remove CMT, EVID, MDV, RATE column, if not in input dataset
-  for(key in names(input_has_column)) {
-    if(! input_has_column[[key]]) {
-      sim_data[[key]] <- NULL
-      input_data[[key]] <- NULL
+  } else {
+    sim_data <- data
+    if(!".regimen" %in% names(sim_data)) {
+      sim_data[[".regimen"]] <- "original regimens"
     }
   }
-  
+
   ## get unique regimens / datasets to simulate
   unique_regimens <- unique(sim_data[[".regimen"]])
   comb <- list()
@@ -327,18 +168,10 @@ run_sim <- function(
     ## post-processing
     if(update_table) {
       if(add_pk_variables) {
-        if(!is.null(regimen_df)) { # regimen needed for calculation of AUCss
-          attr(results, "tables")[[output_file]] <- calc_pk_variables(
-            data = attr(results, "tables")[[output_file]],
-            regimen = regimen_df |>
-              dplyr::filter(regimen == reg_label)
-          )
-        } else {
-          attr(results, "tables")[[output_file]] <- calc_pk_variables(
-            data = attr(results, "tables")[[output_file]],
-            regimen = NULL
-          )
-        }
+        attr(results, "tables")[[output_file]] <- calc_pk_variables(
+          data = attr(results, "tables")[[output_file]],
+          regimen = NULL
+        )
       }
     }
 
@@ -364,12 +197,6 @@ run_sim <- function(
   }) |>
     dplyr::bind_rows()
   
-  ## Ensure only t_obs is outputted
-  if(!is.null(t_obs) && "TIME" %in% names(out)) {
-    out <- out |>
-      dplyr::filter(.data$TIME %in% t_obs)
-  }
-
   if(verbose) cli::cli_alert_success("Done")
   out
 }

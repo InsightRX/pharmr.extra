@@ -3,7 +3,7 @@
 \name{combine_regimens}
 \alias{combine_regimens}
 \title{Combine several regimens into a single data.frame, which can be passed into
-\code{run_sim()} as \code{regimen} argument.}
+\code{create_sim_dataset()} as \code{regimen} argument.}
 \usage{
 combine_regimens(...)
 }
@@ -14,7 +14,7 @@ See examples.}
 }
 \description{
 Combine several regimens into a single data.frame, which can be passed into
-\code{run_sim()} as \code{regimen} argument.
+\code{create_sim_dataset()} as \code{regimen} argument.
 }
 \details{
 This allows both for combination of two or more phases, e.g. loading doses
