@@ -49,8 +49,9 @@ iterations.}
 default variables \code{c("ID", "TIME", "DV", "EVID", "PRED")} as well as
 all variables declared in the NONMEM code.}
 
-\item{add_pk_variables}{calculate basic PK variables that can be extracted
-in post-processing, such as CMAX_OBS, TMAX_OBS, AUC_SS.}
+\item{add_pk_variables}{calculate basic PK variables: CMAX_OBS, TMAX_OBS,
+CMIN_OBS, and (when \code{CL} is in the output table) AUC_SS. AUC_SS is derived
+as the last dose in the simulation dataset divided by CL.}
 
 \item{output_file}{TODO}
 
