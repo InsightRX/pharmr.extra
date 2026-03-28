@@ -8,6 +8,8 @@ calc_pk_variables(data, regimen = NULL)
 }
 \arguments{
 \item{data}{data.frame in NONMEM format}
+
+\item{run_sim}{}
 }
 \value{
 data.frame

@@ -11,7 +11,6 @@ create_sim_dataset(
   t_obs = NULL,
   covariates = NULL,
   n_subjects = NULL,
-  input_from_data = FALSE,
   verbose = TRUE
 )
 }

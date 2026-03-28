@@ -121,7 +121,7 @@ create_sim_dataset <- function(
     } else {
       ids <- unique(sim_data$ID)
       sim_data <- sim_data |>
-        dplyr::filter(sim_data$ID %in% ids[1:n_subjects])
+        dplyr::filter(.data$ID %in% ids[1:n_subjects])
     }
   } else {
     if (is.null(n_subjects)) {
@@ -156,7 +156,7 @@ create_sim_dataset <- function(
     }
     new_covariates <- names(covariates)
     new_covariates <- new_covariates[new_covariates != "ID" & new_covariates %in% names(sim_data)]
-    cli::cli_alert_info("Updating covariates: {new_covariates}")
+    if (verbose) cli::cli_alert_info("Updating covariates: {new_covariates}")
 
     sim_data_cols <- names(sim_data)
     sim_data <- sim_data |>
