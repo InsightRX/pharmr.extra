@@ -89,6 +89,13 @@ run_sim <- function(
     sim_data <- as.data.frame(input_data)
     sim_data[[".regimen"]] <- "original regimens"
   } else {
+    if(!inherits(data, "data.frame")) {
+      cli::cli_abort(
+        c("`data` must be a data.frame (typically the output of {.fn create_sim_dataset}).",
+          x = "Got an object of class {.cls {class(data)}}.",
+          i = "To build a simulation dataset from a file or model, use {.fn create_sim_dataset} first.")
+      )
+    }
     sim_data <- data
     if(!".regimen" %in% names(sim_data)) {
       sim_data[[".regimen"]] <- "original regimens"
@@ -204,7 +211,7 @@ run_sim <- function(
 #' Calculate some basic PK variables from simulated or observed data
 #'
 #' @param data data.frame in NONMEM format
-#' @inheritParams run_sim
+#' @param run_sim
 #'
 #' @returns data.frame
 calc_pk_variables <- function(

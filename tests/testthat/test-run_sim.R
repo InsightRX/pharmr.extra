@@ -201,6 +201,15 @@ test_that("run_sim: error when both fit and model are NULL", {
   )
 })
 
+test_that("run_sim: error when data is a file path instead of a data.frame", {
+  skip_if_nonmem_not_available()
+  mod <- make_model_without_cov()
+  expect_error(
+    run_sim(model = mod, data = "some_file.csv"),
+    "must be a data.frame"
+  )
+})
+
 test_that("run_sim: error when tool is not nonmem", {
   mod <- pharmr::load_example_model("pheno")
   expect_error(
