@@ -464,6 +464,23 @@ test_that("run_sim (stub): add_pk_variables=TRUE adds CMAX_OBS to output", {
   expect_true("CMAX_OBS" %in% names(out))
 })
 
+test_that("run_sim (stub): add_pk_variables=TRUE computes AUC_SS when CL in output", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- make_model_without_cov()
+  local_mocked_bindings(
+    run_nlme = function(...) .mock_nlme_result(), # mock result includes CL = 2
+    .package = "pharmr.extra"
+  )
+  ## .sim_dat() has AMT = 100 for the dose row (EVID = 1)
+  out <- run_sim(model = mod, data = .sim_dat(), add_pk_variables = TRUE,
+                 verbose = FALSE)
+  expect_true("AUC_SS" %in% names(out))
+  expect_equal(unique(out$AUC_SS), 100 / 2) # last dose / CL
+})
+
 test_that("create_sim_dataset: t_obs limits observation records to requested times", {
   local_pharmr.extra_options()
   skip_if_nonmem_not_available()

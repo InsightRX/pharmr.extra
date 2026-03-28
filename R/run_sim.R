@@ -11,8 +11,9 @@
 #' @param n_iterations number of iterations of the entire simulation to
 #' perform. The dataset for the simulation will stay the same between each
 #' iterations.
-#' @param add_pk_variables calculate basic PK variables that can be extracted
-#' in post-processing, such as CMAX_OBS, TMAX_OBS, AUC_SS.
+#' @param add_pk_variables calculate basic PK variables: CMAX_OBS, TMAX_OBS,
+#' CMIN_OBS, and (when `CL` is in the output table) AUC_SS. AUC_SS is derived
+#' as the last dose in the simulation dataset divided by CL.
 #' @param update_table should any existing $TABLE records be removed, and a new
 #'  `simtab` be created? This is default. If `FALSE`, it will leave $TABLEs as
 #' specifed in the model. However, in the return object, only the first table
@@ -175,9 +176,18 @@ run_sim <- function(
     ## post-processing
     if(update_table) {
       if(add_pk_variables) {
+        ## Derive the dosing regimen from sim_data_regimen so AUC_SS can be
+        ## computed in calc_pk_variables (needs regimen$dose).
+        regimen_for_pk <- NULL
+        if("EVID" %in% names(sim_data_regimen) && "AMT" %in% names(sim_data_regimen)) {
+          dose_rows <- sim_data_regimen[sim_data_regimen$EVID == 1, , drop = FALSE]
+          if(nrow(dose_rows) > 0) {
+            regimen_for_pk <- list(dose = dose_rows$AMT)
+          }
+        }
         attr(results, "tables")[[output_file]] <- calc_pk_variables(
           data = attr(results, "tables")[[output_file]],
-          regimen = NULL
+          regimen = regimen_for_pk
         )
       }
     }
