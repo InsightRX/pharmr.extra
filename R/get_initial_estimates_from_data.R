@@ -24,20 +24,37 @@ get_initial_estimates_from_data <- function(
 ) {
 
   data <- load_data_wrapper(data)
-  
+
+  ## Pre-process once for all individuals instead of repeating per-individual
+  suppressWarnings(
+    data <- data |>
+      dplyr::mutate(
+        DV = as.numeric(.data$DV),
+        TIME = as.numeric(.data$TIME)
+      ) |>
+      dplyr::group_by(.data$ID) |>
+      dplyr::mutate(dosenr = cumsum(.data$EVID)) |>
+      dplyr::ungroup()
+  )
+  if(ltbs) {
+    data <- data |>
+      dplyr::mutate(DV = ifelse(.data$EVID == 0, exp(.data$DV), .data$DV))
+  }
+
   ## TODO: an extension could be to automatically add
   ## observed value scaling, e.g. when V < 1.0.
-  pars <- data.frame()
-  ids <- unique(data$ID)
-  for(id in ids) {
+  id_data <- split(data, data$ID)
+  pars_list <- vector("list", length(id_data))
+  for(i in seq_along(id_data)) {
     tmp <- get_initial_estimates_from_individual_data(
-      data[data$ID == id,],
-      ltbs = ltbs
+      id_data[[i]],
+      ltbs = FALSE  # already applied above
     )
     if(length(tmp) > 0) {
-      pars <- dplyr::bind_rows(pars, tmp)
+      pars_list[[i]] <- tmp
     }
   }
+  pars <- dplyr::bind_rows(pars_list)
   est <- pars |>
     dplyr::mutate(dplyr::across(where(is.numeric), ~ ifelse(is.infinite(.), max(.[!is.infinite(.)], na.rm = TRUE), .))) |> # remove all Inf values and replace them with the maximum value for the column
     dplyr::summarise_all(function(x) signif(mean(x, na.rm=TRUE), 3)) |>
@@ -65,62 +82,54 @@ get_initial_estimates_from_data <- function(
 #' @param inheritParams get_initial_estimates_from_data
 #' 
 get_initial_estimates_from_individual_data <- function(
-  data, 
+  data,
   ltbs = FALSE
 ) {
 
-  suppressWarnings(
-    dat <- data |>
-      dplyr::mutate(
-        dosenr = cumsum(.data$EVID),
-        DV = as.numeric(.data$DV),
-        TIME = as.numeric(.data$TIME)
-      )
-  )
-  if(ltbs) { # data is log-transformed, back-transform to normal scale
-    dat <- dat |>
-      dplyr::mutate(DV = ifelse(.data$EVID == 0, exp(.data$DV), .data$DV))
+  dat <- data
+
+  ## Ensure required columns are prepared (outer function does this for bulk
+  ## calls, but handle here too so the function works when called directly)
+  if(!is.numeric(dat$DV))   dat$DV   <- suppressWarnings(as.numeric(dat$DV))
+  if(!is.numeric(dat$TIME)) dat$TIME <- suppressWarnings(as.numeric(dat$TIME))
+  if(is.null(dat$dosenr))   dat$dosenr <- cumsum(dat$EVID)
+
+  if(ltbs) {
+    dat$DV <- ifelse(dat$EVID == 0, exp(dat$DV), dat$DV)
   }
 
   ## Get first dose number for which more than two samples are available.
-  dose_nr <- dat |>
-    dplyr::filter(.data$EVID == 0) |>
-    dplyr::group_by(.data$dosenr) |>
-    dplyr::summarise(n_obs = length(.data$TIME)) |>
-    dplyr::filter(.data$n_obs >= 2) |>
-    dplyr::slice(1) |>
-    dplyr::pull("dosenr")
+  obs_rows <- dat$EVID == 0
+  dose_counts_tab <- table(dat$dosenr[obs_rows])
+  dose_nr_candidates <- as.integer(names(dose_counts_tab)[dose_counts_tab >= 2])
 
-  if(length(dose_nr) == 0) {
+  if(length(dose_nr_candidates) > 0) {
+    dose_nr <- dose_nr_candidates[1]
+  } else {
     ## take first observation for which at least one obs is available
-    dose_nr <- dat |>
-      dplyr::filter(.data$EVID == 0) |>
-      dplyr::group_by(.data$dosenr) |>
-      dplyr::summarise(n_obs = length(.data$TIME)) |>
-      dplyr::filter(.data$n_obs == 1) |>
-      dplyr::slice(1) |>
-      dplyr::pull("dosenr")
-  }
-  if(length(dose_nr) == 0) { # no observations in data
-    return()
+    dose_nr_candidates <- as.integer(names(dose_counts_tab)[dose_counts_tab == 1])
+    if(length(dose_nr_candidates) == 0) { # no observations in data
+      return()
+    }
+    dose_nr <- dose_nr_candidates[1]
   }
 
   ## get peak value. This leads to estimate for V
-  obs <- dat |>
-    dplyr::filter(
-      .data$dosenr == dose_nr & .data$EVID == 0 & !is.na(.data$DV) & .data$DV != 0
-    )
-  tmp <- obs |>
-    dplyr::slice_tail(n = 3)
-  dose <- dat |>
-    dplyr::filter(.data$dosenr == dose_nr & .data$EVID == 1) |>
-    dplyr::pull("AMT")
+  obs_mask <- dat$dosenr == dose_nr & dat$EVID == 0 & !is.na(dat$DV) & dat$DV != 0
+  obs <- dat[obs_mask, ]
+  tmp <- tail(obs, 3)
+  dose <- dat$AMT[dat$dosenr == dose_nr & dat$EVID == 1]
   est <- c()
-  if(inherits(tmp$TIME, "numeric") && nrow(tmp) > 1) { # two datapoints at least
+  if(inherits(tmp$TIME, "numeric") && length(unique(tmp$TIME)) > 1) { # two datapoints at least
     fit <- stats::lm(log(DV) ~ TIME, tmp)
     KEL <- -as.numeric(coef(fit)[2])
-    if (KEL <= 0) { # fallback for absorption-phase or flat data
-      KEL <- (log(max(obs$DV, na.rm=TRUE)) - log(min(obs$DV[obs$DV > 0], na.rm=TRUE))) / diff(range(obs$TIME))
+    if(is.null(KEL) || is.na(KEL)) {
+      est$V <- NA
+      est$CL <- NA
+    } else {
+      if (KEL <= 0) { # fallback for absorption-phase or flat data
+        KEL <- (log(max(obs$DV, na.rm=TRUE)) - log(min(obs$DV[obs$DV > 0], na.rm=TRUE))) / diff(range(obs$TIME))
+      }
     }
     est$V <- dose / max(obs$DV, na.rm=TRUE)
     est$CL <- KEL * est$V
