@@ -52,7 +52,7 @@ test_that("Basic simulation works (using model file specified to `model`)", {
 })
 
 # ---------------------------------------------------------------------------
-# No-data mode: run_sim() with regimen + t_obs, no `data` argument
+# create_sim_dataset() + run_sim() integration tests
 # ---------------------------------------------------------------------------
 
 ## Minimal covariate-free model used by several tests below
@@ -65,18 +65,19 @@ test_that("Basic simulation works (using model file specified to `model`)", {
   create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
 }
 
-test_that("run_sim: no data, regimen + t_obs produces 1-subject output by default", {
+test_that("create_sim_dataset + run_sim: regimen + t_obs produces 1-subject output by default", {
   local_pharmr.extra_options()
   skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
 
   mod <- .make_iv_model()
-  out <- run_sim(
+  sim_dat <- create_sim_dataset(
     model = mod,
     regimen = list(dose = 100, interval = 12, n = 3, route = "iv"),
     t_obs = seq(0, 36, 6),
     verbose = FALSE
   )
+  out <- run_sim(model = mod, data = sim_dat, verbose = FALSE)
 
   expect_s3_class(out, "data.frame")
   expect_true(nrow(out) > 0)
@@ -84,25 +85,26 @@ test_that("run_sim: no data, regimen + t_obs produces 1-subject output by defaul
   expect_true(all(c("ID", "TIME", "DV", "IPRED") %in% names(out)))
 })
 
-test_that("run_sim: no data, n_subjects controls number of simulated subjects", {
+test_that("create_sim_dataset: n_subjects controls number of simulated subjects", {
   local_pharmr.extra_options()
   skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
 
   mod <- .make_iv_model()
-  out <- run_sim(
+  sim_dat <- create_sim_dataset(
     model = mod,
     regimen = list(dose = 100, interval = 12, n = 3, route = "iv"),
     t_obs = seq(0, 36, 6),
     n_subjects = 8,
     verbose = FALSE
   )
+  out <- run_sim(model = mod, data = sim_dat, verbose = FALSE)
 
   expect_s3_class(out, "data.frame")
   expect_equal(length(unique(out$ID)), 8)
 })
 
-test_that("run_sim: no data, covariates determines n_subjects and appears in output", {
+test_that("create_sim_dataset + run_sim: covariates determines n_subjects and appears in output", {
   local_pharmr.extra_options()
   skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
@@ -110,14 +112,14 @@ test_that("run_sim: no data, covariates determines n_subjects and appears in out
   mod <- pharmr::load_example_model("pheno")
   covs <- data.frame(WGT = c(1.5, 2, 2.5), APGR = c(7, 5, 9))
 
-  out <- run_sim(
-    id = "sim1",
+  sim_dat <- create_sim_dataset(
     model = mod,
     regimen = list(dose = 25, interval = 12, n = 3, route = "iv"),
     t_obs = seq(0, 36, 6),
     covariates = covs,
     verbose = FALSE
   )
+  out <- run_sim(id = "sim1", model = mod, data = sim_dat, verbose = FALSE)
 
   expect_s3_class(out, "data.frame")
   expect_equal(length(unique(out$ID)), 3)
@@ -125,7 +127,7 @@ test_that("run_sim: no data, covariates determines n_subjects and appears in out
   expect_true("APGR" %in% names(out))
 })
 
-test_that("run_sim: no data, covariates values are correctly carried into output", {
+test_that("create_sim_dataset + run_sim: covariates values are correctly carried into output", {
   local_pharmr.extra_options()
   skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
@@ -133,13 +135,14 @@ test_that("run_sim: no data, covariates values are correctly carried into output
   mod <- pharmr::load_example_model("pheno")
   covs <- data.frame(WGT = c(50, 100), APGR = c(6, 8))
 
-  out <- run_sim(
+  sim_dat <- create_sim_dataset(
     model = mod,
     regimen = list(dose = 25, interval = 12, n = 3, route = "iv"),
     t_obs = seq(0, 36, 12),
     covariates = covs,
     verbose = FALSE
   )
+  out <- run_sim(model = mod, data = sim_dat, verbose = FALSE)
 
   wgt_id1 <- unique(out$WGT[out$ID == 1])
   wgt_id2 <- unique(out$WGT[out$ID == 2])
@@ -147,7 +150,7 @@ test_that("run_sim: no data, covariates values are correctly carried into output
   expect_equal(wgt_id2, 100)
 })
 
-test_that("run_sim: no data, multiple regimens produce separate regimen_label values", {
+test_that("create_sim_dataset + run_sim: multiple regimens produce separate regimen_label values", {
   local_pharmr.extra_options()
   skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
@@ -160,13 +163,14 @@ test_that("run_sim: no data, multiple regimens produce separate regimen_label va
       dplyr::mutate(regimen = "200mg")
   )
 
-  out <- run_sim(
+  sim_dat <- create_sim_dataset(
     model = mod,
     regimen = reg,
     t_obs = seq(0, 36, 6),
     n_subjects = 3,
     verbose = FALSE
   )
+  out <- run_sim(model = mod, data = sim_dat, verbose = FALSE)
 
   expect_s3_class(out, "data.frame")
   expect_setequal(unique(out$regimen_label), c("100mg", "200mg"))
@@ -174,14 +178,14 @@ test_that("run_sim: no data, multiple regimens produce separate regimen_label va
   expect_equal(length(unique(out$ID[out$regimen_label == "200mg"])), 3)
 })
 
-test_that("run_sim: no data, error when required covariate missing from covariates arg", {
+test_that("create_sim_dataset: error when required covariate missing from covariates arg", {
   local_pharmr.extra_options()
   withr::local_dir(tempdir())
 
   mod <- pharmr::load_example_model("pheno")
 
   expect_error(
-    run_sim(
+    create_sim_dataset(
       model = mod,
       regimen = list(dose = 25, interval = 12, n = 3, route = "iv"),
       t_obs = seq(0, 36, 6),
@@ -194,6 +198,15 @@ test_that("run_sim: no data, error when required covariate missing from covariat
 test_that("run_sim: error when both fit and model are NULL", {
   expect_error(
     run_sim()
+  )
+})
+
+test_that("run_sim: error when data is a file path instead of a data.frame", {
+  skip_if_nonmem_not_available()
+  mod <- make_model_without_cov()
+  expect_error(
+    run_sim(model = mod, data = "some_file.csv"),
+    "must be a data.frame"
   )
 })
 
@@ -451,20 +464,32 @@ test_that("run_sim (stub): add_pk_variables=TRUE adds CMAX_OBS to output", {
   expect_true("CMAX_OBS" %in% names(out))
 })
 
-test_that("run_sim (stub): t_obs filters output to only requested times", {
+test_that("run_sim (stub): add_pk_variables=TRUE computes AUC_SS when CL in output", {
   local_pharmr.extra_options()
   skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
   local_mocked_bindings(
-    run_nlme = function(...) .mock_nlme_result(),
+    run_nlme = function(...) .mock_nlme_result(), # mock result includes CL = 2
     .package = "pharmr.extra"
   )
-  out <- run_sim(model = mod, data = .sim_dat(), t_obs = c(6, 12),
+  ## .sim_dat() has AMT = 100 for the dose row (EVID = 1)
+  out <- run_sim(model = mod, data = .sim_dat(), add_pk_variables = TRUE,
                  verbose = FALSE)
-  expect_true(all(out$TIME %in% c(6, 12)))
-  expect_false(0 %in% out$TIME)
+  expect_true("AUC_SS" %in% names(out))
+  expect_equal(unique(out$AUC_SS), 100 / 2) # last dose / CL
+})
+
+test_that("create_sim_dataset: t_obs limits observation records to requested times", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- make_model_without_cov()
+  sim_dat <- create_sim_dataset(model = mod, t_obs = c(6, 12), verbose = FALSE)
+  obs_rows <- sim_dat[sim_dat$EVID == 0, ]
+  expect_true(all(obs_rows$TIME %in% c(6, 12)))
 })
 
 test_that("run_sim (stub): NULL table in results triggers warning and empty output", {
@@ -486,26 +511,14 @@ test_that("run_sim (stub): NULL table in results triggers warning and empty outp
   expect_equal(nrow(out), 0)
 })
 
-test_that("run_sim (stub): n_subjects truncates subjects from original dataset", {
+test_that("create_sim_dataset: n_subjects truncates subjects from original dataset", {
   local_pharmr.extra_options()
   skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
-  tab2 <- data.frame(
-    ID = c(1L, 1L, 2L, 2L), TIME = c(0, 12, 0, 12),
-    DV = c(0, 5, 0, 6), EVID = c(1L, 0L, 1L, 0L),
-    PRED = 0, CL = 2
-  )
-  mock_res <- list()
-  attr(mock_res, "tables") <- list(simtab = tab2)
-  local_mocked_bindings(
-    run_nlme = function(...) mock_res,
-    .package = "pharmr.extra"
-  )
-  out <- run_sim(model = mod, data = .sim_dat(n_ids = 3), n_subjects = 2,
-                 verbose = FALSE)
-  expect_lte(length(unique(out$ID)), 2)
+  sim_dat <- create_sim_dataset(model = mod, n_subjects = 1, verbose = FALSE)
+  expect_equal(length(unique(sim_dat$ID)), 1)
 })
 
 test_that("run_sim (stub): regimen as data.frame (not list) works", {
@@ -516,12 +529,15 @@ test_that("run_sim (stub): regimen as data.frame (not list) works", {
   mod <- make_model_without_cov()
   reg_df <- create_regimen(dose = 100, interval = 12, n = 3, route = "iv") |>
     dplyr::mutate(regimen = "100mg_iv")
+  sim_dat <- create_sim_dataset(
+    model = mod, regimen = reg_df, t_obs = c(6, 12), n_subjects = 1,
+    verbose = FALSE
+  )
   local_mocked_bindings(
     run_nlme = function(...) .mock_nlme_result(),
     .package = "pharmr.extra"
   )
-  out <- run_sim(model = mod, data = .sim_dat(), regimen = reg_df,
-                 t_obs = c(6, 12), n_subjects = 1, verbose = FALSE)
+  out <- run_sim(model = mod, data = sim_dat, verbose = FALSE)
   expect_s3_class(out, "data.frame")
   expect_equal(unique(out$regimen_label), "100mg_iv")
 })
@@ -549,6 +565,14 @@ test_that("run_sim (stub): covariates without ID generates IDs 1:n", {
   mod <- pharmr::load_example_model("pheno")
   covs_no_id <- data.frame(WGT = c(1.5, 2.0, 2.5), APGR = c(7, 5, 9))
 
+  sim_dat <- create_sim_dataset(
+    model = mod,
+    regimen = list(dose = 25, interval = 12, n = 3, route = "iv"),
+    t_obs = seq(0, 36, 6),
+    covariates = covs_no_id,
+    verbose = FALSE
+  )
+
   ## Capture the dataset written for NONMEM so we can inspect IDs
   captured_sim_data <- NULL
   local_mocked_bindings(
@@ -559,13 +583,7 @@ test_that("run_sim (stub): covariates without ID generates IDs 1:n", {
     .package = "pharmr.extra"
   )
 
-  out <- run_sim(
-    model = mod,
-    regimen = list(dose = 25, interval = 12, n = 3, route = "iv"),
-    t_obs = seq(0, 36, 6),
-    covariates = covs_no_id,
-    verbose = FALSE
-  )
+  out <- run_sim(model = mod, data = sim_dat, verbose = FALSE)
 
   expect_s3_class(out, "data.frame")
   ## Correct number of subjects
@@ -582,18 +600,20 @@ test_that("run_sim (stub): covariates without ID infers n_subjects from nrow(cov
   mod <- pharmr::load_example_model("pheno")
   covs_no_id <- data.frame(WGT = c(1.5, 2.0), APGR = c(7, 5))  # 2 rows → 2 subjects
 
-  local_mocked_bindings(
-    run_nlme = function(...) .mock_nlme_n(2),
-    .package = "pharmr.extra"
-  )
-
-  out <- run_sim(
+  sim_dat <- create_sim_dataset(
     model = mod,
     regimen = list(dose = 25, interval = 12, n = 3, route = "iv"),
     t_obs = seq(0, 36, 6),
     covariates = covs_no_id,
     verbose = FALSE
   )
+
+  local_mocked_bindings(
+    run_nlme = function(...) .mock_nlme_n(2),
+    .package = "pharmr.extra"
+  )
+
+  out <- run_sim(model = mod, data = sim_dat, verbose = FALSE)
 
   expect_equal(length(unique(out$ID)), 2)
 })
@@ -606,6 +626,14 @@ test_that("run_sim (stub): covariates with ID column still works (regression)", 
   mod <- pharmr::load_example_model("pheno")
   covs_with_id <- data.frame(ID = c(10L, 20L), WGT = c(1.5, 2.0), APGR = c(7, 5))
 
+  sim_dat <- create_sim_dataset(
+    model = mod,
+    regimen = list(dose = 25, interval = 12, n = 3, route = "iv"),
+    t_obs = seq(0, 36, 6),
+    covariates = covs_with_id,
+    verbose = FALSE
+  )
+
   captured_sim_data <- NULL
   local_mocked_bindings(
     run_nlme = function(data, ...) {
@@ -615,13 +643,7 @@ test_that("run_sim (stub): covariates with ID column still works (regression)", 
     .package = "pharmr.extra"
   )
 
-  out <- run_sim(
-    model = mod,
-    regimen = list(dose = 25, interval = 12, n = 3, route = "iv"),
-    t_obs = seq(0, 36, 6),
-    covariates = covs_with_id,
-    verbose = FALSE
-  )
+  out <- run_sim(model = mod, data = sim_dat, verbose = FALSE)
 
   expect_equal(length(unique(out$ID)), 2)
   ## IDs are re-indexed to 1:n (existing behaviour preserved)

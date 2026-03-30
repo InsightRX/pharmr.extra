@@ -10,11 +10,7 @@ run_sim(
   model = NULL,
   id = irxutils::get_random_id("sim_"),
   force = FALSE,
-  t_obs = NULL,
-  regimen = NULL,
-  covariates = NULL,
   tool = c("auto", "nonmem", "nlmixr2"),
-  n_subjects = NULL,
   n_iterations = 1,
   variables = NULL,
   add_pk_variables = FALSE,
@@ -27,9 +23,9 @@ run_sim(
 \arguments{
 \item{fit}{a Pharmpy modelfit object.}
 
-\item{data}{filename of dataset or data.frame as input to NONMEM / nlmixr.
-Optional, can also be included in \code{model} object (if specified as pharmpy
-model object).}
+\item{data}{a NONMEM-format data.frame to use as the simulation dataset.
+Typically the output of \code{\link[=create_sim_dataset]{create_sim_dataset()}}. If \code{NULL}, the dataset
+attached to \code{model} is used as-is.}
 
 \item{model}{either a Pharmpy model object, or a filename (for a model
 with NONMEM model code). If the latter, \code{run_sim()} will attempt to load the
@@ -43,31 +39,7 @@ subsequent run.}
 \item{force}{if run folder (\code{id}) exists, should existing results be
 removed before rerunning NONMEM? Default \code{FALSE}.}
 
-\item{t_obs}{a vector of observations times. If specified, will override
-the observations in each subject in the input dataset.}
-
-\item{regimen}{if specified, will replace the regimens for each subject with
-a custom regimen. Can be specified in two ways. The simplest way is to just
-specify a list with elements \code{dose}, \code{interval}, \code{n}, and
-\code{route} (and \code{t_inf} / \code{rate} for infusions).
-E.g. \code{regimen = list(dose = 500, interval = 12, n = 5, route = "oral")}.
-Alternatively, regimens can be specified as a data.frame. The data.frame
-specified all dosing times (\code{dose}, \code{time} columns) and \code{route} and \code{t_inf} /
-\code{rate}. The data.frame may also optionally contain a \code{regimen} column that
-specifies a name for the regimen. This can be used to simulate multiple
-regimens.}
-
-\item{covariates}{if specified, will replace subjects with subjects specified
-in a data.frame. In the data.frame, the column names should correspond
-exactly to any covariates included in the model. An \code{ID} column is optional;
-if absent, IDs are generated as \code{1:nrow(covariates)}. For time-varying
-covariates, a \code{TIME} column is also required (otherwise
-it will be assumed covariates are not changing over time).}
-
 \item{tool}{the tool to run the model in, either \code{nonmem}, or \code{nlmixr}.}
-
-\item{n_subjects}{number of subjects to simulate, when using sampled data
-(i.e. requires \code{covariates} argument)}
 
 \item{n_iterations}{number of iterations of the entire simulation to
 perform. The dataset for the simulation will stay the same between each
@@ -77,8 +49,9 @@ iterations.}
 default variables \code{c("ID", "TIME", "DV", "EVID", "PRED")} as well as
 all variables declared in the NONMEM code.}
 
-\item{add_pk_variables}{calculate basic PK variables that can be extracted
-in post-processing, such as CMAX_OBS, TMAX_OBS, AUC_SS.}
+\item{add_pk_variables}{calculate basic PK variables: CMAX_OBS, TMAX_OBS,
+CMIN_OBS, and (when \code{CL} is in the output table) AUC_SS. AUC_SS is derived
+as the last dose in the simulation dataset divided by CL.}
 
 \item{output_file}{TODO}
 

@@ -27,8 +27,8 @@ create_regimen(
 TODO
 }
 \description{
-The resulting data.frame can be passed to \code{\link[=run_sim]{run_sim()}} as the \code{regimen}
-argument.
+The resulting data.frame can be passed to \code{\link[=create_sim_dataset]{create_sim_dataset()}} as the
+\code{regimen} argument.
 }
 \examples{
 
@@ -39,7 +39,7 @@ reg1 <- create_regimen(
   n = 10,
   route = "oral"
 )
-run_sim(..., regimen = reg1)
+create_sim_dataset(..., regimen = reg1)
 }
 
 }

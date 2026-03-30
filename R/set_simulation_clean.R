@@ -9,7 +9,6 @@
 #' This function just removes the $ESTIMATION steps and adds the $SIM record,
 #' and does not modify any of the other NONMEM code. 
 #' 
-#' @inheritParams run_nlme
 #' @param model Pharmpy NONMEM model object
 #' @param seed random seed number
 #' @param n number of simulation subproblems to run
