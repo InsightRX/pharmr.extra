@@ -62,6 +62,7 @@ create_sim_dataset <- function(
       cli::cli_abort("Could not load model into Pharmpy. Please check the supplied model file.")
     }
   }
+  build_from_scratch <- FALSE
   if (!is.null(data)) {
     idx <- get_required_input_variables(model, data)
     if (inherits(data, "character")) {
@@ -80,9 +81,29 @@ create_sim_dataset <- function(
       cli::cli_abort("Number of columns for input dataset is lower than number of columns in $INPUT. Please check dataset and $INPUT. Cannot continue creating dataset.")
     }
   } else {
-    input_data <- as.data.frame(model$dataset)
+    raw_dataset <- model$dataset
+    if (!is.null(raw_dataset)) {
+      input_data <- as.data.frame(raw_dataset)
+    } else {
+      ## model$dataset is NULL (the $DATA file could not be found) — attempt
+      ## to build the simulation dataset from scratch using regimen/t_obs/covariates.
+      build_from_scratch <- TRUE
+      if (is.null(regimen)) {
+        cli::cli_abort(
+          c(
+            "No dataset is attached to this model (the {.field $DATA} file cannot be found) and no {.arg data} argument was supplied.",
+            i = "Provide {.arg regimen} (and optionally {.arg t_obs}, {.arg covariates}, {.arg n_subjects}) to build a simulation dataset from scratch."
+          )
+        )
+      }
+      if (is.null(n_subjects)) {
+        n_subjects <- if (!is.null(covariates)) nrow(covariates) else 1L
+      }
+      if (verbose) cli::cli_alert_info("No dataset attached to model \u2014 building simulation dataset from scratch")
+      input_data <- data.frame(ID = seq_len(n_subjects))
+    }
   }
-  
+
   if (!"ID" %in% names(input_data)) {
     cli::cli_abort(
       c("Column `ID` not found in the dataset.",
@@ -92,7 +113,8 @@ create_sim_dataset <- function(
 
   input_has_column <- list()
   for (key in c("CMT", "EVID", "MDV", "RATE")) {
-    input_has_column[[key]] <- key %in% names(input_data)
+    ## When building from scratch, include all standard NONMEM columns in the output.
+    input_has_column[[key]] <- build_from_scratch || key %in% names(input_data)
   }
 
   ## make sure we have regimen as a data.frame
@@ -156,20 +178,33 @@ create_sim_dataset <- function(
     }
     new_covariates <- names(covariates)
     new_covariates <- new_covariates[new_covariates != "ID" & new_covariates %in% names(sim_data)]
-    if (verbose) cli::cli_alert_info("Updating covariates: {new_covariates}")
+    all_cov_cols <- setdiff(names(covariates), "ID")
+    if (verbose) cli::cli_alert_info("Updating covariates: {all_cov_cols}")
 
     sim_data_cols <- names(sim_data)
+    ## When building from scratch sim_data only has ID; union ensures newly-joined
+    ## covariate columns are retained by the following select().
+    sim_data_cols <- union(sim_data_cols, all_cov_cols)
     sim_data <- sim_data |>
       dplyr::select(-dplyr::all_of(new_covariates)) |>
       dplyr::left_join(covariates, by = "ID") |>
       dplyr::select(dplyr::all_of(sim_data_cols)) |>
-      tidyr::fill(dplyr::all_of(new_covariates), .direction = "downup")
+      tidyr::fill(dplyr::all_of(all_cov_cols), .direction = "downup")
   }
 
   if (!is.null(regimen_df)) {
     if (verbose) cli::cli_alert_info("Creating new regimens for subjects in simulation")
     advan <- get_advan(model)
+    ## When building from scratch, sim_data contains only placeholder rows (one per
+    ## subject, carrying covariate values but no NONMEM columns). Mark them so they
+    ## can be removed after fill() propagates their covariate values into dose rows.
+    if (build_from_scratch) {
+      sim_data$.placeholder <- TRUE
+    }
     doses <- create_dosing_records(regimen_df, sim_data, n_subjects, advan)
+    ## Setting .placeholder = FALSE on dose rows prevents fill() from propagating
+    ## TRUE upward from placeholder rows (which sort last due to NA TIME).
+    if (build_from_scratch) doses$.placeholder <- FALSE
     doses <- match_type(doses, sim_data, c("AMT", "RATE", "DV"))
     if ("EVID" %in% names(sim_data)) {
       sim_data <- sim_data |>
@@ -181,6 +216,12 @@ create_sim_dataset <- function(
       dplyr::group_by(.data$ID) |>
       tidyr::fill(tidyselect::everything(), .direction = "downup") |>
       dplyr::mutate(dplyr::across(dplyr::everything(), ~ fill_missing(.x)))
+    ## Remove placeholder rows now that covariates have been propagated to dose rows.
+    if (build_from_scratch) {
+      sim_data <- sim_data |>
+        dplyr::filter(!.data$.placeholder) |>
+        dplyr::select(-".placeholder")
+    }
     if (is.null(t_obs)) {
       t_max <- max(sim_data$TIME) + round(diff(utils::tail(sim_data$TIME, 2)))
       t_obs <- seq(0, t_max, 4)

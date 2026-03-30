@@ -650,3 +650,82 @@ test_that("run_sim (stub): covariates with ID column still works (regression)", 
   expect_equal(sort(unique(captured_sim_data$ID)), 1:2)
 })
 
+# ===========================================================================
+# run_sim() with data=NULL — uses model's attached dataset
+# ===========================================================================
+
+test_that("run_sim (stub): data=NULL uses model's attached dataset", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- pharmr::load_example_model("pheno")
+
+  captured_data <- NULL
+  local_mocked_bindings(
+    run_nlme = function(data, ...) {
+      captured_data <<- utils::read.csv(data)
+      .mock_nlme_result()
+    },
+    .package = "pharmr.extra"
+  )
+
+  ## No `data` argument — should fall back to model$dataset
+  out <- run_sim(model = mod, verbose = FALSE)
+
+  expect_s3_class(out, "data.frame")
+  expect_true(nrow(out) > 0)
+  ## Dataset sent to NONMEM must have rows (model has real data attached)
+  expect_true(!is.null(captured_data) && nrow(captured_data) > 0)
+})
+
+test_that("run_sim: error when model has no dataset and data=NULL", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  ## read_model_from_string with a non-existent $DATA file — model$dataset is NULL
+  mod <- pharmr::read_model_from_string(
+    "$PROBLEM Test\n$INPUT ID TIME DV AMT EVID MDV\n$DATA /nonexistent/path/data.csv IGNORE=@\n$SUBROUTINES ADVAN1 TRANS2\n$PK\nCL=THETA(1)\nV=THETA(2)\nS1=V\n$ERROR\nY=F+EPS(1)\n$THETA (0,10)\n$THETA (0,50)\n$SIGMA 0.1\n$EST METHOD=1\n"
+  )
+  skip_if(
+    !is.null(mod$dataset),
+    "Pharmpy returned a non-NULL dataset for a missing $DATA file"
+  )
+
+  expect_error(
+    run_sim(model = mod, verbose = FALSE),
+    "No dataset is attached"
+  )
+})
+
+test_that("run_sim: error when data is missing a required column", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- make_model_without_cov() # $INPUT ID TIME DV AMT EVID MDV
+
+  ## Remove AMT — a required reserved column
+  dat_missing_col <- .sim_dat() |> dplyr::select(-"AMT")
+
+  expect_error(
+    run_sim(model = mod, data = dat_missing_col, verbose = FALSE),
+    "missing required column"
+  )
+})
+
+test_that("run_sim: error mentions which column is missing", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- make_model_without_cov() # $INPUT ID TIME DV AMT EVID MDV
+
+  dat_missing_col <- .sim_dat() |> dplyr::select(-"AMT")
+
+  expect_error(
+    run_sim(model = mod, data = dat_missing_col, verbose = FALSE),
+    "AMT"
+  )
+})
+

@@ -74,6 +74,13 @@ run_sim <- function(
   }
   input_data <- model$dataset
 
+  if (is.null(input_data) && is.null(data)) {
+    cli::cli_abort(
+      c("No dataset is attached to this model and no `data` argument was provided.",
+        i = "Attach a dataset to the model, or supply a simulation dataset via the `data` argument (see {.fn create_sim_dataset}).")
+    )
+  }
+
   tool <- match.arg(tool)
   if(tool == "auto") {
     if(inherits(model, "pharmpy.model.external.nonmem.model.Model")) {
@@ -100,6 +107,22 @@ run_sim <- function(
     sim_data <- data
     if(!".regimen" %in% names(sim_data)) {
       sim_data[[".regimen"]] <- "original regimens"
+    }
+  }
+
+  ## Validate that required columns are present in the simulation dataset
+  req_vars <- tryCatch(
+    get_required_input_variables(model),
+    error = function(e) NULL
+  )
+  if (!is.null(req_vars)) {
+    required_cols <- req_vars$data_col[req_vars$required & !is.na(req_vars$data_col)]
+    missing_cols <- setdiff(required_cols, names(sim_data))
+    if (length(missing_cols) > 0) {
+      cli::cli_abort(
+        c("The simulation dataset is missing required column(s): {missing_cols}.",
+          i = "Use {.fn create_sim_dataset} to prepare a valid simulation dataset, or add the missing columns manually.")
+      )
     }
   }
 

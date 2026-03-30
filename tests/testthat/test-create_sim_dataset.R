@@ -337,3 +337,145 @@ test_that("create_sim_dataset: error when required covariates are missing", {
     "Not all required covariates"
   )
 })
+
+# ===========================================================================
+# Build from scratch (model$dataset is NULL — no $DATA file on disk)
+# ===========================================================================
+
+## Helper: model with an absolute $DATA path that definitely does not exist,
+## so that model$dataset returns NULL.  Uses ADVAN1 (1-cmt IV) with CL/V only.
+.make_no_data_model <- function() {
+  pharmr::read_model_from_string(paste0(
+    "$PROBLEM no-data\n",
+    "$INPUT ID TIME DV AMT EVID MDV\n",
+    "$DATA /nonexistent/pharmr_extra_test_data.csv IGNORE=@\n",
+    "$SUBROUTINES ADVAN1 TRANS2\n",
+    "$PK\nCL=THETA(1)\nV=THETA(2)\nS1=V\n",
+    "$ERROR\nY=F+EPS(1)\n",
+    "$THETA (0,10)\n$THETA (0,50)\n",
+    "$SIGMA 0.1\n",
+    "$EST METHOD=1\n"
+  ))
+}
+
+test_that("create_sim_dataset (no-data): error when model has no dataset and regimen is NULL", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  mod <- .make_no_data_model()
+  skip_if(
+    !is.null(mod$dataset),
+    "Pharmpy returned a non-NULL dataset for a missing $DATA file — from-scratch path not triggered"
+  )
+
+  expect_error(
+    create_sim_dataset(model = mod, verbose = FALSE),
+    "No dataset is attached"
+  )
+})
+
+test_that("create_sim_dataset (no-data): regimen-only produces dose + obs rows", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  mod <- .make_no_data_model()
+  skip_if(
+    !is.null(mod$dataset),
+    "Pharmpy returned a non-NULL dataset for a missing $DATA file — from-scratch path not triggered"
+  )
+
+  out <- create_sim_dataset(
+    model   = mod,
+    regimen = list(dose = 100, interval = 12, n = 3, route = "iv"),
+    t_obs   = seq(0, 36, 6),
+    verbose = FALSE
+  )
+
+  expect_s3_class(out, "data.frame")
+  expect_true(nrow(out) > 0)
+  expect_true(any(out$EVID == 1))   # dose rows present
+  expect_true(any(out$EVID == 0))   # obs rows present
+  expect_true(all(c("ID", "TIME", "AMT", "EVID", "MDV") %in% names(out)))
+})
+
+test_that("create_sim_dataset (no-data): n_subjects defaults to 1 when no covariates", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  mod <- .make_no_data_model()
+  skip_if(!is.null(mod$dataset), "Pharmpy returned a non-NULL dataset")
+
+  out <- create_sim_dataset(
+    model   = mod,
+    regimen = list(dose = 100, interval = 12, n = 3, route = "iv"),
+    t_obs   = seq(0, 36, 6),
+    verbose = FALSE
+  )
+  expect_equal(length(unique(out$ID)), 1L)
+})
+
+test_that("create_sim_dataset (no-data): n_subjects controls number of subjects", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  mod <- .make_no_data_model()
+  skip_if(!is.null(mod$dataset), "Pharmpy returned a non-NULL dataset")
+
+  out <- create_sim_dataset(
+    model       = mod,
+    regimen     = list(dose = 100, interval = 12, n = 3, route = "iv"),
+    t_obs       = seq(0, 36, 6),
+    n_subjects  = 5,
+    verbose     = FALSE
+  )
+  expect_equal(length(unique(out$ID)), 5L)
+})
+
+test_that("create_sim_dataset (no-data): no .placeholder column in output", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  mod <- .make_no_data_model()
+  skip_if(!is.null(mod$dataset), "Pharmpy returned a non-NULL dataset")
+
+  out <- create_sim_dataset(
+    model   = mod,
+    regimen = list(dose = 100, interval = 12, n = 3, route = "iv"),
+    t_obs   = seq(0, 36, 6),
+    verbose = FALSE
+  )
+  expect_false(".placeholder" %in% names(out))
+})
+
+test_that("create_sim_dataset (no-data): covariates are applied and appear in output", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  ## Use pheno model with a non-existent absolute $DATA path so model$dataset is NULL
+  pheno_code <- pharmr::get_model_code(pharmr::load_example_model("pheno"))
+  ## Replace the $DATA line with an absolute nonexistent path
+  pheno_code_no_data <- gsub(
+    "(?i)\\$DATA[^\n]*",
+    "$DATA /nonexistent/pharmr_extra_test_pheno.csv IGNORE=@",
+    pheno_code,
+    perl = TRUE
+  )
+  mod <- pharmr::read_model_from_string(pheno_code_no_data)
+  skip_if(!is.null(mod$dataset), "Pharmpy returned a non-NULL dataset")
+
+  covs <- data.frame(WGT = c(50, 100), APGR = c(6, 8))
+  out <- create_sim_dataset(
+    model      = mod,
+    regimen    = list(dose = 25, interval = 12, n = 3, route = "iv"),
+    t_obs      = seq(0, 36, 12),
+    covariates = covs,
+    verbose    = FALSE
+  )
+
+  expect_s3_class(out, "data.frame")
+  expect_equal(length(unique(out$ID)), 2L)
+  expect_true("WGT" %in% names(out))
+  ## Covariate values match per subject
+  expect_equal(unique(out$WGT[out$ID == 1]), 50)
+  expect_equal(unique(out$WGT[out$ID == 2]), 100)
+})
