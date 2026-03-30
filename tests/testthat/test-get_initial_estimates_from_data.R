@@ -191,6 +191,45 @@ test_that("get_initial_estimates_from_individual_data handles insufficient data"
   expect_equal(estimates, c(V = 2, CL = 0.2))
 })
 
+test_that("get_initial_estimates_from_individual_data handles two observations at the same timepoint", {
+  # Two observations at identical times — lm() cannot estimate a slope, so
+  # the function must fall back to crude estimation rather than returning NaN/NA.
+  test_data <- data.frame(
+    ID   = 1,
+    TIME = c(0, 4, 4),
+    DV   = c(0, 50, 55),
+    MDV  = c(1, 0,  0),
+    EVID = c(1, 0,  0),
+    AMT  = c(100, 0, 0)
+  )
+
+  estimates <- get_initial_estimates_from_individual_data(test_data)
+
+  expect_named(estimates, c("V", "CL"))
+  expect_true(all(!is.na(estimates)), label = "estimates must not be NA with duplicate timepoints")
+  expect_true(all(estimates > 0),    label = "estimates must be positive")
+})
+
+test_that("get_initial_estimates_from_individual_data handles absorption-phase only data (negative KEL fallback)", {
+  # Only absorption-phase observations: concentrations are still rising,
+  # so lm(log(DV) ~ TIME) yields a positive slope -> negative KEL.
+  # The fix should fall back to log(max/min) / time-range, giving a positive CL.
+  test_data <- data.frame(
+    ID   = 1,
+    TIME = c(0, 0.5, 1, 2),
+    DV   = c(0, 5,   8, 10),   # still rising — no terminal phase
+    MDV  = c(1, 0,   0,  0),
+    EVID = c(1, 0,   0,  0),
+    AMT  = c(100, 0, 0,  0)
+  )
+
+  estimates <- get_initial_estimates_from_individual_data(test_data)
+
+  expect_named(estimates, c("V", "CL"))
+  expect_true(estimates["CL"] > 0, label = "CL must be positive even with absorption-phase-only data")
+  expect_true(estimates["V"]  > 0, label = "V must be positive")
+})
+
 test_that("get_initial_estimates_from_data works with CSV filename", {
   test_data <- data.frame(
     ID = c(1, 1, 1, 1),
