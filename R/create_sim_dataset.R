@@ -18,6 +18,11 @@
 #' specify a list with elements `dose`, `interval`, `n`, and
 #' `route` (and `t_inf` / `rate` for infusions).
 #' E.g. `regimen = list(dose = 500, interval = 12, n = 5, route = "oral")`.
+#' An optional `per` element names a covariate column in the dataset; each
+#' subject's dose is then multiplied by their value of that column, enabling
+#' weight- or BSA-based dosing. E.g.
+#' `regimen = list(dose = 5, per = "WT", interval = 24, n = 5, route = "sc")`
+#' gives a 5 mg/kg dose using the `WT` column.
 #' Alternatively, regimens can be specified as a data.frame. The data.frame
 #' specifies all dosing times (`dose`, `time` columns) and `route` and
 #' `t_inf` / `rate`. The data.frame may also optionally contain a `regimen`

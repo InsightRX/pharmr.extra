@@ -337,3 +337,55 @@ test_that("create_sim_dataset: error when required covariates are missing", {
     "Not all required covariates"
   )
 })
+
+# ===========================================================================
+# per (weight/BSA-based dosing)
+# ===========================================================================
+
+## Fixture: 3 subjects, each with a distinct WT value
+.multi_subject_dat_with_wt <- function() {
+  lapply(1:3, function(i) {
+    data.frame(
+      ID   = i,
+      TIME = c(0, 12, 24),
+      DV   = c(0, 5, 3),
+      AMT  = c(100, 0, 0),
+      EVID = c(1L, 0L, 0L),
+      MDV  = c(1L, 0L, 0L),
+      WT   = c(50, 70, 90)[i]
+    )
+  }) |> dplyr::bind_rows()
+}
+
+test_that("create_sim_dataset: per = 'WT' scales AMT by each subject's weight", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  mod <- make_model_without_cov()
+  out <- create_sim_dataset(
+    model   = mod,
+    data    = .multi_subject_dat_with_wt(),
+    regimen = list(dose = 2, per = "WT", interval = 24, n = 1, route = "oral"),
+    verbose = FALSE
+  )
+  dose_rows <- out[out$EVID == 1, ]
+  expect_equal(dose_rows$AMT[dose_rows$ID == 1], 2 * 50)
+  expect_equal(dose_rows$AMT[dose_rows$ID == 2], 2 * 70)
+  expect_equal(dose_rows$AMT[dose_rows$ID == 3], 2 * 90)
+})
+
+test_that("create_sim_dataset: error when per column is missing from dataset", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  mod <- make_model_without_cov()
+  expect_error(
+    create_sim_dataset(
+      model   = mod,
+      data    = .one_subject_dat(),
+      regimen = list(dose = 2, per = "WT", interval = 24, n = 1, route = "oral"),
+      verbose = FALSE
+    ),
+    "WT"
+  )
+})
