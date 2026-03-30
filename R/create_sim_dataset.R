@@ -23,6 +23,11 @@
 #' `t_inf` / `rate`. The data.frame may also optionally contain a `regimen`
 #' column that specifies a name for the regimen. This can be used to simulate
 #' multiple regimens.
+#' A function may also be supplied. It will be called once per subject with a
+#' data.frame of that subject's rows, and must return a named list accepted by
+#' [create_regimen()] (`dose`, `interval`, `n`, `route`; optionally `t_inf`,
+#' `per`, `regimen`). This enables fully custom per-subject dosing logic such
+#' as tiered weight-band dosing.
 #' @param covariates if specified, will replace subjects with subjects specified
 #' in a data.frame. In the data.frame, the column names should correspond
 #' exactly to any covariates included in the model. An `ID` column is optional;
@@ -103,8 +108,8 @@ create_sim_dataset <- function(
     } else if (inherits(regimen, "list")) {
       regimen_df <- do.call(create_regimen, args = regimen) |>
         dplyr::mutate(regimen = "regimen 1")
-    } else {
-      cli::cli_abort("`regimen` needs to be either a data.frame or a list, or NULL.")
+    } else if (!inherits(regimen, "function")) {
+      cli::cli_abort("`regimen` needs to be a data.frame, a list, a function, or NULL.")
     }
   }
 
@@ -166,10 +171,24 @@ create_sim_dataset <- function(
       tidyr::fill(dplyr::all_of(new_covariates), .direction = "downup")
   }
 
-  if (!is.null(regimen_df)) {
+  if (!is.null(regimen_df) || inherits(regimen, "function")) {
     if (verbose) cli::cli_alert_info("Creating new regimens for subjects in simulation")
     advan <- get_advan(model)
-    doses <- create_dosing_records(regimen_df, sim_data, n_subjects, advan)
+    if (inherits(regimen, "function")) {
+      ids <- unique(sim_data$ID)
+      doses <- lapply(ids, function(id) {
+        subj_data <- sim_data[sim_data$ID == id, , drop = FALSE]
+        reg_list  <- regimen(subj_data)
+        reg_label <- if (!is.null(reg_list$regimen)) reg_list$regimen else "regimen 1"
+        reg_args  <- reg_list[names(reg_list) != "regimen"]
+        reg_df    <- do.call(create_regimen, args = reg_args) |>
+          dplyr::mutate(regimen = reg_label)
+        create_dosing_records(reg_df, subj_data, n_subjects = 1, advan)
+      }) |>
+        dplyr::bind_rows()
+    } else {
+      doses <- create_dosing_records(regimen_df, sim_data, n_subjects, advan)
+    }
     doses <- match_type(doses, sim_data, c("AMT", "RATE", "DV"))
     if ("EVID" %in% names(sim_data)) {
       sim_data <- sim_data |>

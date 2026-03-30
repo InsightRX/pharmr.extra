@@ -254,18 +254,18 @@ test_that("create_sim_dataset: multiple regimens produce multiple .regimen value
   expect_setequal(unique(out$.regimen), c("low", "high"))
 })
 
-test_that("create_sim_dataset: error when regimen is neither list nor data.frame", {
+test_that("create_sim_dataset: error when regimen is neither list, data.frame, nor function", {
   local_pharmr.extra_options()
   skip_if_nonmem_not_available()
 
   mod <- make_model_without_cov()
   expect_error(
     create_sim_dataset(
-      model = mod, 
+      model = mod,
       data = .one_subject_dat(),
       regimen = "bad_input", verbose = FALSE
     ),
-    "data.frame or a list"
+    "data.frame, a list, a function"
   )
 })
 
@@ -336,4 +336,30 @@ test_that("create_sim_dataset: error when required covariates are missing", {
     ),
     "Not all required covariates"
   )
+})
+
+# ===========================================================================
+# function regimen
+# ===========================================================================
+
+test_that("create_sim_dataset: function regimen applies per-subject dose logic", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  mod <- make_model_without_cov()
+  # WT < 60 → 100 mg; WT >= 60 → 200 mg
+  dose_fn <- function(x) {
+    dose <- if (x$WT[1] < 60) 100 else 200
+    list(dose = dose, interval = 24, n = 1, route = "oral")
+  }
+  out <- create_sim_dataset(
+    model   = mod,
+    data    = .multi_subject_dat_with_wt(),  # WTs: 50, 70, 90
+    regimen = dose_fn,
+    verbose = FALSE
+  )
+  dose_rows <- out[out$EVID == 1, ]
+  expect_equal(dose_rows$AMT[dose_rows$ID == 1], 100)  # WT = 50
+  expect_equal(dose_rows$AMT[dose_rows$ID == 2], 200)  # WT = 70
+  expect_equal(dose_rows$AMT[dose_rows$ID == 3], 200)  # WT = 90
 })
