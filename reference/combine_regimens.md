@@ -1,8 +1,8 @@
-# Combine several regimens into a single data.frame, which can be passed into `run_sim()` as `regimen` argument.
+# Combine several regimens into a single data.frame, which can be passed into `create_sim_dataset()` as `regimen` argument.
 
 Combine several regimens into a single data.frame, which can be passed
 into
-[`run_sim()`](https://insightrx.github.io/pharmr.extra/reference/run_sim.md)
+[`create_sim_dataset()`](https://insightrx.github.io/pharmr.extra/reference/create_sim_dataset.md)
 as `regimen` argument.
 
 ## Usage

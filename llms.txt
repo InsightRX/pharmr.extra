@@ -113,7 +113,7 @@ MIT © InsightRX
 
   Combine several regimens into a single data.frame, which can be passed
   into
-  [`run_sim()`](https://insightrx.github.io/pharmr.extra/reference/run_sim.md)
+  [`create_sim_dataset()`](https://insightrx.github.io/pharmr.extra/reference/create_sim_dataset.md)
   as `regimen` argument.
 
 - [`compare_nlme_fit()`](https://insightrx.github.io/pharmr.extra/reference/compare_nlme_fit.md)
@@ -164,6 +164,9 @@ MIT © InsightRX
 
 - [`create_run_folder()`](https://insightrx.github.io/pharmr.extra/reference/create_run_folder.md)
   : Create a folder for a run
+
+- [`create_sim_dataset()`](https://insightrx.github.io/pharmr.extra/reference/create_sim_dataset.md)
+  : Create a NONMEM dataset for simulation
 
 - [`create_vpc_data()`](https://insightrx.github.io/pharmr.extra/reference/create_vpc_data.md)
   : Run a simulation based on supplied parameters estimates, and combine

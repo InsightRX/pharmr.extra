@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9018</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9028</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -48,11 +48,7 @@
 <span>  model <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  id <span class="op">=</span> <span class="fu">irxutils</span><span class="fu">::</span><span class="fu"><a href="https://insightrx.github.io/irxutils/reference/get_random_id.html" class="external-link">get_random_id</a></span><span class="op">(</span><span class="st">"sim_"</span><span class="op">)</span>,</span>
 <span>  force <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  t_obs <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  regimen <span class="op">=</span> <span class="cn">NULL</span>,</span>
-<span>  covariates <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  tool <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"auto"</span>, <span class="st">"nonmem"</span>, <span class="st">"nlmixr2"</span><span class="op">)</span>,</span>
-<span>  n_subjects <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  n_iterations <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  variables <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  add_pk_variables <span class="op">=</span> <span class="cn">FALSE</span>,</span>
@@ -72,9 +68,9 @@
 
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
-<dd><p>filename of dataset or data.frame as input to NONMEM / nlmixr.
-Optional, can also be included in <code>model</code> object (if specified as pharmpy
-model object).</p></dd>
+<dd><p>a NONMEM-format data.frame to use as the simulation dataset.
+Typically the output of <code><a href="create_sim_dataset.html">create_sim_dataset()</a></code>. If <code>NULL</code>, the dataset
+attached to <code>model</code> is used as-is.</p></dd>
 
 
 <dt id="arg-model">model<a class="anchor" aria-label="anchor" href="#arg-model"></a></dt>
@@ -95,40 +91,8 @@ subsequent run.</p></dd>
 removed before rerunning NONMEM? Default <code>FALSE</code>.</p></dd>
 
 
-<dt id="arg-t-obs">t_obs<a class="anchor" aria-label="anchor" href="#arg-t-obs"></a></dt>
-<dd><p>a vector of observations times. If specified, will override
-the observations in each subject in the input dataset.</p></dd>
-
-
-<dt id="arg-regimen">regimen<a class="anchor" aria-label="anchor" href="#arg-regimen"></a></dt>
-<dd><p>if specified, will replace the regimens for each subject with
-a custom regimen. Can be specified in two ways. The simplest way is to just
-specify a list with elements <code>dose</code>, <code>interval</code>, <code>n</code>, and
-<code>route</code> (and <code>t_inf</code> / <code>rate</code> for infusions).
-E.g. <code>regimen = list(dose = 500, interval = 12, n = 5, route = "oral")</code>.
-Alternatively, regimens can be specified as a data.frame. The data.frame
-specified all dosing times (<code>dose</code>, <code>time</code> columns) and <code>route</code> and <code>t_inf</code> /
-<code>rate</code>. The data.frame may also optionally contain a <code>regimen</code> column that
-specifies a name for the regimen. This can be used to simulate multiple
-regimens.</p></dd>
-
-
-<dt id="arg-covariates">covariates<a class="anchor" aria-label="anchor" href="#arg-covariates"></a></dt>
-<dd><p>if specified, will replace subjects with subjects specified
-in a data.frame. In the data.frame, the column names should correspond
-exactly to any covariates included in the model. An <code>ID</code> column is optional;
-if absent, IDs are generated as <code>1:nrow(covariates)</code>. For time-varying
-covariates, a <code>TIME</code> column is also required (otherwise
-it will be assumed covariates are not changing over time).</p></dd>
-
-
 <dt id="arg-tool">tool<a class="anchor" aria-label="anchor" href="#arg-tool"></a></dt>
 <dd><p>the tool to run the model in, either <code>nonmem</code>, or <code>nlmixr</code>.</p></dd>
-
-
-<dt id="arg-n-subjects">n_subjects<a class="anchor" aria-label="anchor" href="#arg-n-subjects"></a></dt>
-<dd><p>number of subjects to simulate, when using sampled data
-(i.e. requires <code>covariates</code> argument)</p></dd>
 
 
 <dt id="arg-n-iterations">n_iterations<a class="anchor" aria-label="anchor" href="#arg-n-iterations"></a></dt>
@@ -144,8 +108,9 @@ all variables declared in the NONMEM code.</p></dd>
 
 
 <dt id="arg-add-pk-variables">add_pk_variables<a class="anchor" aria-label="anchor" href="#arg-add-pk-variables"></a></dt>
-<dd><p>calculate basic PK variables that can be extracted
-in post-processing, such as CMAX_OBS, TMAX_OBS, AUC_SS.</p></dd>
+<dd><p>calculate basic PK variables: CMAX_OBS, TMAX_OBS,
+CMIN_OBS, and (when <code>CL</code> is in the output table) AUC_SS. AUC_SS is derived
+as the last dose in the simulation dataset divided by CL.</p></dd>
 
 
 <dt id="arg-output-file">output_file<a class="anchor" aria-label="anchor" href="#arg-output-file"></a></dt>

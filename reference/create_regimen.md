@@ -1,7 +1,7 @@
 # Create a single regimen
 
 The resulting data.frame can be passed to
-[`run_sim()`](https://insightrx.github.io/pharmr.extra/reference/run_sim.md)
+[`create_sim_dataset()`](https://insightrx.github.io/pharmr.extra/reference/create_sim_dataset.md)
 as the `regimen` argument.
 
 ## Usage
@@ -52,6 +52,6 @@ reg1 <- create_regimen(
   n = 10,
   route = "oral"
 )
-run_sim(..., regimen = reg1)
+create_sim_dataset(..., regimen = reg1)
 } # }
 ```
