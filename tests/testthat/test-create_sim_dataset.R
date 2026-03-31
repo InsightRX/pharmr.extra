@@ -365,7 +365,7 @@ test_that("create_sim_dataset: per = 'WT' scales AMT by each subject's weight", 
   out <- create_sim_dataset(
     model   = mod,
     data    = .multi_subject_dat_with_wt(),
-    regimen = list(dose = 2, per = "WT", interval = 24, n = 1, route = "oral"),
+    regimen = list(dose = 2, per = "WT", interval = 24, n = 1, route = "iv"),
     verbose = FALSE
   )
   dose_rows <- out[out$EVID == 1, ]
@@ -383,7 +383,7 @@ test_that("create_sim_dataset: error when per column is missing from dataset", {
     create_sim_dataset(
       model   = mod,
       data    = .one_subject_dat(),
-      regimen = list(dose = 2, per = "WT", interval = 24, n = 1, route = "oral"),
+      regimen = list(dose = 2, per = "WT", interval = 24, n = 1, route = "iv"),
       verbose = FALSE
     ),
     "WT"
