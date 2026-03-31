@@ -17,11 +17,11 @@ test_that("Basic simulation works (using `model` argument, not `fit`)", {
       CMT = 1
     )
   out <- run_sim(
-    model = mod, 
+    model = mod,
     data = dat,
     variables = c("ID", "TIME", "DV", "EVID", "CIPREDI", "PRED")
   )
-  expect_equal(dim(out), c(744, 10))
+  expect_equal(dim(out), c(744, 9))
 })
 
 test_that("Basic simulation works (using model file specified to `model`)", {
@@ -47,7 +47,7 @@ test_that("Basic simulation works (using model file specified to `model`)", {
     data = dat,
     variables = c("ID", "TIME", "DV", "EVID", "CIPREDI", "PRED")
   )
-  expect_equal(dim(out), c(744, 10))
+  expect_equal(dim(out), c(744, 9))
   unlink(tmp_mod)
 })
 
@@ -486,7 +486,7 @@ test_that("create_sim_dataset: t_obs limits observation records to requested tim
   skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
 
-  mod <- make_model_without_cov()
+  mod <- .make_iv_model()
   sim_dat <- create_sim_dataset(model = mod, t_obs = c(6, 12), verbose = FALSE)
   obs_rows <- sim_dat[sim_dat$EVID == 0, ]
   expect_true(all(obs_rows$TIME %in% c(6, 12)))
@@ -516,7 +516,7 @@ test_that("create_sim_dataset: n_subjects truncates subjects from original datas
   skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
 
-  mod <- make_model_without_cov()
+  mod <- .make_iv_model()
   sim_dat <- create_sim_dataset(model = mod, n_subjects = 1, verbose = FALSE)
   expect_equal(length(unique(sim_dat$ID)), 1)
 })
@@ -526,7 +526,7 @@ test_that("run_sim (stub): regimen as data.frame (not list) works", {
   skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
 
-  mod <- make_model_without_cov()
+  mod <- .make_iv_model()
   reg_df <- create_regimen(dose = 100, interval = 12, n = 3, route = "iv") |>
     dplyr::mutate(regimen = "100mg_iv")
   sim_dat <- create_sim_dataset(
