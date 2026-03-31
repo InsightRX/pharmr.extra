@@ -18,6 +18,11 @@
 #' specify a list with elements `dose`, `interval`, `n`, and
 #' `route` (and `t_inf` / `rate` for infusions).
 #' E.g. `regimen = list(dose = 500, interval = 12, n = 5, route = "oral")`.
+#' An optional `per` element names a covariate column in the dataset; each
+#' subject's dose is then multiplied by their value of that column, enabling
+#' weight- or BSA-based dosing. E.g.
+#' `regimen = list(dose = 5, per = "WT", interval = 24, n = 5, route = "sc")`
+#' gives a 5 mg/kg dose using the `WT` column.
 #' Alternatively, regimens can be specified as a data.frame. The data.frame
 #' specifies all dosing times (`dose`, `time` columns) and `route` and
 #' `t_inf` / `rate`. The data.frame may also optionally contain a `regimen`
@@ -74,7 +79,7 @@ create_sim_dataset <- function(
     n_input  <- length(idx$nonmem_name)
     addl_cols <- n_data - n_input
     if(addl_cols > 0) {
-      names(input_data) <- c(idx$nonmem_name, paste0("_DUM", 1:addl_cols))
+      names(input_data)[seq_len(n_input)] <- idx$nonmem_name
       cli::cli_warn("Number of columns for input dataset is higher than number of columns in $INPUT. Please check dataset and $INPUT correctness. Will continue, assuming extra columns are not needed.")
     } else if (addl_cols < 0) {
       cli::cli_abort("Number of columns for input dataset is lower than number of columns in $INPUT. Please check dataset and $INPUT. Cannot continue creating dataset.")
@@ -95,6 +100,25 @@ create_sim_dataset <- function(
       c("Column `ID` not found in the dataset.",
         i = "Available columns: {paste(names(input_data), collapse = ', ')}")
     )
+  }
+
+  ## Resolve the actual column name for EVID in the (possibly renamed) dataset.
+  ## $INPUT may use a non-standard label (e.g. EVIDX) for the EVID position, in
+  ## which case idx$nonmem_name != "EVID" but idx$data_col == "EVID".
+  evid_col <- if (exists("idx", inherits = FALSE) && "EVID" %in% idx$data_col) {
+    idx$nonmem_name[idx$data_col == "EVID"][1]
+  } else {
+    "EVID"
+  }
+  ## Normalize to "EVID" so that downstream helpers (create_dosing_records,
+  ## create_obs_records) which use the hardcoded name "EVID" stay consistent.
+  ## Without this, bind_rows() would create two separate EVID-like columns
+  ## (e.g. "EVIDX" and "EVID"), and fill() would propagate EVIDX=0 into dose
+  ## records, causing the later non-zero EVID filter to drop them and leaving
+  ## only covariate-free obs records — which fill_missing() then zeroes out.
+  if (evid_col != "EVID" && evid_col %in% names(input_data)) {
+    names(input_data)[names(input_data) == evid_col] <- "EVID"
+    evid_col <- "EVID"
   }
 
   input_has_column <- list()
@@ -180,7 +204,7 @@ create_sim_dataset <- function(
     doses <- match_type(doses, sim_data, c("AMT", "RATE", "DV"))
     if ("EVID" %in% names(sim_data)) {
       sim_data <- sim_data |>
-        dplyr::filter(.data$EVID != 1)
+        dplyr::filter(!.data$EVID %in% c(1L, 3L, 4L))
     }
     sim_data <- sim_data |>
       dplyr::bind_rows(doses) |>

@@ -304,6 +304,17 @@ create_dosing_records <- function(
       }
     }
   }
+  ## validate per columns early so we get a clear error before looping
+  if (!is.null(regimen$per)) {
+    per_cols <- unique(regimen$per[!is.na(regimen$per)])
+    missing_per <- per_cols[!per_cols %in% names(data)]
+    if (length(missing_per) > 0) {
+      cli::cli_abort(
+        "Column(s) specified in `per` not found in dataset: {missing_per}. \\
+         Available columns: {paste(names(data), collapse = ', ')}"
+      )
+    }
+  }
   dose <- data.frame(
     ID = 1,
     TIME = regimen$time,
@@ -324,8 +335,27 @@ create_dosing_records <- function(
       .default = 1
     ))
   dose_df <- lapply(1:n_subjects, function(i) {
-    dose |>
+    d <- dose |>
       dplyr::mutate(ID = ids[i])
+    ## scale AMT (and RATE) by per-subject covariate when `per` is specified
+    if (!is.null(regimen$per)) {
+      per_vals <- regimen$per
+      non_na <- !is.na(per_vals)
+      if (any(non_na)) {
+        for (col in unique(per_vals[non_na])) {
+          subj_vals <- data[data$ID == ids[i], col, drop = TRUE]
+          cov_val <- subj_vals[!is.na(subj_vals)][1]
+          rows <- non_na & per_vals == col
+          d$AMT[rows] <- d$AMT[rows] * cov_val
+          ## recompute RATE for any infusion rows that were scaled
+          inf_rows <- rows & regimen$t_inf != 0
+          if (any(inf_rows)) {
+            d$RATE[inf_rows] <- d$AMT[inf_rows] / regimen$t_inf[inf_rows]
+          }
+        }
+      }
+    }
+    d
   }) |>
     dplyr::bind_rows()
   dose_df
