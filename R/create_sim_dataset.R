@@ -260,8 +260,20 @@ create_sim_dataset <- function(
       doses <- lapply(ids, function(id) {
         subj_data <- sim_data[sim_data$ID == id, , drop = FALSE]
         reg_list  <- regimen(subj_data)
+        if (is.null(reg_list)) {
+          cli::cli_abort("`regimen` function returned NULL for subject ID {id}. It must return a named list of arguments to pass to `create_regimen()`.")
+        }
+        if (!is.list(reg_list)) {
+          cli::cli_abort("`regimen` function must return a list for subject ID {id}, but got an object of class {.cls {class(reg_list)}}.")
+        }
+        if (is.null(names(reg_list)) || any(is.na(names(reg_list))) || any(names(reg_list) == "")) {
+          cli::cli_abort("`regimen` function must return a named list for subject ID {id}. All elements must be named (optionally including a 'regimen' label).")
+        }
         reg_label <- if (!is.null(reg_list$regimen)) reg_list$regimen else "regimen 1"
         reg_args  <- reg_list[names(reg_list) != "regimen"]
+        if (length(reg_args) == 0L) {
+          cli::cli_abort("`regimen` function did not provide any arguments (other than an optional 'regimen' label) for subject ID {id}. It must return a named list of arguments for `create_regimen()`.")
+        }
         reg_df    <- do.call(create_regimen, args = reg_args) |>
           dplyr::mutate(regimen = reg_label)
         create_dosing_records(reg_df, subj_data, n_subjects = 1, advan)
