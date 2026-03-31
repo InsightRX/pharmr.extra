@@ -32,6 +32,11 @@ a custom regimen. Can be specified in two ways. The simplest way is to just
 specify a list with elements \code{dose}, \code{interval}, \code{n}, and
 \code{route} (and \code{t_inf} / \code{rate} for infusions).
 E.g. \code{regimen = list(dose = 500, interval = 12, n = 5, route = "oral")}.
+An optional \code{per} element names a covariate column in the dataset; each
+subject's dose is then multiplied by their value of that column, enabling
+weight- or BSA-based dosing. E.g.
+\code{regimen = list(dose = 5, per = "WT", interval = 24, n = 5, route = "sc")}
+gives a 5 mg/kg dose using the \code{WT} column.
 Alternatively, regimens can be specified as a data.frame. The data.frame
 specifies all dosing times (\code{dose}, \code{time} columns) and \code{route} and
 \code{t_inf} / \code{rate}. The data.frame may also optionally contain a \code{regimen}

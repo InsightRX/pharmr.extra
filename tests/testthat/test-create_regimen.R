@@ -207,3 +207,14 @@ test_that("route matching works with unambiguous partial matches", {
   reg <- create_regimen(dose = 100, interval = 12, n = 1, route = "o")
   expect_equal(reg$route, "oral")
 })
+
+test_that("per argument is stored as column when specified", {
+  reg <- create_regimen(dose = 5, interval = 24, n = 3, route = "oral", per = "WT")
+  expect_true("per" %in% names(reg))
+  expect_equal(reg$per, rep("WT", 3))
+})
+
+test_that("per column is absent when per = NULL (backward compatibility)", {
+  reg <- create_regimen(dose = 100, interval = 12, n = 2, route = "oral")
+  expect_false("per" %in% names(reg))
+})

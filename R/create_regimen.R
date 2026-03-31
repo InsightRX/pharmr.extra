@@ -7,10 +7,15 @@
 #' @param interval TODO
 #' @param n TODO
 #' @param t_inf TODO
+#' @param per character or `NULL`. Name of a column in the simulation dataset
+#'   whose value is used to scale each subject's dose (e.g. `per = "WT"` for
+#'   mg/kg dosing, `per = "BSA"` for mg/m² dosing). The final AMT for each
+#'   subject is `dose * covariate_value`. When `NULL` (the default), the dose
+#'   is applied as an absolute amount.
 #' @param route TODO
 #'
 #' @returns TODO
-#' 
+#'
 #' @examples
 #'
 #' \dontrun{
@@ -21,6 +26,10 @@
 #'   route = "oral"
 #' )
 #' create_sim_dataset(..., regimen = reg1)
+#'
+#' # Weight-based dosing (5 mg/kg):
+#' reg2 <- create_regimen(dose = 5, per = "WT", interval = 24, n = 5, route = "sc")
+#' create_sim_dataset(..., regimen = reg2)
 #' }
 #'
 #' @export
@@ -29,6 +38,7 @@ create_regimen <- function(
     interval = 24,
     n,
     t_inf = NULL,
+    per = NULL,
     route = c("oral", "iv", "sc", "im")
 ) {
   route <- match.arg(route)
@@ -47,6 +57,9 @@ create_regimen <- function(
     t_inf = rep(t_inf, n),
     interval = rep(interval, n)
   )
+  if (!is.null(per)) {
+    out$per <- rep(per, n)
+  }
   class(out) <- c("dosing_regimen", "data.frame")
   out
 }
