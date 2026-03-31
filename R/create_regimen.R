@@ -38,8 +38,8 @@ create_regimen <- function(
     interval = 24,
     n,
     t_inf = NULL,
-    per = NULL,
-    route = c("oral", "iv", "sc", "im")
+    route = c("oral", "iv", "sc", "im"),
+    per = NULL
 ) {
   route <- match.arg(route)
   if(route %in% c("iv", "im", "sc")) {
