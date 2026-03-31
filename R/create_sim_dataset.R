@@ -149,7 +149,14 @@ create_sim_dataset <- function(
   } else {
     input_data <- as.data.frame(model$dataset)
   }
-  
+
+  if (nrow(input_data) == 0) {
+    cli::cli_abort(
+      c("The model dataset is empty (0 rows).",
+        i = "Provide a dataset via the {.arg data} argument.")
+    )
+  }
+
   if (!"ID" %in% names(input_data)) {
     cli::cli_abort(
       c("Column `ID` not found in the dataset.",
