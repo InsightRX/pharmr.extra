@@ -12,6 +12,7 @@ create_regimen(
   interval = 24,
   n,
   t_inf = NULL,
+  per = NULL,
   route = c("oral", "iv", "sc", "im")
 )
 ```
@@ -34,6 +35,14 @@ create_regimen(
 
   TODO
 
+- per:
+
+  character or `NULL`. Name of a column in the simulation dataset whose
+  value is used to scale each subject's dose (e.g. `per = "WT"` for
+  mg/kg dosing, `per = "BSA"` for mg/m² dosing). The final AMT for each
+  subject is `dose * covariate_value`. When `NULL` (the default), the
+  dose is applied as an absolute amount.
+
 - route:
 
   TODO
@@ -53,5 +62,9 @@ reg1 <- create_regimen(
   route = "oral"
 )
 create_sim_dataset(..., regimen = reg1)
+
+# Weight-based dosing (5 mg/kg):
+reg2 <- create_regimen(dose = 5, per = "WT", interval = 24, n = 5, route = "sc")
+create_sim_dataset(..., regimen = reg2)
 } # }
 ```

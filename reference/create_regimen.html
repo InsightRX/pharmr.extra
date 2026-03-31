@@ -50,6 +50,7 @@ regimen argument."></head><body>
 <span>  interval <span class="op">=</span> <span class="fl">24</span>,</span>
 <span>  <span class="va">n</span>,</span>
 <span>  t_inf <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  per <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  route <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"oral"</span>, <span class="st">"iv"</span>, <span class="st">"sc"</span>, <span class="st">"im"</span><span class="op">)</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -74,6 +75,14 @@ regimen argument."></head><body>
 <dd><p>TODO</p></dd>
 
 
+<dt id="arg-per">per<a class="anchor" aria-label="anchor" href="#arg-per"></a></dt>
+<dd><p>character or <code>NULL</code>. Name of a column in the simulation dataset
+whose value is used to scale each subject's dose (e.g. <code>per = "WT"</code> for
+mg/kg dosing, <code>per = "BSA"</code> for mg/m² dosing). The final AMT for each
+subject is <code>dose * covariate_value</code>. When <code>NULL</code> (the default), the dose
+is applied as an absolute amount.</p></dd>
+
+
 <dt id="arg-route">route<a class="anchor" aria-label="anchor" href="#arg-route"></a></dt>
 <dd><p>TODO</p></dd>
 
@@ -94,6 +103,10 @@ regimen argument."></head><body>
 <span class="r-in"><span>  route <span class="op">=</span> <span class="st">"oral"</span></span></span>
 <span class="r-in"><span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="fu"><a href="create_sim_dataset.html">create_sim_dataset</a></span><span class="op">(</span><span class="va">...</span>, regimen <span class="op">=</span> <span class="va">reg1</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Weight-based dosing (5 mg/kg):</span></span></span>
+<span class="r-in"><span><span class="va">reg2</span> <span class="op">&lt;-</span> <span class="fu">create_regimen</span><span class="op">(</span>dose <span class="op">=</span> <span class="fl">5</span>, per <span class="op">=</span> <span class="st">"WT"</span>, interval <span class="op">=</span> <span class="fl">24</span>, n <span class="op">=</span> <span class="fl">5</span>, route <span class="op">=</span> <span class="st">"sc"</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="fu"><a href="create_sim_dataset.html">create_sim_dataset</a></span><span class="op">(</span><span class="va">...</span>, regimen <span class="op">=</span> <span class="va">reg2</span><span class="op">)</span></span></span>
 <span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
 <span class="r-in"><span></span></span>
 </code></pre></div>

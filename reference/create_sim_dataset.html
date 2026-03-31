@@ -85,11 +85,21 @@ a custom regimen. Can be specified in two ways. The simplest way is to just
 specify a list with elements <code>dose</code>, <code>interval</code>, <code>n</code>, and
 <code>route</code> (and <code>t_inf</code> / <code>rate</code> for infusions).
 E.g. <code>regimen = list(dose = 500, interval = 12, n = 5, route = "oral")</code>.
+An optional <code>per</code> element names a covariate column in the dataset; each
+subject's dose is then multiplied by their value of that column, enabling
+weight- or BSA-based dosing. E.g.
+<code>regimen = list(dose = 5, per = "WT", interval = 24, n = 5, route = "sc")</code>
+gives a 5 mg/kg dose using the <code>WT</code> column.
 Alternatively, regimens can be specified as a data.frame. The data.frame
 specifies all dosing times (<code>dose</code>, <code>time</code> columns) and <code>route</code> and
 <code>t_inf</code> / <code>rate</code>. The data.frame may also optionally contain a <code>regimen</code>
 column that specifies a name for the regimen. This can be used to simulate
-multiple regimens.</p></dd>
+multiple regimens.
+A function may also be supplied. It will be called once per subject with a
+data.frame of that subject's rows, and must return a named list accepted by
+<code><a href="create_regimen.html">create_regimen()</a></code> (<code>dose</code>, <code>interval</code>, <code>n</code>, <code>route</code>; optionally <code>t_inf</code>,
+<code>per</code>, <code>regimen</code>). This enables fully custom per-subject dosing logic such
+as tiered weight-band dosing.</p></dd>
 
 
 <dt id="arg-t-obs">t_obs<a class="anchor" aria-label="anchor" href="#arg-t-obs"></a></dt>
@@ -122,6 +132,66 @@ column is included and is used internally by <code><a href="run_sim.html">run_si
 multiple dosing regimens.</p>
     </div>
 
+    <div class="section level2">
+    <h2 id="ref-examples">Examples<a class="anchor" aria-label="anchor" href="#ref-examples"></a></h2>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span class="r-in"><span><span class="kw">if</span> <span class="op">(</span><span class="cn">FALSE</span><span class="op">)</span> <span class="op">{</span> <span class="co"># \dontrun{</span></span></span>
+<span class="r-in"><span><span class="va">model</span> <span class="op">&lt;-</span> <span class="fu">pharmr</span><span class="fu">::</span><span class="fu"><a href="https://rdrr.io/pkg/pharmr/man/read_model.html" class="external-link">read_model</a></span><span class="op">(</span><span class="st">"run1.mod"</span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Basic: use the model's original dataset with custom observation times</span></span></span>
+<span class="r-in"><span><span class="va">sim_dat</span> <span class="op">&lt;-</span> <span class="fu">create_sim_dataset</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  model <span class="op">=</span> <span class="va">model</span>,</span></span>
+<span class="r-in"><span>  t_obs <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">168</span>, by <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Replace regimen with a flat 500 mg oral dose every 12 h for 5 doses</span></span></span>
+<span class="r-in"><span><span class="va">sim_dat</span> <span class="op">&lt;-</span> <span class="fu">create_sim_dataset</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  model  <span class="op">=</span> <span class="va">model</span>,</span></span>
+<span class="r-in"><span>  regimen <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>dose <span class="op">=</span> <span class="fl">500</span>, interval <span class="op">=</span> <span class="fl">12</span>, n <span class="op">=</span> <span class="fl">5</span>, route <span class="op">=</span> <span class="st">"oral"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  t_obs  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">72</span>, by <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Weight-based dosing (5 mg/kg) using the `per` element —</span></span></span>
+<span class="r-in"><span><span class="co"># requires a WT column in the dataset</span></span></span>
+<span class="r-in"><span><span class="va">sim_dat</span> <span class="op">&lt;-</span> <span class="fu">create_sim_dataset</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  model   <span class="op">=</span> <span class="va">model</span>,</span></span>
+<span class="r-in"><span>  regimen <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>dose <span class="op">=</span> <span class="fl">5</span>, per <span class="op">=</span> <span class="st">"WT"</span>, interval <span class="op">=</span> <span class="fl">24</span>, n <span class="op">=</span> <span class="fl">3</span>, route <span class="op">=</span> <span class="st">"sc"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  t_obs   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">72</span>, by <span class="op">=</span> <span class="fl">4</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Tiered weight-band dosing via a function</span></span></span>
+<span class="r-in"><span><span class="va">dose_fn</span> <span class="op">&lt;-</span> <span class="kw">function</span><span class="op">(</span><span class="va">x</span><span class="op">)</span> <span class="op">{</span></span></span>
+<span class="r-in"><span>  <span class="va">dose</span> <span class="op">&lt;-</span> <span class="kw">if</span> <span class="op">(</span><span class="va">x</span><span class="op">$</span><span class="va">WT</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span> <span class="op">&lt;</span> <span class="fl">40</span><span class="op">)</span> <span class="fl">100</span> <span class="kw">else</span> <span class="kw">if</span> <span class="op">(</span><span class="va">x</span><span class="op">$</span><span class="va">WT</span><span class="op">[</span><span class="fl">1</span><span class="op">]</span> <span class="op">&lt;</span> <span class="fl">80</span><span class="op">)</span> <span class="fl">200</span> <span class="kw">else</span> <span class="fl">250</span></span></span>
+<span class="r-in"><span>  <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>dose <span class="op">=</span> <span class="va">dose</span>, interval <span class="op">=</span> <span class="fl">14</span> <span class="op">*</span> <span class="fl">24</span>, route <span class="op">=</span> <span class="st">"sc"</span>, n <span class="op">=</span> <span class="fl">6</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span></span></span>
+<span class="r-in"><span><span class="va">sim_dat</span> <span class="op">&lt;-</span> <span class="fu">create_sim_dataset</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  model   <span class="op">=</span> <span class="va">model</span>,</span></span>
+<span class="r-in"><span>  regimen <span class="op">=</span> <span class="va">dose_fn</span>,</span></span>
+<span class="r-in"><span>  t_obs   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">84</span> <span class="op">*</span> <span class="fl">24</span>, by <span class="op">=</span> <span class="fl">24</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Simulate with sampled covariates from an external data.frame</span></span></span>
+<span class="r-in"><span><span class="va">covs</span> <span class="op">&lt;-</span> <span class="fu"><a href="https://rdrr.io/r/base/data.frame.html" class="external-link">data.frame</a></span><span class="op">(</span>WT <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">55</span>, <span class="fl">72</span>, <span class="fl">88</span><span class="op">)</span>, AGE <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="fl">34</span>, <span class="fl">51</span>, <span class="fl">67</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">sim_dat</span> <span class="op">&lt;-</span> <span class="fu">create_sim_dataset</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  model      <span class="op">=</span> <span class="va">model</span>,</span></span>
+<span class="r-in"><span>  covariates <span class="op">=</span> <span class="va">covs</span>,</span></span>
+<span class="r-in"><span>  regimen    <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span>dose <span class="op">=</span> <span class="fl">500</span>, interval <span class="op">=</span> <span class="fl">12</span>, n <span class="op">=</span> <span class="fl">5</span>, route <span class="op">=</span> <span class="st">"oral"</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  t_obs      <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">72</span>, by <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span></span></span>
+<span class="r-in"><span><span class="co"># Simulate multiple regimens for comparison</span></span></span>
+<span class="r-in"><span><span class="va">regimens</span> <span class="op">&lt;-</span> <span class="fu"><a href="combine_regimens.html">combine_regimens</a></span><span class="op">(</span></span></span>
+<span class="r-in"><span>  <span class="st">"low"</span>  <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="create_regimen.html">create_regimen</a></span><span class="op">(</span>dose <span class="op">=</span> <span class="fl">250</span>, interval <span class="op">=</span> <span class="fl">12</span>, n <span class="op">=</span> <span class="fl">5</span>, route <span class="op">=</span> <span class="st">"oral"</span><span class="op">)</span><span class="op">)</span>,</span></span>
+<span class="r-in"><span>  <span class="st">"high"</span> <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="fu"><a href="create_regimen.html">create_regimen</a></span><span class="op">(</span>dose <span class="op">=</span> <span class="fl">500</span>, interval <span class="op">=</span> <span class="fl">12</span>, n <span class="op">=</span> <span class="fl">5</span>, route <span class="op">=</span> <span class="st">"oral"</span><span class="op">)</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="va">sim_dat</span> <span class="op">&lt;-</span> <span class="fu">create_sim_dataset</span><span class="op">(</span></span></span>
+<span class="r-in"><span>  model   <span class="op">=</span> <span class="va">model</span>,</span></span>
+<span class="r-in"><span>  regimen <span class="op">=</span> <span class="va">regimens</span>,</span></span>
+<span class="r-in"><span>  t_obs   <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/seq.html" class="external-link">seq</a></span><span class="op">(</span><span class="fl">0</span>, <span class="fl">72</span>, by <span class="op">=</span> <span class="fl">2</span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">)</span></span></span>
+<span class="r-in"><span><span class="op">}</span> <span class="co"># }</span></span></span>
+<span class="r-in"><span></span></span>
+</code></pre></div>
+    </div>
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>
 
