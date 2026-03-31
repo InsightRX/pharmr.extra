@@ -28,6 +28,11 @@
 #' `t_inf` / `rate`. The data.frame may also optionally contain a `regimen`
 #' column that specifies a name for the regimen. This can be used to simulate
 #' multiple regimens.
+#' A function may also be supplied. It will be called once per subject with a
+#' data.frame of that subject's rows, and must return a named list accepted by
+#' [create_regimen()] (`dose`, `interval`, `n`, `route`; optionally `t_inf`,
+#' `per`, `regimen`). This enables fully custom per-subject dosing logic such
+#' as tiered weight-band dosing.
 #' @param covariates if specified, will replace subjects with subjects specified
 #' in a data.frame. In the data.frame, the column names should correspond
 #' exactly to any covariates included in the model. An `ID` column is optional;
@@ -43,6 +48,63 @@
 #' @returns data.frame with a NONMEM-format simulation dataset. A `.regimen`
 #'   column is included and is used internally by [run_sim()] to loop over
 #'   multiple dosing regimens.
+#'
+#' @examples
+#' \dontrun{
+#' model <- pharmr::read_model("run1.mod")
+#'
+#' # Basic: use the model's original dataset with custom observation times
+#' sim_dat <- create_sim_dataset(
+#'   model = model,
+#'   t_obs = seq(0, 168, by = 4)
+#' )
+#'
+#' # Replace regimen with a flat 500 mg oral dose every 12 h for 5 doses
+#' sim_dat <- create_sim_dataset(
+#'   model  = model,
+#'   regimen = list(dose = 500, interval = 12, n = 5, route = "oral"),
+#'   t_obs  = seq(0, 72, by = 2)
+#' )
+#'
+#' # Weight-based dosing (5 mg/kg) using the `per` element —
+#' # requires a WT column in the dataset
+#' sim_dat <- create_sim_dataset(
+#'   model   = model,
+#'   regimen = list(dose = 5, per = "WT", interval = 24, n = 3, route = "sc"),
+#'   t_obs   = seq(0, 72, by = 4)
+#' )
+#'
+#' # Tiered weight-band dosing via a function
+#' dose_fn <- function(x) {
+#'   dose <- if (x$WT[1] < 40) 100 else if (x$WT[1] < 80) 200 else 250
+#'   list(dose = dose, interval = 14 * 24, route = "sc", n = 6)
+#' }
+#' sim_dat <- create_sim_dataset(
+#'   model   = model,
+#'   regimen = dose_fn,
+#'   t_obs   = seq(0, 84 * 24, by = 24)
+#' )
+#'
+#' # Simulate with sampled covariates from an external data.frame
+#' covs <- data.frame(WT = c(55, 72, 88), AGE = c(34, 51, 67))
+#' sim_dat <- create_sim_dataset(
+#'   model      = model,
+#'   covariates = covs,
+#'   regimen    = list(dose = 500, interval = 12, n = 5, route = "oral"),
+#'   t_obs      = seq(0, 72, by = 2)
+#' )
+#'
+#' # Simulate multiple regimens for comparison
+#' regimens <- combine_regimens(
+#'   "low"  = list(create_regimen(dose = 250, interval = 12, n = 5, route = "oral")),
+#'   "high" = list(create_regimen(dose = 500, interval = 12, n = 5, route = "oral"))
+#' )
+#' sim_dat <- create_sim_dataset(
+#'   model   = model,
+#'   regimen = regimens,
+#'   t_obs   = seq(0, 72, by = 2)
+#' )
+#' }
 #'
 #' @export
 create_sim_dataset <- function(
@@ -134,8 +196,8 @@ create_sim_dataset <- function(
     } else if (inherits(regimen, "list")) {
       regimen_df <- do.call(create_regimen, args = regimen) |>
         dplyr::mutate(regimen = "regimen 1")
-    } else {
-      cli::cli_abort("`regimen` needs to be either a data.frame or a list, or NULL.")
+    } else if (!inherits(regimen, "function")) {
+      cli::cli_abort("`regimen` needs to be a data.frame, a list, a function, or NULL.")
     }
   }
 
@@ -197,10 +259,36 @@ create_sim_dataset <- function(
       tidyr::fill(dplyr::all_of(new_covariates), .direction = "downup")
   }
 
-  if (!is.null(regimen_df)) {
+  if (!is.null(regimen_df) || inherits(regimen, "function")) {
     if (verbose) cli::cli_alert_info("Creating new regimens for subjects in simulation")
     advan <- get_advan(model)
-    doses <- create_dosing_records(regimen_df, sim_data, n_subjects, advan)
+    if (inherits(regimen, "function")) {
+      ids <- unique(sim_data$ID)
+      doses <- lapply(ids, function(id) {
+        subj_data <- sim_data[sim_data$ID == id, , drop = FALSE]
+        reg_list  <- regimen(subj_data)
+        if (is.null(reg_list)) {
+          cli::cli_abort("`regimen` function returned NULL for subject ID {id}. It must return a named list of arguments to pass to `create_regimen()`.")
+        }
+        if (!is.list(reg_list)) {
+          cli::cli_abort("`regimen` function must return a list for subject ID {id}, but got an object of class {.cls {class(reg_list)}}.")
+        }
+        if (is.null(names(reg_list)) || any(is.na(names(reg_list))) || any(names(reg_list) == "")) {
+          cli::cli_abort("`regimen` function must return a named list for subject ID {id}. All elements must be named (optionally including a 'regimen' label).")
+        }
+        reg_label <- if (!is.null(reg_list$regimen)) reg_list$regimen else "regimen 1"
+        reg_args  <- reg_list[names(reg_list) != "regimen"]
+        if (length(reg_args) == 0L) {
+          cli::cli_abort("`regimen` function did not provide any arguments (other than an optional 'regimen' label) for subject ID {id}. It must return a named list of arguments for `create_regimen()`.")
+        }
+        reg_df    <- do.call(create_regimen, args = reg_args) |>
+          dplyr::mutate(regimen = reg_label)
+        create_dosing_records(reg_df, subj_data, n_subjects = 1, advan)
+      }) |>
+        dplyr::bind_rows()
+    } else {
+      doses <- create_dosing_records(regimen_df, sim_data, n_subjects, advan)
+    }
     doses <- match_type(doses, sim_data, c("AMT", "RATE", "DV"))
     if ("EVID" %in% names(sim_data)) {
       sim_data <- sim_data |>

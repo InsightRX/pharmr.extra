@@ -32,11 +32,21 @@ a custom regimen. Can be specified in two ways. The simplest way is to just
 specify a list with elements \code{dose}, \code{interval}, \code{n}, and
 \code{route} (and \code{t_inf} / \code{rate} for infusions).
 E.g. \code{regimen = list(dose = 500, interval = 12, n = 5, route = "oral")}.
+An optional \code{per} element names a covariate column in the dataset; each
+subject's dose is then multiplied by their value of that column, enabling
+weight- or BSA-based dosing. E.g.
+\code{regimen = list(dose = 5, per = "WT", interval = 24, n = 5, route = "sc")}
+gives a 5 mg/kg dose using the \code{WT} column.
 Alternatively, regimens can be specified as a data.frame. The data.frame
 specifies all dosing times (\code{dose}, \code{time} columns) and \code{route} and
 \code{t_inf} / \code{rate}. The data.frame may also optionally contain a \code{regimen}
 column that specifies a name for the regimen. This can be used to simulate
-multiple regimens.}
+multiple regimens.
+A function may also be supplied. It will be called once per subject with a
+data.frame of that subject's rows, and must return a named list accepted by
+\code{\link[=create_regimen]{create_regimen()}} (\code{dose}, \code{interval}, \code{n}, \code{route}; optionally \code{t_inf},
+\code{per}, \code{regimen}). This enables fully custom per-subject dosing logic such
+as tiered weight-band dosing.}
 
 \item{t_obs}{a vector of observation times. If specified, will override
 the observations in each subject in the input dataset.}
@@ -62,4 +72,62 @@ multiple dosing regimens.
 Prepares a dataset for use with \code{\link[=run_sim]{run_sim()}}, handling covariate sampling,
 regimen replacement, and observation record creation. The returned
 data.frame can be passed directly to \code{\link[=run_sim]{run_sim()}} as the \code{data} argument.
+}
+\examples{
+\dontrun{
+model <- pharmr::read_model("run1.mod")
+
+# Basic: use the model's original dataset with custom observation times
+sim_dat <- create_sim_dataset(
+  model = model,
+  t_obs = seq(0, 168, by = 4)
+)
+
+# Replace regimen with a flat 500 mg oral dose every 12 h for 5 doses
+sim_dat <- create_sim_dataset(
+  model  = model,
+  regimen = list(dose = 500, interval = 12, n = 5, route = "oral"),
+  t_obs  = seq(0, 72, by = 2)
+)
+
+# Weight-based dosing (5 mg/kg) using the `per` element —
+# requires a WT column in the dataset
+sim_dat <- create_sim_dataset(
+  model   = model,
+  regimen = list(dose = 5, per = "WT", interval = 24, n = 3, route = "sc"),
+  t_obs   = seq(0, 72, by = 4)
+)
+
+# Tiered weight-band dosing via a function
+dose_fn <- function(x) {
+  dose <- if (x$WT[1] < 40) 100 else if (x$WT[1] < 80) 200 else 250
+  list(dose = dose, interval = 14 * 24, route = "sc", n = 6)
+}
+sim_dat <- create_sim_dataset(
+  model   = model,
+  regimen = dose_fn,
+  t_obs   = seq(0, 84 * 24, by = 24)
+)
+
+# Simulate with sampled covariates from an external data.frame
+covs <- data.frame(WT = c(55, 72, 88), AGE = c(34, 51, 67))
+sim_dat <- create_sim_dataset(
+  model      = model,
+  covariates = covs,
+  regimen    = list(dose = 500, interval = 12, n = 5, route = "oral"),
+  t_obs      = seq(0, 72, by = 2)
+)
+
+# Simulate multiple regimens for comparison
+regimens <- combine_regimens(
+  "low"  = list(create_regimen(dose = 250, interval = 12, n = 5, route = "oral")),
+  "high" = list(create_regimen(dose = 500, interval = 12, n = 5, route = "oral"))
+)
+sim_dat <- create_sim_dataset(
+  model   = model,
+  regimen = regimens,
+  t_obs   = seq(0, 72, by = 2)
+)
+}
+
 }
