@@ -138,7 +138,12 @@ run_sim <- function(
       parameter_names <- get_defined_pk_parameters(sim_model)
       if(is.null(variables)) {
         default_variables <- c("ID", "TIME", "DV", "EVID", "PRED")
-        variables <- c(default_variables, get_declared_variables(sim_model))
+        covariate_names <- vapply(
+          pharmr::get_model_covariates(sim_model),
+          function(x) x$name,
+          character(1)
+        )
+        variables <- c(default_variables, get_declared_variables(sim_model), covariate_names)
       }
       checked_variables <- c()
       for(variab in variables) {
@@ -147,10 +152,10 @@ run_sim <- function(
           checked_variables <- c(checked_variables, variab)
         }
       }
-      variables <- unique(c(checked_variables, parameter_names))
+      table_variables <- unique(c(checked_variables, parameter_names))
       sim_model <- sim_model |>
         remove_tables_from_model() |>
-        add_table_to_model(checked_variables, file = output_file)
+        add_table_to_model(table_variables, file = output_file)
     } else {
       if(verbose) cli::cli_alert_info("Using existing table record(s)")
     }
