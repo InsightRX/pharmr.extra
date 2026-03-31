@@ -402,7 +402,7 @@ test_that("create_sim_dataset: function regimen applies per-subject dose logic",
   # WT < 60 → 100 mg; WT >= 60 → 200 mg
   dose_fn <- function(x) {
     dose <- if (x$WT[1] < 60) 100 else 200
-    list(dose = dose, interval = 24, n = 1, route = "oral")
+    list(dose = dose, interval = 24, n = 1, route = "iv")
   }
   out <- create_sim_dataset(
     model   = mod,
