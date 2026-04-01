@@ -258,3 +258,64 @@ test_that("get_initial_estimates_from_data errors on non-existent CSV file", {
     "`data` file does not exist"
   )
 })
+
+test_that("get_initial_estimates_from_data works when AMT is character", {
+  test_data <- data.frame(
+    ID = c(1, 1, 1, 1),
+    TIME = c(0, 1, 4, 8),
+    DV = c(0, 100, 50, 25),
+    EVID = c(1, 0, 0, 0),
+    MDV = c(1, 0, 0, 0),
+    AMT = c("1000", "0", "0", "0"),
+    stringsAsFactors = FALSE
+  )
+
+  result <- get_initial_estimates_from_data(test_data, n_cmt = 1)
+
+  expect_type(result, "list")
+  expect_named(result, c("V", "CL"))
+  expect_true(all(result > 0))
+  expect_equal(result$V, 10, tolerance = 0.1)
+})
+
+test_that("get_initial_estimates_from_data works when AMT is factor", {
+  test_data <- data.frame(
+    ID = c(1, 1, 1, 1),
+    TIME = c(0, 1, 4, 8),
+    DV = c(0, 100, 50, 25),
+    EVID = c(1, 0, 0, 0),
+    MDV = c(1, 0, 0, 0),
+    AMT = factor(c("1000", "0", "0", "0"))
+  )
+
+  result <- get_initial_estimates_from_data(test_data, n_cmt = 1)
+
+  expect_type(result, "list")
+  expect_named(result, c("V", "CL"))
+  expect_true(all(result > 0))
+  expect_equal(result$V, 10, tolerance = 0.1)
+})
+
+test_that("get_initial_estimates_from_data gives same result regardless of AMT column type", {
+  base_data <- data.frame(
+    ID = c(1, 1, 1, 1),
+    TIME = c(0, 1, 4, 8),
+    DV = c(0, 100, 50, 25),
+    EVID = c(1, 0, 0, 0),
+    MDV = c(1, 0, 0, 0),
+    AMT = c(1000, 0, 0, 0)
+  )
+
+  result_numeric   <- get_initial_estimates_from_data(base_data, n_cmt = 1)
+  result_character <- get_initial_estimates_from_data(
+    transform(base_data, AMT = as.character(AMT)), n_cmt = 1
+  )
+  result_factor    <- get_initial_estimates_from_data(
+    transform(base_data, AMT = as.factor(AMT)), n_cmt = 1
+  )
+
+  expect_equal(result_numeric$V,  result_character$V,  tolerance = 1e-6)
+  expect_equal(result_numeric$CL, result_character$CL, tolerance = 1e-6)
+  expect_equal(result_numeric$V,  result_factor$V,     tolerance = 1e-6)
+  expect_equal(result_numeric$CL, result_factor$CL,    tolerance = 1e-6)
+})
