@@ -77,16 +77,9 @@
 #' This feature is useful e.g. for crossover trials when data on the same
 #' individual ispresent but is included in the dataset as time-after-dose and
 #' not actual time since first overall dose.
-#' @param auto_stack_encounters detects if TIME within an individual is
-#' decreasing from one record to another, which NONMEM cannot handle.
-#' If this happens, it will add a reset event (EVID=3) at that time, and
-#' increase the TIME for subsequent events so that NONMEM does not throw an
-#' error. It will increase the time for the next encounter to the maximum
-#' encounter length across all subjects in the dataset (rounded up to 100).
-#' If no decreasing TIME is detected, nothing will be done (most common case).
-#' This feature is useful e.g. for crossover trials when data on the same
-#' individual ispresent but is included in the dataset as time-after-dose and
-#' not actual time since first overall dose.
+#' @param drop_input character vector of column names to drop in the NONMEM
+#' `$INPUT` record (i.e. mark as `DROP`). Can only be used when `data` is
+#' supplied. Column names must exist in the dataset.
 #' @param mu_reference Control mu-referencing of the model. `"auto"` (default)
 #' applies mu-referencing automatically when `estimation_method = "saem"`.
 #' `TRUE` always applies mu-referencing. `FALSE` never applies it.
@@ -132,6 +125,7 @@ create_model <- function(
     full_tables = FALSE,
     auto_init = TRUE,
     auto_stack_encounters = TRUE,
+    drop_input = NULL,
     mu_reference = "auto",
     settings = list(), # TBD
     verbose = FALSE
@@ -415,6 +409,22 @@ create_model <- function(
     }
   }
   
+  ## Drop columns in $INPUT
+  if(!is.null(drop_input)) {
+    if(is.null(data)) {
+      cli::cli_abort("`drop_input` can only be used when `data` is supplied.")
+    }
+    dataset_cols <- names(mod$dataset)
+    missing_cols <- setdiff(drop_input, dataset_cols)
+    if(length(missing_cols) > 0) {
+      cli::cli_abort(
+        "Column{?s} specified in `drop_input` not found in dataset: {.val {missing_cols}}."
+      )
+    }
+    if(verbose) cli::cli_alert_info("Dropping columns in $INPUT: {paste(drop_input, collapse = ', ')}")
+    mod <- drop_input_columns(mod, drop_input)
+  }
+
   ## Handle BLQ
   if(!is.null(blq_method)) {
     blq_method <- tolower(blq_method)
@@ -674,4 +684,48 @@ get_template_modelfile <- function(route, n_cmt, force_ode) {
   )
   if(template == "") cli::cli_abort("Can't find template modelfile at {template_path}.")
   template
+}
+
+#' Drop columns from the $INPUT record in a NONMEM model
+#'
+#' Replaces standalone column names in the $INPUT record with DROP.
+#'
+#' @param model Pharmpy model object
+#' @param columns character vector of column names to drop
+#'
+#' @returns Pharmpy model object with updated $INPUT
+#'
+drop_input_columns <- function(model, columns) {
+  lines <- strsplit(model$code, "\n", fixed = TRUE)[[1]]
+  in_input <- FALSE
+
+  for (i in seq_along(lines)) {
+    line <- lines[[i]]
+    stripped <- trimws(line)
+
+    if (nchar(stripped) > 0 && substr(stripped, 1L, 1L) == "$") {
+      in_input <- grepl(
+        "^\\$IN(P(U(T?)?)?)?($|\\s)",
+        stripped, ignore.case = TRUE, perl = TRUE
+      )
+    }
+
+    if (!in_input) next
+
+    for (col in columns) {
+      # Replace standalone column name (not part of an alias like DV=COL)
+      # with DROP
+      line <- gsub(
+        paste0("(?<![=A-Za-z0-9_])\\b", col, "\\b(?!=)"),
+        "DROP",
+        line, perl = TRUE
+      )
+    }
+    lines[[i]] <- line
+  }
+
+  new_code <- paste(lines, collapse = "\n")
+  tmpmod <- tempfile(fileext = ".mod")
+  writeLines(new_code, tmpmod)
+  create_model_from_file(tmpmod, data = model$dataset)
 }

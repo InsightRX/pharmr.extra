@@ -9,8 +9,8 @@ create_regimen(
   interval = 24,
   n,
   t_inf = NULL,
-  per = NULL,
-  route = c("oral", "iv", "sc", "im")
+  route = c("oral", "iv", "sc", "im"),
+  per = NULL
 )
 }
 \arguments{
@@ -22,13 +22,13 @@ create_regimen(
 
 \item{t_inf}{TODO}
 
+\item{route}{TODO}
+
 \item{per}{character or \code{NULL}. Name of a column in the simulation dataset
 whose value is used to scale each subject's dose (e.g. \code{per = "WT"} for
 mg/kg dosing, \code{per = "BSA"} for mg/m² dosing). The final AMT for each
 subject is \code{dose * covariate_value}. When \code{NULL} (the default), the dose
 is applied as an absolute amount.}
-
-\item{route}{TODO}
 }
 \value{
 TODO
