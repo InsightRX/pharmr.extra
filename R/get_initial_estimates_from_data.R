@@ -29,6 +29,7 @@ get_initial_estimates_from_data <- function(
   suppressWarnings(
     data <- data |>
       dplyr::mutate(
+        AMT = as.numeric(as.character(.data$AMT)),
         DV = as.numeric(.data$DV),
         TIME = as.numeric(.data$TIME)
       ) |>
@@ -134,6 +135,7 @@ get_initial_estimates_from_individual_data <- function(
     est$V <- dose / max(obs$DV, na.rm=TRUE)
     est$CL <- KEL * est$V
   } else { # more crude estimation
+    
     if(length(tmp$DV) > 0) {
       est$V <- dose / (max(tmp$DV, na.rm=TRUE) * 5)
       est$CL <- est$V / 10
