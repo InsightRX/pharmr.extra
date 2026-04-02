@@ -75,7 +75,7 @@
 #' encounter length across all subjects in the dataset (rounded up to 100).
 #' If no decreasing TIME is detected, nothing will be done (most common case).
 #' This feature is useful e.g. for crossover trials when data on the same
-#' individual ispresent but is included in the dataset as time-after-dose and
+#' individual is present but is included in the dataset as time-after-dose and
 #' not actual time since first overall dose.
 #' @param drop_input character vector of column names to drop in the NONMEM
 #' `$INPUT` record (i.e. mark as `DROP`). Can only be used when `data` is
@@ -93,7 +93,7 @@
 #' @param tool output model type, either `nonmem` or `nlmixr`
 #' @param verbose verbose output?
 #'
-#' @returns TODO
+#' @returns a Pharmpy model object
 #' 
 #' @export
 create_model <- function(
@@ -411,8 +411,11 @@ create_model <- function(
   
   ## Drop columns in $INPUT
   if(!is.null(drop_input)) {
-    if(is.null(data)) {
-      cli::cli_abort("`drop_input` can only be used when `data` is supplied.")
+    if(!inherits(drop_input, "character")) {
+      cli::cli_abort("`drop_input` needs to be a character vector of column names to DROP.")
+    }
+    if(is.null(data) || !inherits(data, "data.frame")) {
+      cli::cli_abort("`drop_input` can only be used when `data` is supplied and `data` is a data.frame or tibble.")
     }
     dataset_cols <- names(mod$dataset)
     missing_cols <- setdiff(drop_input, dataset_cols)
@@ -714,10 +717,10 @@ drop_input_columns <- function(model, columns) {
 
     for (col in columns) {
       # Replace standalone column name (not part of an alias like DV=COL)
-      # with DROP
+      # with DROP=<col> so the original name is preserved in the record
       line <- gsub(
         paste0("(?<![=A-Za-z0-9_])\\b", col, "\\b(?!=)"),
-        "DROP",
+        paste0("DROP=", col),
         line, perl = TRUE
       )
     }
