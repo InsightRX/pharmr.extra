@@ -35,6 +35,7 @@ create_model(
   full_tables = FALSE,
   auto_init = TRUE,
   auto_stack_encounters = TRUE,
+  drop_input = NULL,
   mu_reference = "auto",
   settings = list(),
   verbose = FALSE
@@ -201,8 +202,14 @@ create_model(
   length across all subjects in the dataset (rounded up to 100). If no
   decreasing TIME is detected, nothing will be done (most common case).
   This feature is useful e.g. for crossover trials when data on the same
-  individual ispresent but is included in the dataset as time-after-dose
-  and not actual time since first overall dose.
+  individual is present but is included in the dataset as
+  time-after-dose and not actual time since first overall dose.
+
+- drop_input:
+
+  character vector of column names to drop in the NONMEM `$INPUT` record
+  (i.e. mark as `DROP`). Can only be used when `data` is supplied.
+  Column names must exist in the dataset.
 
 - mu_reference:
 
@@ -220,4 +227,4 @@ create_model(
 
 ## Value
 
-TODO
+a Pharmpy model object

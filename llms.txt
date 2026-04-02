@@ -175,6 +175,9 @@ MIT © InsightRX
 - [`detect_nmfe_version()`](https://insightrx.github.io/pharmr.extra/reference/detect_nmfe_version.md)
   : get nmfe file name from a NONMEM installation folder
 
+- [`drop_input_columns()`](https://insightrx.github.io/pharmr.extra/reference/drop_input_columns.md)
+  : Drop columns from the \$INPUT record in a NONMEM model
+
 - [`estimation_options_defaults`](https://insightrx.github.io/pharmr.extra/reference/estimation_options_defaults.md)
   : List of default options for estimation method.
 

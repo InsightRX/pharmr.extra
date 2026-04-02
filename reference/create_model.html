@@ -9,7 +9,7 @@ functionality in pharmr/Pharmpy."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9033</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9034</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -74,6 +74,7 @@ functionality in pharmr/Pharmpy.</p>
 <span>  full_tables <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  auto_init <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  auto_stack_encounters <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  drop_input <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  mu_reference <span class="op">=</span> <span class="st">"auto"</span>,</span>
 <span>  settings <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">FALSE</span></span>
@@ -241,8 +242,14 @@ error. It will increase the time for the next encounter to the maximum
 encounter length across all subjects in the dataset (rounded up to 100).
 If no decreasing TIME is detected, nothing will be done (most common case).
 This feature is useful e.g. for crossover trials when data on the same
-individual ispresent but is included in the dataset as time-after-dose and
+individual is present but is included in the dataset as time-after-dose and
 not actual time since first overall dose.</p></dd>
+
+
+<dt id="arg-drop-input">drop_input<a class="anchor" aria-label="anchor" href="#arg-drop-input"></a></dt>
+<dd><p>character vector of column names to drop in the NONMEM
+<code>$INPUT</code> record (i.e. mark as <code>DROP</code>). Can only be used when <code>data</code> is
+supplied. Column names must exist in the dataset.</p></dd>
 
 
 <dt id="arg-mu-reference">mu_reference<a class="anchor" aria-label="anchor" href="#arg-mu-reference"></a></dt>
@@ -262,7 +269,7 @@ TBD</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>TODO</p>
+    <p>a Pharmpy model object</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

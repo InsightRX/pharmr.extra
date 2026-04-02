@@ -12,8 +12,8 @@ create_regimen(
   interval = 24,
   n,
   t_inf = NULL,
-  per = NULL,
-  route = c("oral", "iv", "sc", "im")
+  route = c("oral", "iv", "sc", "im"),
+  per = NULL
 )
 ```
 
@@ -35,6 +35,10 @@ create_regimen(
 
   TODO
 
+- route:
+
+  TODO
+
 - per:
 
   character or `NULL`. Name of a column in the simulation dataset whose
@@ -42,10 +46,6 @@ create_regimen(
   mg/kg dosing, `per = "BSA"` for mg/m² dosing). The final AMT for each
   subject is `dose * covariate_value`. When `NULL` (the default), the
   dose is applied as an absolute amount.
-
-- route:
-
-  TODO
 
 ## Value
 
