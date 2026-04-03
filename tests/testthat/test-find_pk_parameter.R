@@ -13,9 +13,9 @@ test_that("returns parameter when it exists as-is in model", {
   )
   mod_oral <- create_model(route = "oral", data = dat, verbose = FALSE)
   expect_equal(find_pk_parameter("CL", mod_oral), "CL")
-  expect_equal(find_pk_parameter("V", mod_oral), "V")
+  expect_equal(find_pk_parameter("V", mod_oral), "VC")
 
   mod_iv <- create_model(route = "iv", data = dat, verbose = FALSE)
   expect_equal(find_pk_parameter("CL", mod_iv), "CL")
-  expect_equal(find_pk_parameter("V", mod_iv), "V")
+  expect_equal(find_pk_parameter("V", mod_iv), "VC")
 })

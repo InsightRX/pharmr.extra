@@ -102,8 +102,8 @@ test_that("handles model with custom tables", {
     EVID = c(1, 0, 0),
     MDV = c(1, 0, 0)
   )
-  mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
-  
+  mod <- create_model(route = "iv", data = dat, tables = NULL, use_template = TRUE, verbose = FALSE)
+
   # Add multiple custom tables:
   mod <- add_table_to_model(
     model = mod,
@@ -194,7 +194,7 @@ test_that("returns model unchanged when no tables exist", {
     EVID = c(1, 0, 0),
     MDV = c(1, 0, 0)
   )
-  mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
+  mod <- create_model(route = "iv", data = dat, tables = NULL, use_template = TRUE, verbose = FALSE)
   out <- remove_tables_from_model(model = mod, file = NULL)
   expect_equal(out, mod)
 })

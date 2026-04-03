@@ -9,7 +9,7 @@ test_that("adds table correctly to model with no existing tables", {
     EVID = c(1, 0, 0),
     MDV = c(1, 0, 0)
   )
-  mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
+  mod <- create_model(route = "iv", data = dat, tables = NULL, use_template = TRUE, verbose = FALSE)
   # Model has no tables initially:
   expect_length(get_tables_in_model_code(mod$code), 0)
   
@@ -46,7 +46,7 @@ test_that("adds table with FIRSTONLY when firstonly = TRUE", {
     EVID = c(1, 0, 0),
     MDV = c(1, 0, 0)
   )
-  mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
+  mod <- create_model(route = "iv", data = dat, tables = NULL, use_template = TRUE, verbose = FALSE)
   out <- remove_table_from_model(
     model = mod,
     variables = c("ID", "TIME", "DV"),
@@ -101,7 +101,7 @@ test_that("warns when variables is NULL or empty", {
     EVID = c(1, 0, 0),
     MDV = c(1, 0, 0)
   )
-  mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
+  mod <- create_model(route = "iv", data = dat, tables = NULL, use_template = TRUE, verbose = FALSE)
   
   # Try to add a table with NULL variables:
   expect_warning(
@@ -174,7 +174,7 @@ test_that("adds multiple tables sequentially", {
     EVID = c(1, 0, 0),
     MDV = c(1, 0, 0)
   )
-  mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
+  mod <- create_model(route = "iv", data = dat, tables = NULL, use_template = TRUE, verbose = FALSE)
   
   # Add first table:
   mod <- remove_table_from_model(

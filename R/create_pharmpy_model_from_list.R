@@ -8,12 +8,16 @@ create_pharmpy_model_from_list <- function(model_obj) {
   ## Pharmpy bug: datainfo not updated when using pharmar::set_dataset()
   ## So need to make sure the dataset is on file when loading the model
   code <- model_obj$code
-  tmpfile <- tempfile()
-  write.csv(model_obj$dataset, tmpfile, quote=F, row.names=F)
-  code <- stringr::str_replace(
-    code,
-    "\\$DATA ([\\/a-zA-Z0-9\\.]*)",
-    paste0("$DATA ", tmpfile)
-  )
+  ## Strip trailing blank lines/whitespace that cause pharmpy DatasetError
+  code <- sub("[\\s\\n]+$", "", code, perl = TRUE)
+  if(!is.null(model_obj$dataset) && nrow(model_obj$dataset) > 0) {
+    tmpfile <- tempfile()
+    write.csv(model_obj$dataset, tmpfile, quote=F, row.names=F)
+    code <- stringr::str_replace(
+      code,
+      "\\$DATA ([\\/a-zA-Z0-9\\.]*)",
+      paste0("$DATA ", tmpfile)
+    )
+  }
   model <- pharmr::read_model_from_string(code)
 }

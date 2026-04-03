@@ -23,15 +23,24 @@ find_pk_parameter <- function(parameter, model) {
   ## then, try to find depending on advan
   advan <- get_advan(model)
   if(advan %in% c(1, 3, 11)) {
-    map <- list("V" = "V1", "Q" = "QP1", "V2" = "VP1", "V3" = "VP2")
+    map <- list("V" = c("V1", "VC"), "V1" = c("VC"), "Q" = c("QP1"), "V2" = c("VP1"), "V3" = c("VP2"))
   } else {
-    map <- list("V" = "V2", "Q" = "QP1", "V3" = "VP1", "V4" = "VP2")
+    map <- list("V" = c("V2", "VC"), "V1" = c("VC"), "Q" = c("QP1"), "V3" = c("VP1"), "V4" = c("VP2"))
   }
   if(is.null(map[[parameter]])) {
     cli::cli_warn("Could not find parameter {parameter} in model as {parameter}, nor under different name.")
     return(parameter)
   } else {
-    cli::cli_alert_info("Found parameter {parameter} in model as {map[[parameter]]}.")
-    return(map[[parameter]])
+    ## Try each candidate; prefer one that exists in model
+    for(candidate in map[[parameter]]) {
+      if(candidate %in% model_params) {
+        cli::cli_alert_info("Found parameter {parameter} in model as {candidate}.")
+        return(candidate)
+      }
+    }
+    ## If none found in model, return the first candidate as best guess
+    candidate <- map[[parameter]][1]
+    cli::cli_alert_info("Found parameter {parameter} in model as {candidate}.")
+    return(candidate)
   }
 }

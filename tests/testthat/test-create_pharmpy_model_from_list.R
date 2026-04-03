@@ -14,10 +14,11 @@ test_that("works with valid model code and dataset", {
   mod_obj <- list(code = mod$code, dataset = mod$dataset)
   out <- create_pharmpy_model_from_list(mod_obj)
   
-  # Data will be different, but the rest of the code should be equal:
+  # Data will be different, but the rest of the code should be equal
+  # (trimming trailing whitespace since pharmpy may add/remove trailing newlines):
   expect_equal(
-    stringr::str_remove(out$code, "\\$DATA .+([\\/a-zA-Z0-9\\.]*)"),
-    stringr::str_remove(mod$code, "\\$DATA .+([\\/a-zA-Z0-9\\.]*)")
+    trimws(stringr::str_remove(out$code, "\\$DATA .+([\\/a-zA-Z0-9\\.]*)"), "right"),
+    trimws(stringr::str_remove(mod$code, "\\$DATA .+([\\/a-zA-Z0-9\\.]*)"), "right")
   )
   expect_equal(nrow(out$dataset), nrow(mod$dataset))
   expect_equal(ncol(out$dataset), ncol(mod$dataset))
