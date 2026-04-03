@@ -27,16 +27,6 @@ set_iiv <- function(mod, iiv, iiv_type = "exp") {
     }
   }
 
-  ## Make sure iiv_type is a list
-  if(inherits(iiv_type, "character")) {
-    iiv_type_list <- list()
-    for(key in names(iiv)) {
-      iiv_type_list[[key]] <- iiv_type
-    }
-  } else {
-    iiv_type_list <- iiv_type
-  }
-
   if(!is.null(iiv)) {
     if(!inherits(iiv, "list")) {
       stop("`iiv` parameter should be a `list` or a `character` object.")
@@ -46,6 +36,83 @@ set_iiv <- function(mod, iiv, iiv_type = "exp") {
     ## Then, add univariate IIV (no BLOCKs yet)
     all_params <- get_defined_pk_parameters(mod)
     current <- get_parameters_with_iiv(mod)
+
+    ## Map user-provided parameter names to actual model parameter names
+    ## before computing set differences. Pharmpy's create_basic_pk_model uses
+    ## different naming than the templates (e.g. VC instead of V, QP1 instead
+    ## of Q, VP1 instead of V2, CLMM instead of CL for MM models).
+    param_aliases <- list(
+      V   = c("V1", "VC"),
+      V1  = c("VC"),
+      V2  = c("VP1"),
+      V3  = c("VP2"),
+      Q   = c("QP1"),
+      Q2  = c("QP1"),
+      Q3  = c("QP2"),
+      CL  = c("CLMM")
+    )
+    ## Get all model assignments for fallback matching
+    all_assignments <- tryCatch({
+      stmts <- mod$statements$to_dict()$statements
+      vapply(
+        Filter(function(s) s$class == "Assignment", stmts),
+        function(s) gsub("(Symbol\\(\\'|\\'\\))", "", s$symbol),
+        character(1)
+      )
+    }, error = function(e) character(0))
+
+    iiv_name_map <- stats::setNames(names(iiv), names(iiv))
+    for(nm in names(iiv_name_map)) {
+      if(stringr::str_detect(nm, "~")) next
+      if(nm %in% names(param_aliases)) {
+        ## Check if the original name is a real parameter (not just an alias)
+        has_real_param <- nm %in% current ||
+          (nm %in% all_assignments && length(mod$statements$find_assignment(nm)) > 0 &&
+           !as.character(mod$statements$find_assignment(nm)$expression) %in% param_aliases[[nm]])
+        if(!has_real_param) {
+          for(alias in param_aliases[[nm]]) {
+            if(alias %in% current || alias %in% all_assignments) {
+              iiv_name_map[nm] <- alias
+              break
+            }
+          }
+        }
+      }
+    }
+    ## Apply the mapping to iiv names (including correlation entries like "CL~V1")
+    new_iiv_names <- names(iiv)
+    for(i in seq_along(new_iiv_names)) {
+      nm <- new_iiv_names[i]
+      if(stringr::str_detect(nm, "~")) {
+        parts <- stringr::str_split(nm, "~")[[1]]
+        mapped_parts <- vapply(parts, function(p) {
+          if(p %in% names(iiv_name_map)) iiv_name_map[p] else p
+        }, character(1))
+        new_iiv_names[i] <- paste(mapped_parts, collapse = "~")
+      } else if(nm %in% names(iiv_name_map)) {
+        new_iiv_names[i] <- iiv_name_map[nm]
+      }
+    }
+    names(iiv) <- new_iiv_names
+
+    ## Make sure iiv_type is a list (built after name mapping so keys match)
+    if(inherits(iiv_type, "character")) {
+      iiv_type_list <- list()
+      for(key in names(iiv)) {
+        iiv_type_list[[key]] <- iiv_type
+      }
+    } else {
+      ## Map user-provided iiv_type keys to match mapped iiv names
+      iiv_type_list <- iiv_type
+      for(orig_nm in names(iiv_name_map)) {
+        mapped_nm <- iiv_name_map[orig_nm]
+        if(orig_nm != mapped_nm && orig_nm %in% names(iiv_type_list)) {
+          iiv_type_list[[mapped_nm]] <- iiv_type_list[[orig_nm]]
+          iiv_type_list[[orig_nm]] <- NULL
+        }
+      }
+    }
+
     iiv_goal <- names(iiv)[!stringr::str_detect(names(iiv), "~")]
     iiv_corr <- names(iiv)[stringr::str_detect(names(iiv), "~")]
     has_corr <- unique(unlist(stringr::str_split(iiv_corr, "~")))
@@ -59,16 +126,6 @@ set_iiv <- function(mod, iiv, iiv_type = "exp") {
       dplyr::mutate(parameter = .data$name) |>
       dplyr::mutate(correlation = .data$name %in% has_corr) |>
       dplyr::arrange(.data$reset, .data$correlation) # make sure to first do the parameters that don't need a reset, to avoid creating DUMMYOMEGA
-    for(i in seq_along(map$name)) {
-      key <- map$name[i]
-      if(key == "V" && (! "V" %in% all_params) && "V1" %in% all_params) {
-        map$parameter[i] <- "V1"
-      }
-      if(key == "Q" && (! "QP1" %in% all_params) && "QP1" %in% all_params) {
-        map$parameter[i] <- "QP1"
-      }
-      names(iiv)[key == names(iiv)] <- map$parameter[i]
-    }
     for(i in seq_along(map$parameter)) {
       key <- map$name[i]
       par <- map$parameter[i]
@@ -145,6 +202,10 @@ set_iiv_block <- function(
     omega,
     code[(max(omega_idx)+1):length(code)]
   )
+  ## Remove trailing blank lines that cause pharmpy DatasetError
+  while(length(new_code) > 0 && new_code[length(new_code)] == "") {
+    new_code <- new_code[-length(new_code)]
+  }
   temp <- list(
     code = paste0(new_code, collapse = "\n"),
     dataset = model$dataset,

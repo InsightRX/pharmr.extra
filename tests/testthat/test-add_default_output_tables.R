@@ -8,7 +8,7 @@ test_that("adding both tables when none exist works", {
     EVID = c(1, 0, 0),
     MDV = c(1, 0, 0)
   )
-  mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
+  mod <- create_model(route = "iv", data = dat, tables = NULL, use_template = TRUE, verbose = FALSE)
   
   # Model has no tables initially:
   expect_length(get_tables_in_model_code(mod$code), 0)
@@ -39,7 +39,7 @@ test_that("adding only parameters table works", {
     EVID = c(1, 0, 0),
     MDV = c(1, 0, 0)
   )
-  mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
+  mod <- create_model(route = "iv", data = dat, tables = NULL, use_template = TRUE, verbose = FALSE)
   
   # Model has no tables initially:
   expect_length(get_tables_in_model_code(mod$code), 0)
@@ -67,7 +67,7 @@ test_that("adding only fit table works", {
     EVID = c(1, 0, 0),
     MDV = c(1, 0, 0)
   )
-  mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
+  mod <- create_model(route = "iv", data = dat, tables = NULL, use_template = TRUE, verbose = FALSE)
   
   # Model has no tables initially:
   expect_length(get_tables_in_model_code(mod$code), 0)

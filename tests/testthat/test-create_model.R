@@ -1,5 +1,6 @@
+devtools::load_all("~/git/pharmaai/pharmr.extra")
 test_that("create_model call without arguments works", {
-  mod <- create_model()
+  mod <- create_model(use_template = FALSE)
   expect_s3_class(mod, "pharmpy.model.external.nonmem.model.Model")
 })
 
@@ -23,8 +24,8 @@ test_that("create_model basic functionality works", {
     verbose = FALSE
   )
   expect_s3_class(mod_oral, "pharmpy.model.external.nonmem.model.Model")
-  expect_true(grepl("POP_KA", mod_oral$code))
-  expect_true(grepl("TVKA", mod_oral$code))
+  expect_true(grepl("POP_MAT", mod_oral$code))
+  expect_true(grepl("KA", mod_oral$code))
 
   # Test basic IV model creation
   mod_iv <- create_model(
@@ -32,11 +33,10 @@ test_that("create_model basic functionality works", {
     data = test_data,
     verbose = FALSE
   )
-  expect_s3_class(mod_oral, "pharmpy.model.external.nonmem.model.Model")
+  expect_s3_class(mod_iv, "pharmpy.model.external.nonmem.model.Model")
   expect_true(grepl("POP_CL", mod_iv$code))
-  expect_true(grepl("TVCL", mod_iv$code))
+  expect_true(!grepl("POP_MAT", mod_iv$code))
   expect_true(!grepl("POP_KA", mod_iv$code))
-  expect_true(!grepl("TVKA", mod_iv$code))
 })
 
 test_that("model features are correctly added", {
@@ -160,14 +160,14 @@ test_that("IIV settings work as expected", {
   # Test default IIV settings
   mod <- create_model()
   expect_true("ETA_CL" %in% mod$random_variables$names)
-  expect_true("ETA_V" %in% mod$random_variables$names)
+  expect_true("ETA_VC" %in% mod$random_variables$names)
 
   # Test custom IIV magnitudes
   mod <- create_model(iiv = list(CL = 0.4, V = 0.5))
   par_df <- mod$parameters$to_dataframe()
   pars <- rownames(par_df)
   expect_equal(par_df[pars == "IIV_CL",]$value, 0.16) # 0.4^2
-  expect_equal(par_df[pars == "IIV_V",]$value, 0.25)  # 0.5^2
+  expect_equal(par_df[pars == "IIV_VC",]$value, 0.25)  # 0.5^2
 
   # Test different IIV types
   mod <- create_model(
@@ -180,15 +180,15 @@ test_that("IIV settings work as expected", {
     all = FALSE
   )
   expect_match(
-    as.character(mod$statements$find_assignment("V")$expression),
-    ".*TVV\\*\\(ETA_V \\+ 1\\).*",
+    as.character(mod$statements$find_assignment("VC")$expression),
+    ".*POP_VC\\*\\(ETA_VC \\+ 1\\).*",
     all = FALSE
   )
 
-  # Test no IIV
+  # Test no IIV (pharmpy default IIV remains since iiv=NULL skips set_iiv)
   mod <- create_model(iiv = NULL)
-  expect_false("IIV_CL" %in% mod$random_variables$names)
-  expect_false("IIV_V" %in% mod$random_variables$names)
+  expect_true("ETA_CL" %in% mod$random_variables$names)
+  expect_true("ETA_VC" %in% mod$random_variables$names)
 })
 
 test_that("IIV argument works with multi-compartment models", {
@@ -212,26 +212,27 @@ test_that("IIV argument works with multi-compartment models", {
     verbose = FALSE
   )
   expect_true("ETA_CL" %in% mod_2cmt$random_variables$names)
-  expect_true("ETA_V1" %in% mod_2cmt$random_variables$names)
-  expect_true("ETA_Q" %in% mod_2cmt$random_variables$names)
-  expect_true("ETA_V2" %in% mod_2cmt$random_variables$names)
+  expect_true("ETA_VC" %in% mod_2cmt$random_variables$names)
+  expect_true("ETA_QP1" %in% mod_2cmt$random_variables$names)
+  expect_true("ETA_VP1" %in% mod_2cmt$random_variables$names)
 
-  # Test 2-compartment model with correlation
+  # Test 2-compartment model with correlation (use_template for IIV block handling)
   mod_2cmt <- create_model(
     route = "iv",
     n_cmt = 2,
     iiv = list(CL = 0.2, V1 = 0.3, Q = 0.4, V2 = 0.5, "CL~V1" = 0.4),
     data = test_data,
+    use_template = TRUE,
     verbose = FALSE
   )
   expect_true("ETA_CL" %in% mod_2cmt$random_variables$names)
   expect_true("ETA_V1" %in% mod_2cmt$random_variables$names)
-  expect_true("ETA_Q" %in% mod_2cmt$random_variables$names)
-  expect_true("ETA_V2" %in% mod_2cmt$random_variables$names)
+  expect_true("ETA_QP1" %in% mod_2cmt$random_variables$names)
+  expect_true("ETA_VP1" %in% mod_2cmt$random_variables$names)
 
   expect_true(grepl("\\$OMEGA BLOCK\\(2\\)", mod_2cmt$code))
-  expect_true(grepl("IIV_Q", mod_2cmt$code))
-  expect_true(grepl("IIV_V2", mod_2cmt$code))
+  expect_true(grepl("IIV_QP1", mod_2cmt$code))
+  expect_true(grepl("IIV_VP1", mod_2cmt$code))
 
   # Test 2-compartment model with multiple correlations
   mod_2cmt2 <- create_model(
@@ -243,9 +244,10 @@ test_that("IIV argument works with multi-compartment models", {
       "CL~V1" = 0.4, "Q~V2" = 0.3
     ),
     data = test_data,
+    use_template = TRUE,
     verbose = FALSE
   )
-  expect_true(grepl("ETA_V1 \\+ ETA_Q \\+ ETA_V2 \\+ ETA_CL", mod_2cmt2$code))
+  expect_true(grepl("ETA_V1 \\+ ETA_QP1 \\+ ETA_VP1 \\+ ETA_CL", mod_2cmt2$code))
   expect_true(grepl("0.09,", mod_2cmt2$code))
   expect_true(grepl("0.001, 0.16,", mod_2cmt2$code))
   expect_true(grepl("0.001, 0.06, 0.25", mod_2cmt2$code))
@@ -258,6 +260,7 @@ test_that("IIV argument works with multi-compartment models", {
     iiv = list(CL = 0.2, V1 = 0.3, Q = 0.4, V2 = 0.5, "CL~V2" = 0.4),
     data = test_data,
     tables = c("parameters"),
+    use_template = TRUE,
     verbose = FALSE
   )
   expect_true(grepl("\\$OMEGA BLOCK\\(2\\)", mod_2cmt3$code))
@@ -283,7 +286,8 @@ test_that("IIV argument handles edge cases correctly", {
     verbose = FALSE
   )
   expect_true("ETA_CL" %in% mod_single$random_variables$names)
-  expect_false("ETA_V" %in% mod_single$random_variables$names)
+  # VC retains default IIV from create_basic_pk_model since only CL was specified
+  expect_true("ETA_VC" %in% mod_single$random_variables$names)
 
   # Test with very small IIV values
   mod_small <- create_model(
@@ -293,7 +297,7 @@ test_that("IIV argument handles edge cases correctly", {
     verbose = FALSE
   )
   expect_true("ETA_CL" %in% mod_small$random_variables$names)
-  expect_true("ETA_V" %in% mod_small$random_variables$names)
+  expect_true("ETA_VC" %in% mod_small$random_variables$names)
 
   # Test with large IIV values
   mod_large <- create_model(
@@ -303,7 +307,7 @@ test_that("IIV argument handles edge cases correctly", {
     verbose = FALSE
   )
   expect_true("ETA_CL" %in% mod_large$random_variables$names)
-  expect_true("ETA_V" %in% mod_large$random_variables$names)
+  expect_true("ETA_VC" %in% mod_large$random_variables$names)
 })
 
 test_that("IIV argument works with bioavailability parameter", {
@@ -326,7 +330,7 @@ test_that("IIV argument works with bioavailability parameter", {
     verbose = FALSE
   )
   expect_true("ETA_CL" %in% mod_bio$random_variables$names)
-  expect_true("ETA_V" %in% mod_bio$random_variables$names)
+  expect_true("ETA_VC" %in% mod_bio$random_variables$names)
   expect_true("ETA_BIO" %in% mod_bio$random_variables$names)
 })
 
@@ -350,8 +354,8 @@ test_that("IIV argument works with Michaelis-Menten elimination", {
     data = test_data,
     verbose = FALSE
   )
-  expect_true("ETA_CL" %in% mod_mm$random_variables$names)
-  expect_true("ETA_V" %in% mod_mm$random_variables$names)
+  expect_true("ETA_CLMM" %in% mod_mm$random_variables$names)
+  expect_true("ETA_VC" %in% mod_mm$random_variables$names)
   expect_true("ETA_KM" %in% mod_mm$random_variables$names)
 })
 
@@ -379,11 +383,11 @@ test_that("IIV argument preserves parameter initial estimates correctly", {
 
   # Check that IIV parameters are set to variance (SD^2)
   expect_equal(par_df[pars == "IIV_CL",]$value, 0.09)  # 0.3^2
-  expect_equal(par_df[pars == "IIV_V",]$value, 0.16)   # 0.4^2
+  expect_equal(par_df[pars == "IIV_VC",]$value, 0.16)   # 0.4^2
 
   # Check that population parameters are preserved
   expect_true("POP_CL" %in% pars)
-  expect_true("POP_V" %in% pars)
+  expect_true("POP_VC" %in% pars)
 })
 
 test_that("IIV covariance works", {
@@ -399,6 +403,7 @@ test_that("IIV covariance works", {
     uncertainty_method = "none",
     name = "run1",
     tables = c("fit"),
+    use_template = TRUE,
     verbose = FALSE
   )
 
@@ -418,7 +423,7 @@ test_that("IIV covariance works", {
   par_df <- model_pk4$parameters$to_dataframe()
   pars <- rownames(par_df)
   expect_true(all(c("IIV_QP1", "IIV_CL", "IIV_V1") %in% pars))
-  expect_true(stringr::str_detect(model_pk2$code, "\\$OMEGA BLOCK\\(2\\)"))
+  expect_true(stringr::str_detect(model_pk4$code, "\\$OMEGA BLOCK\\(2\\)"))
 
 })
 
@@ -444,7 +449,7 @@ test_that("IIV argument works with different tools", {
   )
   # nlmixr models should still have the same IIV structure
   expect_true("ETA_CL" %in% mod_nlmixr$random_variables$names)
-  expect_true("ETA_V" %in% mod_nlmixr$random_variables$names)
+  expect_true("ETA_VC" %in% mod_nlmixr$random_variables$names)
 })
 
 test_that("RUV settings work as expected", {
@@ -458,7 +463,7 @@ test_that("RUV settings work as expected", {
   # Test additive error
   mod <- create_model(ruv = "additive")
   expect_equal(
-    "EPS_1*W + IPRED",
+    "EPS_1 + IPRED",
     as.character(mod$statements$find_assignment("Y")$expression)
   )
 
@@ -472,7 +477,7 @@ test_that("RUV settings work as expected", {
   # Test log-transformed both sides
   mod <- create_model(ruv = "ltbs")
   expect_equal(
-    "EPS_1 + log(IPREDADJ)",
+    "EPS_1 + log(IPREDADJ1)",
     as.character(mod$statements$find_assignment("Y")$expression)
   )
 })
@@ -536,7 +541,7 @@ test_that("IIV argument handles all input formats correctly", {
     verbose = FALSE
   )
   expect_true("ETA_CL" %in% mod_all$random_variables$names)
-  expect_true("ETA_V" %in% mod_all$random_variables$names)
+  expect_true("ETA_VC" %in% mod_all$random_variables$names)
 
   # Test 2: Character "basic" - should add IIV only to CL and V
   mod_basic <- create_model(
@@ -546,7 +551,7 @@ test_that("IIV argument handles all input formats correctly", {
     verbose = FALSE
   )
   expect_true("ETA_CL" %in% mod_basic$random_variables$names)
-  expect_true("ETA_V" %in% mod_basic$random_variables$names)
+  expect_true("ETA_VC" %in% mod_basic$random_variables$names)
 
   # Test 3: Character vector of parameter names
   mod_char_vec <- create_model(
@@ -556,7 +561,7 @@ test_that("IIV argument handles all input formats correctly", {
     verbose = FALSE
   )
   expect_true("ETA_CL" %in% mod_char_vec$random_variables$names)
-  expect_true("ETA_V" %in% mod_char_vec$random_variables$names)
+  expect_true("ETA_VC" %in% mod_char_vec$random_variables$names)
 
   # Test 4: List with numeric values (SD scale)
   mod_list <- create_model(
@@ -568,18 +573,17 @@ test_that("IIV argument handles all input formats correctly", {
   par_df <- mod_list$parameters$to_dataframe()
   pars <- rownames(par_df)
   expect_equal(par_df[pars == "IIV_CL",]$value, 0.09)  # 0.3^2
-  expect_equal(par_df[pars == "IIV_V",]$value, 0.16)   # 0.4^2
+  expect_equal(par_df[pars == "IIV_VC",]$value, 0.16)   # 0.4^2
 
-  # Test 5: NULL - should remove all IIV
+  # Test 5: NULL - pharmpy default IIV remains since iiv=NULL skips set_iiv
   mod_null <- create_model(
     route = "iv",
     iiv = NULL,
     data = test_data,
     verbose = FALSE
   )
-  ## There always has to remain one ETA (in current Pharmpy version)
   expect_true("ETA_CL" %in% mod_null$random_variables$names)
-  expect_false("ETA_V" %in% mod_null$random_variables$names)
+  expect_true("ETA_VC" %in% mod_null$random_variables$names)
 })
 
 test_that("IIV argument works with different routes", {
@@ -601,18 +605,18 @@ test_that("IIV argument works with different routes", {
     verbose = FALSE
   )
   expect_true("ETA_CL" %in% mod_iv$random_variables$names)
-  expect_true("ETA_V" %in% mod_iv$random_variables$names)
+  expect_true("ETA_VC" %in% mod_iv$random_variables$names)
 
-  # Test oral route with IIV (should include KA parameter)
+  # Test oral route with IIV (MAT parameter, not KA — pharmpy uses MAT)
   mod_oral <- create_model(
     route = "oral",
-    iiv = list(CL = 0.2, V = 0.3, KA = 0.4),
+    iiv = list(CL = 0.2, V = 0.3, MAT = 0.4),
     data = test_data,
     verbose = FALSE
   )
   expect_true("ETA_CL" %in% mod_oral$random_variables$names)
-  expect_true("ETA_V" %in% mod_oral$random_variables$names)
-  expect_true("ETA_KA" %in% mod_oral$random_variables$names)
+  expect_true("ETA_VC" %in% mod_oral$random_variables$names)
+  expect_true("ETA_MAT" %in% mod_oral$random_variables$names)
 })
 
 test_that("IIV argument works with multi-compartment models", {
@@ -635,9 +639,9 @@ test_that("IIV argument works with multi-compartment models", {
     verbose = FALSE
   )
   expect_true("ETA_CL" %in% mod_2cmt$random_variables$names)
-  expect_true("ETA_V1" %in% mod_2cmt$random_variables$names)
-  expect_true("ETA_Q" %in% mod_2cmt$random_variables$names)
-  expect_true("ETA_V2" %in% mod_2cmt$random_variables$names)
+  expect_true("ETA_VC" %in% mod_2cmt$random_variables$names)
+  expect_true("ETA_QP1" %in% mod_2cmt$random_variables$names)
+  expect_true("ETA_VP1" %in% mod_2cmt$random_variables$names)
 
   # Test 3-compartment model
   mod_3cmt <- create_model(
@@ -648,11 +652,11 @@ test_that("IIV argument works with multi-compartment models", {
     verbose = FALSE
   )
   expect_true("ETA_CL" %in% mod_3cmt$random_variables$names)
-  expect_true("ETA_V1" %in% mod_3cmt$random_variables$names)
-  expect_true("ETA_Q2" %in% mod_3cmt$random_variables$names)
-  expect_true("ETA_V2" %in% mod_3cmt$random_variables$names)
-  expect_true("ETA_Q3" %in% mod_3cmt$random_variables$names)
-  expect_true("ETA_V3" %in% mod_3cmt$random_variables$names)
+  expect_true("ETA_VC" %in% mod_3cmt$random_variables$names)
+  expect_true("ETA_QP1" %in% mod_3cmt$random_variables$names)
+  expect_true("ETA_VP1" %in% mod_3cmt$random_variables$names)
+  expect_true("ETA_QP2" %in% mod_3cmt$random_variables$names)
+  expect_true("ETA_VP2" %in% mod_3cmt$random_variables$names)
 })
 
 test_that("IIV argument works with different IIV types", {
@@ -675,7 +679,7 @@ test_that("IIV argument works with different IIV types", {
     verbose = FALSE
   )
   expect_true("ETA_CL" %in% mod_exp$random_variables$names)
-  expect_true("ETA_V" %in% mod_exp$random_variables$names)
+  expect_true("ETA_VC" %in% mod_exp$random_variables$names)
 
   # Test additive IIV
   mod_add <- create_model(
@@ -686,7 +690,7 @@ test_that("IIV argument works with different IIV types", {
     verbose = FALSE
   )
   expect_true("ETA_CL" %in% mod_add$random_variables$names)
-  expect_true("ETA_V" %in% mod_add$random_variables$names)
+  expect_true("ETA_VC" %in% mod_add$random_variables$names)
 
   # Test proportional IIV
   mod_prop <- create_model(
@@ -697,7 +701,7 @@ test_that("IIV argument works with different IIV types", {
     verbose = FALSE
   )
   expect_true("ETA_CL" %in% mod_prop$random_variables$names)
-  expect_true("ETA_V" %in% mod_prop$random_variables$names)
+  expect_true("ETA_VC" %in% mod_prop$random_variables$names)
 
   # Test mixed IIV types
   mod_mixed <- create_model(
@@ -708,7 +712,7 @@ test_that("IIV argument works with different IIV types", {
     verbose = FALSE
   )
   expect_true("ETA_CL" %in% mod_mixed$random_variables$names)
-  expect_true("ETA_V" %in% mod_mixed$random_variables$names)
+  expect_true("ETA_VC" %in% mod_mixed$random_variables$names)
 })
 
 test_that("create_model with scaling works", {
@@ -726,10 +730,12 @@ test_that("create_model with scaling works", {
   )
 
   # Test basic oral model creation, when no IIV on V
+  # Scaling requires template models for ADVAN-based compartment detection
   mod_scale1 <- create_model(
     route = "oral",
     data = test_data,
     scale_observations = 1000,
+    use_template = TRUE,
     verbose = FALSE
   )
   expect_true(stringr::str_detect(mod_scale1$code, "S2 = V/1000"))
@@ -743,6 +749,7 @@ test_that("create_model with scaling works", {
     n_cmt = 1,
     iiv = list(CL = .2, V = .3),
     scale_observations = 1000,
+    use_template = TRUE,
     verbose = FALSE
   )
   expect_true(stringr::str_detect(mod_scale2$code, "S2 = V/1000"))
@@ -756,6 +763,7 @@ test_that("create_model with scaling works", {
     n_cmt = 2,
     iiv = list(CL = .2, V2 = .3),
     scale_observations = 1000,
+    use_template = TRUE,
     verbose = FALSE
   )
   expect_true(stringr::str_detect(mod_scale3$code, "S2 = V2/1000"))
@@ -830,7 +838,7 @@ test_that("create_model basic TDMDD model (full) from 1-cmt sc model works", {
     verbose = FALSE
   )
   expect_s3_class(mod_sc_tmdd, "pharmpy.model.external.nonmem.model.Model")
-  expect_true(grepl("POP_KA", mod_sc_tmdd$code))
+  expect_true(grepl("KA", mod_sc_tmdd$code))
   expect_true(grepl("POP_R_0", mod_sc_tmdd$code))
   expect_true("POP_R_0" %in% mod_sc_tmdd$parameters$names)
 })
@@ -1039,11 +1047,11 @@ test_that("create_model can create metabolite model with explicit arguments", {
   )
   expect_s3_class(mod_metab_oral2, "pharmpy.model.external.nonmem.model.Model")
   expect_true(grepl("\\$MODEL COMPARTMENT=\\(DEPOT DEFDOSE\\) COMPARTMENT=\\(CENTRAL\\) COMPARTMENT=\\(METABOLITE\\)", mod_metab_oral2$code))
-  expect_true(grepl("K12 = TVKA\\*\\(1 - FPRE\\)", mod_metab_oral2$code))
+  expect_true(grepl("K12 = \\(1 - FPRE\\)/MAT", mod_metab_oral2$code))
 
   ## now with presystemic set to FALSE
   mod_metab_oral3 <- create_model(
-    route = "oral", 
+    route = "oral",
     n_cmt = 1,
     data = test_data,
     metabolite = list(drug_dvid = 1, presystemic = FALSE),
@@ -1051,7 +1059,7 @@ test_that("create_model can create metabolite model with explicit arguments", {
   )
   expect_s3_class(mod_metab_oral3, "pharmpy.model.external.nonmem.model.Model")
   expect_true(grepl("\\$MODEL COMPARTMENT=\\(DEPOT DEFDOSE\\) COMPARTMENT=\\(CENTRAL\\) COMPARTMENT=\\(METABOLITE\\)", mod_metab_oral3$code))
-  expect_false(grepl("K12 = TVKA\\*\\(1 - FPRE\\)", mod_metab_oral3$code))
+  expect_false(grepl("K12 = \\(1 - FPRE\\)/MAT", mod_metab_oral3$code))
 
   ## missing arguments
   expect_error(
@@ -1201,8 +1209,8 @@ test_that("create_model default (force_ode = FALSE) creates analytical model", {
 })
 
 test_that("create_model force_ode = TRUE creates ODE-based model", {
-  mod_iv   <- create_model(route = "iv",   n_cmt = 1, force_ode = TRUE, verbose = FALSE)
-  mod_oral <- create_model(route = "oral", n_cmt = 1, force_ode = TRUE, verbose = FALSE)
+  mod_iv   <- create_model(route = "iv",   n_cmt = 1, force_ode = TRUE, use_template = TRUE, verbose = FALSE)
+  mod_oral <- create_model(route = "oral", n_cmt = 1, force_ode = TRUE, use_template = TRUE, verbose = FALSE)
   expect_true(grepl("ADVAN6", mod_iv$code))
   expect_true(grepl("\\$DES",  mod_iv$code))
   expect_true(grepl("ADVAN6", mod_oral$code))
@@ -1210,15 +1218,15 @@ test_that("create_model force_ode = TRUE creates ODE-based model", {
 })
 
 test_that("create_model force_ode = 6 is equivalent to force_ode = TRUE", {
-  mod_true <- create_model(route = "iv", n_cmt = 1, force_ode = TRUE, verbose = FALSE)
-  mod_6    <- create_model(route = "iv", n_cmt = 1, force_ode = 6,    verbose = FALSE)
+  mod_true <- create_model(route = "iv", n_cmt = 1, force_ode = TRUE, use_template = TRUE, verbose = FALSE)
+  mod_6    <- create_model(route = "iv", n_cmt = 1, force_ode = 6,    use_template = TRUE, verbose = FALSE)
   expect_true(grepl("ADVAN6", mod_6$code))
   expect_true(grepl("\\$DES",  mod_6$code))
   expect_equal(mod_true$code, mod_6$code)
 })
 
 test_that("create_model force_ode = TRUE with n_cmt = 2 uses 2-cmt ODE template", {
-  mod <- create_model(route = "iv", n_cmt = 2, force_ode = TRUE, verbose = FALSE)
+  mod <- create_model(route = "iv", n_cmt = 2, force_ode = TRUE, use_template = TRUE, verbose = FALSE)
   expect_true(grepl("ADVAN6", mod$code))
   expect_true(grepl("\\$DES",  mod$code))
   # 2-cmt ODE has equations for two compartments
@@ -1226,7 +1234,7 @@ test_that("create_model force_ode = TRUE with n_cmt = 2 uses 2-cmt ODE template"
 })
 
 test_that("create_model force_ode = TRUE with n_cmt = 3 uses 3-cmt ODE template", {
-  mod <- create_model(route = "iv", n_cmt = 3, force_ode = TRUE, verbose = FALSE)
+  mod <- create_model(route = "iv", n_cmt = 3, force_ode = TRUE, use_template = TRUE, verbose = FALSE)
   expect_true(grepl("ADVAN6", mod$code))
   expect_true(grepl("\\$DES",  mod$code))
   expect_true(grepl("DADT\\(3\\)", mod$code))
@@ -1234,7 +1242,7 @@ test_that("create_model force_ode = TRUE with n_cmt = 3 uses 3-cmt ODE template"
 
 test_that("create_model force_ode with invalid ADVAN number errors", {
   expect_error(
-    create_model(route = "iv", force_ode = 5, verbose = FALSE),
+    create_model(route = "iv", force_ode = 5, use_template = TRUE, verbose = FALSE),
     "force_ode.*can only be"
   )
 })

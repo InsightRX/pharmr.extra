@@ -182,7 +182,8 @@ test_that("set_compartment_scale infers compartment 2 for ADVAN 2, 4, 12", {
   for (i in c(1,2,3)) {
     model <- create_model(
       n_cmt = i,
-      route = "oral"
+      route = "oral",
+      use_template = TRUE
     )
     expect_message(
       result <- set_compartment_scale(model, expression = list(variable = "V", scale = 1000)),
@@ -195,7 +196,8 @@ test_that("set_compartment_scale infers compartment 1 for ADVAN 1, 3, 11", {
   for (i in c(1,2,3)) {
     model <- create_model(
       n_cmt = i,
-      route = "iv"
+      route = "iv",
+      use_template = TRUE
     )
     expect_message(
       result <- set_compartment_scale(model, expression = list(variable = "V", scale = 1000)),
@@ -308,7 +310,7 @@ test_that("set_compartment_scale skips scaling when update_inits is FALSE", {
 
 ## End-to-end tests for set_comparmtent_scale() with pharmpy model
 test_that("set_compartment_scale works for pharmpy model", {
-  model1 <- create_model(n_cmt = 1, route = "oral") # advan2
+  model1 <- create_model(n_cmt = 1, route = "oral", use_template = TRUE) # advan2
   model2 <- set_compartment_scale(
     model1,
     expression = list(variable = "V", scale = 1000)
@@ -330,7 +332,8 @@ test_that("set_compartment_scale works for pharmpy model", {
 test_that("Finds parameter by common name (e.g. 'V' when actually named 'V2'", {
   model <- create_model(
     n_cmt = 2,
-    route = "oral"
+    route = "oral",
+    use_template = TRUE
   )
   model2 <- model |>
     set_compartment_scale(

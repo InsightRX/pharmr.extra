@@ -127,6 +127,7 @@ create_model <- function(
     auto_stack_encounters = TRUE,
     drop_input = NULL,
     mu_reference = "auto",
+    use_template = FALSE,
     settings = list(), # TBD
     verbose = FALSE
 ) {
@@ -158,16 +159,27 @@ create_model <- function(
   }
 
   ## Read base model
-  if(verbose) cli::cli_alert_info("Reading base model")
-  mod <- pharmr::read_model(
-    path = get_template_modelfile(route, n_cmt, force_ode)
-  )
-  if(!is.logical(force_ode)) {
-    if(is.numeric(force_ode) || is.integer(force_ode) || is.character(force_ode)) {
-      advan <- as.integer(force_ode)
-      if(advan == 9L || advan == 13L) { # default ADVAN for templates is 6, update if needed:
-        mod <- update_advan(mod, advan)
+  if(use_template) { ## Use built-in templates
+    if(verbose) cli::cli_alert_info("Reading base model")
+    mod <- pharmr::read_model(
+      path = get_template_modelfile(route, n_cmt, force_ode)
+    )
+    if(!is.logical(force_ode)) {
+      if(is.numeric(force_ode) || is.integer(force_ode) || is.character(force_ode)) {
+        advan <- as.integer(force_ode)
+        if(advan == 9L || advan == 13L) { # default ADVAN for templates is 6, update if needed:
+          mod <- update_advan(mod, advan)
+        }
       }
+    }
+  } else { ## Use pharmr to create the base model (default)
+    mod <- pharmr::create_basic_pk_model(
+      administration = route
+    )
+    ## Convert to NONMEM format early so downstream functions (e.g. set_iiv_block)
+    ## can work with NONMEM control stream syntax
+    if(tool != "nlmixr") {
+      mod <- pharmr::convert_model(mod, "nonmem")
     }
   }
 
@@ -257,6 +269,23 @@ create_model <- function(
       cli::cli_alert_warning("Could not compute initial estimates automatically, please check manually.")
     } else {
       inits <- stats::setNames(inits, paste0("POP_", names(inits)))
+      ## Map init names to actual model parameter names (e.g. POP_V -> POP_VC)
+      model_params <- mod$parameters$names
+      init_aliases <- list(
+        POP_V = c("POP_VC"),
+        POP_CL = c("POP_CLMM")
+      )
+      for(i in seq_along(inits)) {
+        nm <- names(inits)[i]
+        if(!nm %in% model_params && nm %in% names(init_aliases)) {
+          for(alias in init_aliases[[nm]]) {
+            if(alias %in% model_params) {
+              names(inits)[i] <- alias
+              break
+            }
+          }
+        }
+      }
       mod <- pharmr::set_initial_estimates(
         model = mod,
         inits = inits
@@ -271,6 +300,8 @@ create_model <- function(
       model = mod,
       to_format = "nlmixr"
     )
+  } else {
+    mod <- pharmr::convert_model(mod, "nonmem")
   }
 
   ## Estimation method
@@ -288,6 +319,7 @@ create_model <- function(
       estimation_method = first_method, 
       estimation_options = per_step_options[[1]]
     )
+    if(!is.null(tool_options$MAXEVAL)) tool_options$MAXEVAL <- NULL
   } else {
     tool_options <- list()
     cli::cli_alert_warning(paste0("Skipping estimation options for ", tool, ", since not supported by Pharmpy. Please set manually"))

@@ -9,8 +9,8 @@ test_that("works when no patab exists initially", {
     EVID = c(1, 0, 0),
     MDV = c(1, 0, 0)
   )
-  mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
-  
+  mod <- create_model(route = "iv", data = dat, tables = NULL, use_template = TRUE, verbose = FALSE)
+
   # Model has no tables initially:
   existing_tables <- get_tables_in_model_code(mod$code)
   expect_length(existing_tables, 0)

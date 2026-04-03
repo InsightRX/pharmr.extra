@@ -35,6 +35,7 @@ create_model(
   auto_stack_encounters = TRUE,
   drop_input = NULL,
   mu_reference = "auto",
+  use_template = FALSE,
   settings = list(),
   verbose = FALSE
 )
