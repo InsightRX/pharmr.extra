@@ -469,14 +469,14 @@ test_that("RUV settings work as expected", {
   # Test combined error
   mod <- create_model(ruv = "combined")
   expect_equal(
-    "EPS_1*IPRED + EPS_2 + IPRED",
+    "EPS_1*IPREDADJ + EPS_2 + IPRED",
     as.character(mod$statements$find_assignment("Y")$expression)
   )
 
   # Test log-transformed both sides
   mod <- create_model(ruv = "ltbs")
   expect_equal(
-    "EPS_1 + log(IPREDADJ1)",
+    "EPS_1 + log(IPREDADJ)",
     as.character(mod$statements$find_assignment("Y")$expression)
   )
 })
