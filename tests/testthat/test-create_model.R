@@ -1,4 +1,3 @@
-devtools::load_all("~/git/pharmaai/pharmr.extra")
 test_that("create_model call without arguments works", {
   mod <- create_model(use_template = FALSE)
   expect_s3_class(mod, "pharmpy.model.external.nonmem.model.Model")
