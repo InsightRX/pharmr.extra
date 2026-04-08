@@ -2,36 +2,118 @@ library(mockery)
 
 ## TODO: needs tests for main run_nlme function
 
-test_that("run_nlme warns when SAEM model is not mu-referenced", {
+test_that("run_nlme mu_reference='auto': applies mu-referencing when SAEM + not mu-referenced", {
+  local_pharmr.extra_options()
   mod_saem <- create_model(estimation_method = "saem", mu_reference = FALSE)
-  expect_warning(
+  expect_false(pharmr::has_mu_reference(mod_saem))
+
+  captured_model <- NULL
+  stub(run_nlme, "prepare_run_folder", function(id, model, ...) {
+    captured_model <<- model
+    stop("abort before NONMEM")
+  })
+
+  expect_message(
     tryCatch(
-      run_nlme(mod_saem, id = "run1", path = withr::local_tempdir()),
+      run_nlme(mod_saem, id = "run1", path = withr::local_tempdir(),
+               mu_reference = "auto", verbose = FALSE),
       error = function(e) NULL
     ),
-    "not mu-referenced"
+    "mu-referenc"
   )
+  expect_true(pharmr::has_mu_reference(captured_model))
 })
 
-test_that("run_nlme does not warn when SAEM model is mu-referenced", {
+test_that("run_nlme mu_reference='auto': no message when SAEM already mu-referenced", {
+  local_pharmr.extra_options()
   mod_saem <- create_model(estimation_method = "saem", mu_reference = TRUE)
-  expect_no_warning(
+  expect_true(pharmr::has_mu_reference(mod_saem))
+
+  stub(run_nlme, "prepare_run_folder", function(...) stop("abort before NONMEM"))
+
+  expect_no_message(
     tryCatch(
-      run_nlme(mod_saem, id = "run1", path = withr::local_tempdir()),
+      run_nlme(mod_saem, id = "run1", path = withr::local_tempdir(),
+               mu_reference = "auto", verbose = FALSE),
       error = function(e) NULL
     )
   )
 })
 
-test_that("run_nlme does not warn when FOCE model is not mu-referenced", {
-  mod_foce <- create_model(estimation_method = "foce")
+test_that("run_nlme mu_reference=TRUE: always applies mu-referencing (FOCE model)", {
+  local_pharmr.extra_options()
+  mod_foce <- create_model(estimation_method = "foce", mu_reference = FALSE)
+
+  captured_model <- NULL
+  stub(run_nlme, "prepare_run_folder", function(id, model, ...) {
+    captured_model <<- model
+    stop("abort before NONMEM")
+  })
+
+  expect_message(
+    tryCatch(
+      run_nlme(mod_foce, id = "run1", path = withr::local_tempdir(),
+               mu_reference = TRUE, verbose = FALSE),
+      error = function(e) NULL
+    ),
+    "mu-referenc"
+  )
+  expect_true(pharmr::has_mu_reference(captured_model))
+})
+
+test_that("run_nlme mu_reference=FALSE: warns when SAEM model is not mu-referenced", {
+  local_pharmr.extra_options()
+  mod_saem <- create_model(estimation_method = "saem", mu_reference = FALSE)
+  expect_false(pharmr::has_mu_reference(mod_saem))
+
+  captured_model <- NULL
+  stub(run_nlme, "prepare_run_folder", function(id, model, ...) {
+    captured_model <<- model
+    stop("abort before NONMEM")
+  })
+
+  expect_warning(
+    tryCatch(
+      run_nlme(mod_saem, id = "run1", path = withr::local_tempdir(),
+               mu_reference = FALSE, verbose = FALSE),
+      error = function(e) NULL
+    ),
+    "not mu-referenced"
+  )
+  # Model should NOT have been mu-referenced
+  expect_false(pharmr::has_mu_reference(captured_model))
+})
+
+test_that("run_nlme mu_reference=FALSE: no warning when SAEM already mu-referenced", {
+  local_pharmr.extra_options()
+  mod_saem <- create_model(estimation_method = "saem", mu_reference = TRUE)
+
+  stub(run_nlme, "prepare_run_folder", function(...) stop("abort before NONMEM"))
+
   expect_no_warning(
-      tryCatch(
-        run_nlme(mod_foce, id = "run1", path = withr::local_tempdir()),
-        error = function(e) NULL
-      )
+    tryCatch(
+      run_nlme(mod_saem, id = "run1", path = withr::local_tempdir(),
+               mu_reference = FALSE, verbose = FALSE),
+      error = function(e) NULL
+    )
   )
 })
+
+test_that("run_nlme mu_reference='auto': no warning/message for FOCE model", {
+  local_pharmr.extra_options()
+  mod_foce <- create_model(estimation_method = "foce")
+
+  stub(run_nlme, "prepare_run_folder", function(...) stop("abort before NONMEM"))
+
+  expect_no_warning(
+    tryCatch(
+      run_nlme(mod_foce, id = "run1", path = withr::local_tempdir(),
+               mu_reference = "auto", verbose = FALSE),
+      error = function(e) NULL
+    )
+  )
+})
+
 
 test_that("get_new_run_number works correctly", {
   # Create temporary directory for testing
