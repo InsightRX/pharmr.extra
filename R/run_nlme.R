@@ -131,7 +131,7 @@ run_nlme <- function(
   steps <- model$execution_steps$to_dataframe()
   is_saem <- "saem" %in% tolower(steps$method)
   is_mu_ref <- pharmr::has_mu_reference(model)
-  if(isTRUE(mu_reference) || (identical(mu_reference, "auto") && is_saem && !is_mu_ref)) {
+  if((isTRUE(mu_reference) && !is_mu_ref) || (identical(mu_reference, "auto") && is_saem && !is_mu_ref)) {
     cli::cli_alert_info("Applying mu-referencing to model.")
     model <- pharmr::mu_reference_model(model)
   } else if(isFALSE(mu_reference) && is_saem && !is_mu_ref) {
