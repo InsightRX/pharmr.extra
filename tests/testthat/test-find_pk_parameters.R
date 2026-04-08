@@ -126,7 +126,7 @@ test_that("find_pk_parameter warns and returns original parameter when not found
   # Test parameter not in mapping
   expect_warning(
     result <- find_pk_parameter("UNKNOWN_PARAM", mock_model),
-    "Could not find parameter UNKNOWN_PARAM in model as UNKNOWN_PARAM, nor under different name."
+    "Could not find parameter UNKNOWN_PARAM in model as UNKNOWN_PARAM, nor under different name. Available parameters: CL."
   )
   expect_equal(result, "UNKNOWN_PARAM")
 })

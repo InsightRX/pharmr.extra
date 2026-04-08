@@ -28,7 +28,7 @@ find_pk_parameter <- function(parameter, model) {
     map <- list("V" = c("V2", "VC"), "V1" = c("VC"), "Q" = c("QP1"), "V3" = c("VP1"), "V4" = c("VP2"))
   }
   if(is.null(map[[parameter]])) {
-    cli::cli_warn("Could not find parameter {parameter} in model as {parameter}, nor under different name.")
+    cli::cli_warn("Could not find parameter {parameter} in model as {parameter}, nor under different name. Available parameters: {paste(model_params, collapse = ', ')}.")
     return(parameter)
   } else {
     ## Try each candidate; prefer one that exists in model
