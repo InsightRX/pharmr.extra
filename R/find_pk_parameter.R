@@ -24,7 +24,7 @@ find_pk_parameter <- function(parameter, model) {
   advan <- get_advan(model)
   if(advan %in% c(1, 3, 11)) {
     map <- list(
-      "V"   = c("VC", "V1"),
+      "V"   = c("V1", "VC"),
       "V1"  = c("VC"),
       "VC"  = c("V1"),
       "Q"   = c("QP1"),
@@ -36,7 +36,7 @@ find_pk_parameter <- function(parameter, model) {
     )
   } else {
     map <- list(
-      "V"   = c("VC", "V2"),
+      "V"   = c("V2", "VC"),
       "V1"  = c("VC"),
       "V2"  = c("VC"),
       "VC"  = c("V2"),
