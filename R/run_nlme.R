@@ -136,7 +136,7 @@ run_nlme <- function(
     model <- pharmr::mu_reference_model(model)
   } else if(isFALSE(mu_reference) && is_saem && !is_mu_ref) {
     cli::cli_warn(
-      "Model uses SAEM but is not mu-referenced. Consider setting {.code mu_reference = \"auto\"} (default) for better convergence."
+      "Model uses SAEM but is not mu-referenced. Consider setting {.code mu_reference = \"auto\"} for better convergence."
     )
   }
 
