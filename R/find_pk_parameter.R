@@ -23,9 +23,30 @@ find_pk_parameter <- function(parameter, model) {
   ## then, try to find depending on advan
   advan <- get_advan(model)
   if(advan %in% c(1, 3, 11)) {
-    map <- list("V" = c("V1", "VC"), "V1" = c("VC"), "Q" = c("QP1"), "V2" = c("VP1"), "V3" = c("VP2"))
+    map <- list(
+      "V"   = c("V1", "VC"),
+      "V1"  = c("VC"),
+      "VC"  = c("V1"),
+      "Q"   = c("QP1"),
+      "QP1" = c("Q"),
+      "V2"  = c("VP1"),
+      "VP1" = c("V2"),
+      "V3"  = c("VP2"),
+      "VP2" = c("V3")
+    )
   } else {
-    map <- list("V" = c("V2", "VC"), "V1" = c("VC"), "Q" = c("QP1"), "V3" = c("VP1"), "V4" = c("VP2"))
+    map <- list(
+      "V"   = c("V2", "VC"),
+      "V1"  = c("VC"),
+      "V2"  = c("VC"),
+      "VC"  = c("V2"),
+      "Q"   = c("QP1"),
+      "QP1" = c("Q"),
+      "V3"  = c("VP1"),
+      "VP1" = c("V3"),
+      "V4"  = c("VP2"),
+      "VP2" = c("V4")
+    )
   }
   if(is.null(map[[parameter]])) {
     cli::cli_warn("Could not find parameter {parameter} in model as {parameter}, nor under different name. Available parameters: {paste(model_params, collapse = ', ')}.")
