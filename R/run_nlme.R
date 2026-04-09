@@ -68,6 +68,11 @@
 #' @param remove_tables if `TRUE`, removes all `$TABLE` records from the model
 #' before running. Applied after any tables added via the `tables` argument.
 #' Default is `FALSE`.
+#' @param mu_reference Controls mu-referencing for SAEM models. `"auto"`
+#' (default) automatically applies `pharmr::mu_reference_model()` when SAEM is
+#' used and the model is not already mu-referenced. `TRUE` always applies
+#' mu-referencing. `FALSE` never applies mu-referencing (old behaviour: warns
+#' when SAEM is used without mu-referencing).
 #' @param verbose verbose output?
 #'
 #' @returns TODO
@@ -94,6 +99,7 @@ run_nlme <- function(
   save_final = TRUE,
   check_only = FALSE,
   remove_tables = FALSE,
+  mu_reference = "auto",
   verbose = TRUE
 ) {
 
@@ -121,11 +127,16 @@ run_nlme <- function(
     model <- add_sir(model, options = sir_options)
   }
 
-  ## Warn if SAEM is used without mu-referencing
+  ## Apply mu-referencing based on `mu_reference` argument
   steps <- model$execution_steps$to_dataframe()
-  if("saem" %in% tolower(steps$method) && !pharmr::has_mu_reference(model)) {
+  is_saem <- "saem" %in% tolower(steps$method)
+  is_mu_ref <- pharmr::has_mu_reference(model)
+  if((isTRUE(mu_reference) && !is_mu_ref) || (identical(mu_reference, "auto") && is_saem && !is_mu_ref)) {
+    cli::cli_alert_info("Applying mu-referencing to model.")
+    model <- pharmr::mu_reference_model(model)
+  } else if(isFALSE(mu_reference) && is_saem && !is_mu_ref) {
     cli::cli_warn(
-      "Model uses SAEM but is not mu-referenced. Consider using {.code mu_reference = 'auto'} (default) in {.fn create_model} for better convergence."
+      "Model uses SAEM but is not mu-referenced. Consider setting {.code mu_reference = \"auto\"} for better convergence."
     )
   }
 
