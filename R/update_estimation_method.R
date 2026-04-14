@@ -45,6 +45,9 @@ update_estimation_method <- function(
       } else {
         NULL
       }
+      # Save $TABLE records: pharmpy's set_estimation_step() may corrupt them
+      # by appending predictions/residuals to the last $TABLE in wrong position
+      saved_tables <- if(tool == "nonmem") get_table_records(model) else NULL
       model <- pharmr::set_estimation_step(
         model,
         method = estimation_method[i],
@@ -53,6 +56,9 @@ update_estimation_method <- function(
       )
       if(!is.null(cov_record)) { # the previous command may reset the COV record
         model <- update_covariance_record(model, cov_record)
+      }
+      if(!is.null(saved_tables)) {
+        model <- restore_table_records(model, saved_tables)
       }
     } else {
       model <- pharmr::add_estimation_step(
