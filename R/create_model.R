@@ -434,10 +434,10 @@ create_model <- function(
           datatype = "nonmem"
         )
       if(verbose) cli::cli_alert_info("Checking and cleaning dataset.")
-      mod <- clean_modelfit_data(
-        model = mod,
-        try_make_numeric = TRUE
-      ) 
+      # mod <- clean_modelfit_data(
+      #   model = mod,
+      #   try_make_numeric = FALSE
+      # ) 
     }
   }
   
@@ -748,19 +748,36 @@ drop_input_columns <- function(model, columns) {
     if (!in_input) next
 
     for (col in columns) {
-      # Replace standalone column name (not part of an alias like DV=COL)
-      # with DROP=<col> so the original name is preserved in the record
+      # Remove standalone column name from $INPUT (not part of an alias like
+      # DV=COL). The column is also removed from the data.frame below, so
+      # $INPUT positions stay aligned with CSV columns.
       line <- gsub(
         paste0("(?<![=A-Za-z0-9_])\\b", col, "\\b(?!=)"),
-        paste0("DROP=", col),
+        "",
         line, perl = TRUE
       )
     }
+    # Clean up any double spaces left by removals
+    line <- gsub("\\s{2,}", " ", line)
     lines[[i]] <- line
   }
 
   new_code <- paste(lines, collapse = "\n")
   tmpmod <- tempfile(fileext = ".mod")
   writeLines(new_code, tmpmod)
-  create_model_from_file(tmpmod, data = model$dataset)
+  # Remove dropped columns from the data.frame and clean remaining character
+  # columns before passing to create_model_from_file(). Pharmpy validates all
+  # data columns numerically, so non-numeric values like "." (NONMEM missing
+  # sentinel) would cause a DatasetError.
+  data <- model$dataset
+  if(!is.null(data)) {
+    data <- data[, setdiff(names(data), columns), drop = FALSE]
+    for(col in names(data)) {
+      if(inherits(data[[col]], "character")) {
+        suppressWarnings(data[[col]] <- as.numeric(data[[col]]))
+        data[[col]][is.na(data[[col]])] <- 0
+      }
+    }
+  }
+  create_model_from_file(tmpmod, data = data)
 }
