@@ -159,27 +159,30 @@ create_model <- function(
   }
   if(verbose) cli::cli_alert_info(paste0("Writing model in ", tool, " format"))
 
-  ## Apply dictionary: temporarily rename data columns from actual names to
-  ## NONMEM standard names for R-side processing (get_initial_estimates_from_data,
-  ## stack_encounters). After the model is created, $INPUT is updated to use
-  ## aliases (e.g. TIME=TAFD) so the dataset keeps the original column names.
-  dict_mappings <- list()  # tracks actual renames applied
+  ## Apply dictionary: rename data columns from actual names to NONMEM standard
+  ## names so that $INPUT uses standard names (TIME, DV, ID, etc.). The original
+  ## dataset is preserved and written as-is to the run folder; NONMEM reads by
+  ## column position so the header names don't matter.
+  ## If a standard name already exists as a column (e.g. TIME exists alongside
+  ## TAFD), the original is renamed to a placeholder and marked DROP in $INPUT.
+  original_data <- NULL
   if(!is.null(dictionary) && inherits(data, "data.frame")) {
+    original_data <- data
     dict <- parse_data_dictionary(dictionary)
     for(nm_name in names(dict)) {
       actual_name <- dict[[nm_name]]
       if(actual_name != nm_name && actual_name %in% names(data)) {
-        ## If the standard name already exists as a different column, remove it
-        ## now to avoid duplicate column names after renaming
+        ## If the standard name already exists as a different column, rename it
+        ## to a placeholder so it becomes DROP in $INPUT
         if(nm_name %in% names(data)) {
+          placeholder <- paste0("_DDRP_", nm_name)
           if(verbose) cli::cli_alert_info(
-            "Removing column {nm_name} (replaced by {actual_name} via dictionary)"
+            "Column {nm_name} will be dropped (replaced by {actual_name} via dictionary)"
           )
-          data[[nm_name]] <- NULL
+          names(data)[names(data) == nm_name] <- placeholder
         }
         if(verbose) cli::cli_alert_info("Mapping column {actual_name} -> {nm_name}")
         names(data)[names(data) == actual_name] <- nm_name
-        dict_mappings[[nm_name]] <- actual_name
       }
     }
   }
@@ -499,12 +502,10 @@ create_model <- function(
     mod <- drop_input_columns(mod, drop_input)
   }
 
-  ## Apply dictionary aliases to $INPUT: replace renamed columns with
-  ## NONMEM alias syntax (e.g. TIME -> TIME=TAFD) so the dataset keeps
-  ## original column names while NONMEM maps them correctly.
-  if(length(dict_mappings) > 0) {
-    if(verbose) cli::cli_alert_info("Applying dictionary aliases to $INPUT")
-    mod <- apply_dictionary_to_input(mod, dict_mappings)
+  ## If dictionary was used, store the original data so prepare_run_folder()
+  ## writes it as-is to the run folder (NONMEM reads by position, not by name).
+  if(!is.null(original_data)) {
+    attr(mod, "original_data") <- original_data
   }
 
   ## Handle BLQ
@@ -812,69 +813,3 @@ drop_input_columns <- function(model, columns) {
   create_model_from_file(tmpmod, data = model$dataset)
 }
 
-#' Apply dictionary aliases to $INPUT in a Pharmpy NONMEM model
-#'
-#' Replaces renamed column names in $INPUT with NONMEM alias syntax
-#' (e.g. standalone `TIME` becomes `TIME=TAFD`) so the dataset keeps the
-#' original column names while NONMEM maps them to standard variables.
-#' Also renames columns in the model's dataset back to the original names.
-#'
-#' @param model pharmpy model object
-#' @param mappings named list where names are NONMEM names and values are
-#'   original dataset column names (e.g. `list(TIME = "TAFD", DV = "CONC")`)
-#'
-#' @returns updated pharmpy model object
-#' @keywords internal
-apply_dictionary_to_input <- function(model, mappings) {
-  # Build aliased model code (e.g. TIME -> TIME=TAFD in $INPUT)
-  lines <- strsplit(model$code, "\n", fixed = TRUE)[[1]]
-  in_input <- FALSE
-
-  for (i in seq_along(lines)) {
-    line <- lines[[i]]
-    stripped <- trimws(line)
-
-    if (nchar(stripped) > 0 && substr(stripped, 1L, 1L) == "$") {
-      in_input <- grepl(
-        "^\\$IN(P(U(T?)?)?)?($|\\s)",
-        stripped, ignore.case = TRUE, perl = TRUE
-      )
-    }
-
-    if (!in_input) next
-
-    for (nm_name in names(mappings)) {
-      actual_name <- mappings[[nm_name]]
-      line <- gsub(
-        paste0("(?<![=A-Za-z0-9_])\\b", nm_name, "\\b(?!=)"),
-        paste0(nm_name, "=", actual_name),
-        line, perl = TRUE
-      )
-    }
-    lines[[i]] <- line
-  }
-
-  aliased_code <- paste(lines, collapse = "\n")
-
-  # Write dataset with original column names
-  data <- model$dataset
-  if (!is.null(data)) {
-    for (nm_name in names(mappings)) {
-      actual_name <- mappings[[nm_name]]
-      if (nm_name %in% names(data)) {
-        names(data)[names(data) == nm_name] <- actual_name
-      }
-    }
-    csv_path <- tempfile(pattern = "data", fileext = ".csv")
-    write.csv(data, csv_path, quote = FALSE, row.names = FALSE)
-    aliased_code <- change_nonmem_dataset(aliased_code, csv_path)
-  }
-
-  # Pharmpy cannot parse NONMEM alias syntax (TIME=TAFD), so we keep the
-  # pharmpy model with standard names and store the aliased code + original
-  # data path as R attributes. prepare_run_folder() picks these up when
-  # writing the NONMEM run files.
-  attr(model, "dict_model_code") <- aliased_code
-  attr(model, "dict_data_path") <- if (!is.null(data)) csv_path else NULL
-  model
-}

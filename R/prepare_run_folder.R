@@ -24,6 +24,11 @@ prepare_run_folder <- function(
   output_file <- "run.lst"
   model_path <- file.path(fit_folder, model_file)
 
+  ## When a dictionary was applied in create_model(), use the original data
+  ## (with original column names) so the CSV is an exact copy of the input.
+  ## NONMEM reads by column position, so the header names don't matter.
+  original_data <- attr(model, "original_data")
+
   if(!is.null(data)) {
     if(inherits(data, "character")) {
       if(verbose) cli::cli_process_start("Copying dataset")
@@ -45,13 +50,12 @@ prepare_run_folder <- function(
       if(verbose) cli::cli_alert_info("Updating model dataset with provided dataset")
       write.csv(data, file = dataset_path, quote = FALSE, row.names = FALSE)
     }
+  } else if (!is.null(original_data)) {
+    if (verbose) cli::cli_process_start("Copying dataset (original column names)")
+    write.csv(original_data, file = dataset_path, quote = FALSE, row.names = FALSE)
   } else {
-    # When a dictionary was applied, use the original-named CSV
-    dict_data <- attr(model, "dict_data_path")
-    if (!is.null(dict_data) && file.exists(dict_data)) {
-      if (verbose) cli::cli_process_start("Copying dataset (with original column names from dictionary)")
-      file.copy(from = dict_data, to = dataset_path)
-    } else if (!is.null(model$dataset)) {
+    # When `data` is NULL, prefer using an in-memory dataset if available
+    if (!is.null(model$dataset)) {
       if (verbose) cli::cli_process_start("Copying dataset from model object")
       write.csv(model$dataset, file = dataset_path, quote = FALSE, row.names = FALSE)
     } else {
@@ -75,10 +79,9 @@ prepare_run_folder <- function(
   }
 
   ## Copy modelfile
-  ## If a dictionary was applied in create_model(), use the aliased model code
-  ## (with $INPUT entries like TIME=TAFD) instead of pharmpy's internal code.
-  dict_code <- attr(model, "dict_model_code")
-  model_code <- if (!is.null(dict_code)) dict_code else model$code
+  model_code <- model$code
+  ## Replace dictionary placeholder column names with DROP
+  model_code <- gsub("_DDRP_[A-Za-z0-9_]+", "DROP", model_code, perl = TRUE)
   model_code <- change_nonmem_dataset(
     model_code,
     dataset_path
