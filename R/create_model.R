@@ -765,19 +765,72 @@ drop_input_columns <- function(model, columns) {
   new_code <- paste(lines, collapse = "\n")
   tmpmod <- tempfile(fileext = ".mod")
   writeLines(new_code, tmpmod)
-  # Remove dropped columns from the data.frame and clean remaining character
-  # columns before passing to create_model_from_file(). Pharmpy validates all
-  # data columns numerically, so non-numeric values like "." (NONMEM missing
-  # sentinel) would cause a DatasetError.
+  # Remove dropped columns and clean character columns before passing to
+  # create_model_from_file(). Pharmpy validates all data columns numerically,
+  # so non-numeric values cause a DatasetError.
+  # NONMEM date/time columns (DATE, TIME, DAT1-DAT3) are kept in $INPUT but
+  # temporarily set to 0 for pharmpy; the original values are restored in the
+  # CSV afterwards so NONMEM can parse them.
+  nonmem_datetime <- c("DATE", "TIME", "DAT1", "DAT2", "DAT3")
   data <- model$dataset
+  datetime_backup <- list()
   if(!is.null(data)) {
     data <- data[, setdiff(names(data), columns), drop = FALSE]
     for(col in names(data)) {
       if(inherits(data[[col]], "character")) {
-        suppressWarnings(data[[col]] <- as.numeric(data[[col]]))
-        data[[col]][is.na(data[[col]])] <- 0
+        if(toupper(col) %in% nonmem_datetime) {
+          datetime_backup[[col]] <- data[[col]]
+          data[[col]] <- 0
+        } else {
+          suppressWarnings(data[[col]] <- as.numeric(data[[col]]))
+          data[[col]][is.na(data[[col]])] <- 0
+        }
       }
     }
   }
-  create_model_from_file(tmpmod, data = data)
+  model <- create_model_from_file(tmpmod, data = data)
+  # Restore original DATE/TIME values in the dataset CSV so NONMEM can use them
+  if(length(datetime_backup) > 0) {
+    model <- restore_datetime_columns(model, datetime_backup)
+  }
+  model
+}
+
+#' Restore character DATE/TIME columns in a model's dataset CSV
+#'
+#' After pharmpy validation, overwrites the date/time columns in the CSV that
+#' the model's $DATA points to with their original character values, then
+#' reloads the dataset so model$dataset reflects the restored data.
+#'
+#' @param model pharmpy model object
+#' @param datetime_backup named list of original character vectors
+#'
+#' @returns updated model
+#' @keywords internal
+restore_datetime_columns <- function(model, datetime_backup) {
+  obj <- nm_read_model(code = model$code)
+  data_block <- obj$DATA
+  # Extract CSV path from $DATA (first non-keyword token)
+  data_tokens <- unlist(strsplit(
+    gsub("\\$DATA\\s*", "", paste(data_block, collapse = " ")), "\\s+"
+  ))
+  csv_path <- data_tokens[!grepl("^(IGNORE|ACCEPT)=", data_tokens)][1]
+  if(is.null(csv_path) || !file.exists(csv_path)) return(model)
+  csv_data <- read.csv(csv_path, check.names = FALSE)
+  for(col in names(datetime_backup)) {
+    if(col %in% names(csv_data)) {
+      csv_data[[col]] <- datetime_backup[[col]]
+    }
+  }
+  write.csv(csv_data, csv_path, quote = FALSE, row.names = FALSE)
+  # Reload dataset from the updated CSV
+  tryCatch({
+    model <- pharmr::set_dataset(model, path_or_df = csv_path, datatype = "nonmem") |>
+      pharmr::load_dataset()
+  }, error = function(e) {
+    # If pharmpy rejects character columns during reload, unload the dataset
+    # so prepare_run_folder() falls back to copying the CSV file directly
+    tryCatch(model <<- pharmr::unload_dataset(model), error = function(e2) NULL)
+  })
+  model
 }
