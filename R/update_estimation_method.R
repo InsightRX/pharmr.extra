@@ -35,15 +35,22 @@ update_estimation_method <- function(
     ## Compute tool_options for this step (only when per_step_options is provided)
     if(!is.null(per_step_options) && i <= length(per_step_options)) {
       step_opts <- per_step_options[[i]]
-      tool_options_i <- get_estimation_options(tool, tolower(estimation_method[i]), step_opts)
     } else {
-      tool_options_i <- list()
+      step_opts <- list()
     }
+    tool_options_i <- get_estimation_options(tool, tolower(estimation_method[i]), list())
     if(i <= n_existing) {
       cov_record <- if(tool == "nonmem" && has_covariance_record(model)) {
         get_covariance_record(model)
       } else {
         NULL
+      }
+      # Save $TABLE records: pharmpy's set_estimation_step() may corrupt them
+      # by appending predictions/residuals to the last $TABLE in wrong position
+      saved_tables <- if(tool == "nonmem") get_table_records(model) else NULL
+      current_est <- model$execution_steps$to_dataframe()
+      if(!is.null(current_est$maximum_evaluations)) {
+        tool_options_i$MAXEVAL <- NULL # cannot be set again
       }
       model <- pharmr::set_estimation_step(
         model,
@@ -53,6 +60,9 @@ update_estimation_method <- function(
       )
       if(!is.null(cov_record)) { # the previous command may reset the COV record
         model <- update_covariance_record(model, cov_record)
+      }
+      if(!is.null(saved_tables)) {
+        model <- restore_table_records(model, saved_tables)
       }
     } else {
       model <- pharmr::add_estimation_step(
