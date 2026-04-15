@@ -460,6 +460,14 @@ create_model <- function(
     }
   }
   
+  ## Always drop DATE column (non-numeric, NONMEM reserved name)
+  if(!is.null(data) && inherits(data, "data.frame")) {
+    dataset_cols <- if(!is.null(mod$dataset)) names(mod$dataset) else names(data)
+    if("DATE" %in% dataset_cols && !("DATE" %in% drop_input)) {
+      drop_input <- c(drop_input, "DATE")
+    }
+  }
+
   ## Drop columns in $INPUT
   if(!is.null(drop_input)) {
     if(!inherits(drop_input, "character")) {
