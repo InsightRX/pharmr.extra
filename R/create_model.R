@@ -506,12 +506,6 @@ create_model <- function(
     mod <- drop_input_columns(mod, drop_input)
   }
 
-  ## Store the original data so prepare_run_folder() writes an exact copy
-  ## to the run folder (NONMEM reads by position, not by header name).
-  if(!is.null(original_data)) {
-    attr(mod, "original_data") <- original_data
-  }
-
   ## Handle BLQ
   if(!is.null(blq_method)) {
     blq_method <- tolower(blq_method)
@@ -539,6 +533,14 @@ create_model <- function(
       mod, 
       new_name = name
     )
+  }
+
+  ## Store the original data so prepare_run_folder() writes an exact copy
+  ## to the run folder (NONMEM reads by position, not by header name).
+  ## Must be set last — pharmpy calls like set_name() create new objects
+  ## that lose R attributes.
+  if(!is.null(original_data)) {
+    attr(mod, "original_data") <- original_data
   }
 
   if(verbose) cli::cli_alert_success("Done")
