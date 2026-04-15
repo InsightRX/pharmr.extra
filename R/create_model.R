@@ -470,8 +470,8 @@ create_model <- function(
       if(verbose) cli::cli_alert_info("Checking and cleaning dataset.")
       mod <- clean_modelfit_data(
         model = mod,
-        try_make_numeric = TRUE
-      ) 
+        try_make_numeric = FALSE
+      )
     }
   }
   
@@ -797,10 +797,11 @@ drop_input_columns <- function(model, columns) {
 
     for (col in columns) {
       # Replace standalone column name (not part of an alias like DV=COL)
-      # with DROP=<col> so the original name is preserved in the record
+      # with bare DROP. Using DROP=<col> or <col>=DROP causes NONMEM warnings
+      # for reserved names like DATE.
       line <- gsub(
         paste0("(?<![=A-Za-z0-9_])\\b", col, "\\b(?!=)"),
-        paste0("DROP=", col),
+        "DROP",
         line, perl = TRUE
       )
     }
