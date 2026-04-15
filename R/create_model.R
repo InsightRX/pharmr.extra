@@ -80,6 +80,11 @@
 #' @param drop_input character vector of column names to drop in the NONMEM
 #' `$INPUT` record (i.e. mark as `DROP`). Can only be used when `data` is
 #' supplied. Column names must exist in the dataset.
+#' @param dictionary named list mapping NONMEM standard variable names to
+#' actual column names in the dataset, e.g.
+#' `list(TIME = "TAFD", DV = "CONC")`. Columns are renamed before being
+#' passed to pharmpy so that `$INPUT` uses the standard names. Uses
+#' `parse_data_dictionary()` defaults for any names not specified.
 #' @param mu_reference Control mu-referencing of the model. `"auto"` (default)
 #' applies mu-referencing automatically when `estimation_method = "saem"`.
 #' `TRUE` always applies mu-referencing. `FALSE` never applies it.
@@ -126,6 +131,7 @@ create_model <- function(
     auto_init = TRUE,
     auto_stack_encounters = TRUE,
     drop_input = NULL,
+    dictionary = NULL,
     mu_reference = "auto",
     use_template = FALSE,
     settings = list(), # TBD
@@ -152,6 +158,19 @@ create_model <- function(
     tool <- "nlmixr"
   }
   if(verbose) cli::cli_alert_info(paste0("Writing model in ", tool, " format"))
+
+  ## Apply dictionary: rename data columns from actual names to NONMEM names
+  ## (must happen before any function accesses data by standard column names)
+  if(!is.null(dictionary) && inherits(data, "data.frame")) {
+    dict <- parse_data_dictionary(dictionary)
+    for(nm_name in names(dict)) {
+      actual_name <- dict[[nm_name]]
+      if(actual_name != nm_name && actual_name %in% names(data)) {
+        if(verbose) cli::cli_alert_info("Renaming column {actual_name} -> {nm_name}")
+        names(data)[names(data) == actual_name] <- nm_name
+      }
+    }
+  }
 
   ## Pick route
   if(route == "auto") {
