@@ -104,6 +104,8 @@ run_nlme <- function(
 ) {
 
   time_start <- Sys.time()
+  ## Preserve R attributes across pharmpy calls (which create new Python objects)
+  original_data <- attr(model, "original_data")
   model <- validate_model(model)
   method <- match.arg(method)
 
@@ -153,6 +155,11 @@ run_nlme <- function(
   if(remove_tables) {
     if(verbose) cli::cli_alert_info("Removing $TABLE records from model")
     model <- remove_tables_from_model(model)
+  }
+
+  ## Restore original_data attribute (lost by pharmpy calls above)
+  if(!is.null(original_data)) {
+    attr(model, "original_data") <- original_data
   }
 
   ## Make sure data is clean for modelfit
