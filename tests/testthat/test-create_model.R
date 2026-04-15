@@ -818,6 +818,108 @@ test_that("create_model with TMDD but unknown tmdd_type fails", {
   })
 })
 
+# -- dictionary + drop_input + original dataset preservation tests ------------
+
+test_that("dictionary renames columns in $INPUT", {
+  local_pharmr.extra_options()
+  dat <- data.frame(
+    SUBJID = 1,
+    TAFD = c(0, 1, 2),
+    CONC = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0),
+    CMT = 1
+  )
+  mod <- create_model(
+    route = "iv", data = dat, verbose = FALSE,
+    dictionary = list(ID = "SUBJID", TIME = "TAFD", DV = "CONC")
+  )
+  obj <- nm_read_model(code = mod$code)
+  input_line <- paste(obj[["INPUT"]], collapse = " ")
+  expect_true(grepl("\\bID\\b", input_line))
+  expect_true(grepl("\\bTIME\\b", input_line))
+  expect_true(grepl("\\bDV\\b", input_line))
+  expect_false(grepl("\\bSUBJID\\b", input_line))
+  expect_false(grepl("\\bTAFD\\b", input_line))
+  expect_false(grepl("\\bCONC\\b", input_line))
+})
+
+test_that("dictionary drops conflicting column when standard name already exists", {
+  local_pharmr.extra_options()
+  dat <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    TAFD = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0),
+    CMT = 1
+  )
+  mod <- create_model(
+    route = "iv", data = dat, verbose = FALSE,
+    dictionary = list(TIME = "TAFD")
+  )
+  obj <- nm_read_model(code = mod$code)
+  input_line <- paste(obj[["INPUT"]], collapse = " ")
+  # Original TIME position should become a placeholder (replaced with DROP in run folder)
+  expect_true(grepl("_DDRP_TIME", input_line))
+  # TAFD position should now be TIME
+  expect_true(grepl("\\bTIME\\b", input_line))
+})
+
+test_that("original dataset is preserved in run folder with dictionary and drop_input", {
+  local_pharmr.extra_options()
+  dat <- data.frame(
+    ID = 1,
+    TAFD = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0),
+    CMT = 1,
+    EXTRA = c("a", "b", "c")
+  )
+  mod <- create_model(
+    route = "iv", data = dat, verbose = FALSE,
+    dictionary = list(TIME = "TAFD"),
+    drop_input = c("EXTRA")
+  )
+
+  # Simulate what run_nlme does: save/restore attr across set_name
+  original_data <- attr(mod, "original_data")
+  mod <- pharmr::set_name(mod, new_name = "test_run")
+  attr(mod, "original_data") <- original_data
+
+  run_dir <- tempfile("run_")
+  dir.create(run_dir)
+  obj <- prepare_run_folder(
+    id = basename(run_dir), model = mod, path = dirname(run_dir),
+    force = TRUE, verbose = FALSE
+  )
+
+  written <- read.csv(obj$dataset_path, check.names = FALSE, nrows = 3)
+
+  # CSV must be identical to original input data
+  expect_equal(names(written), names(dat))
+  expect_equal(ncol(written), ncol(dat))
+  # Character values preserved (not converted to numeric)
+  expect_equal(as.character(written$EXTRA), dat$EXTRA)
+  # Original column name preserved (not renamed to TIME)
+  expect_true("TAFD" %in% names(written))
+  expect_false("TIME" %in% names(written))
+
+  # $INPUT in model file uses standard names and DROP
+  mod_code <- readLines(file.path(obj$fit_folder, obj$model_file)) |> paste(collapse = "\n")
+  mod_obj <- nm_read_model(code = mod_code)
+  input_line <- paste(mod_obj[["INPUT"]], collapse = " ")
+  expect_true(grepl("\\bTIME\\b", input_line))
+  expect_true(grepl("\\bDROP\\b", input_line))
+
+  unlink(run_dir, recursive = TRUE)
+})
+
 test_that("create_model basic TDMDD model (full) from 1-cmt sc model works", {
   local_pharmr.extra_options()
   test_data <- data.frame(
