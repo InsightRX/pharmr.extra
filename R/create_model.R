@@ -159,13 +159,17 @@ create_model <- function(
   }
   if(verbose) cli::cli_alert_info(paste0("Writing model in ", tool, " format"))
 
+  ## Save the original data before any modifications (dictionary renaming,
+  ## stack_encounters, clean_modelfit_data, etc.) so that prepare_run_folder()
+  ## can write an exact copy to the run folder.
+  original_data <- if(inherits(data, "data.frame")) data else NULL
+
   ## Apply dictionary: rename data columns from actual names to NONMEM standard
   ## names so that $INPUT uses standard names (TIME, DV, ID, etc.). The original
   ## dataset is preserved and written as-is to the run folder; NONMEM reads by
   ## column position so the header names don't matter.
   ## If a standard name already exists as a column (e.g. TIME exists alongside
   ## TAFD), the original is renamed to a placeholder and marked DROP in $INPUT.
-  original_data <- NULL
   if(!is.null(dictionary) && inherits(data, "data.frame")) {
     original_data <- data
     dict <- parse_data_dictionary(dictionary)
@@ -502,8 +506,8 @@ create_model <- function(
     mod <- drop_input_columns(mod, drop_input)
   }
 
-  ## If dictionary was used, store the original data so prepare_run_folder()
-  ## writes it as-is to the run folder (NONMEM reads by position, not by name).
+  ## Store the original data so prepare_run_folder() writes an exact copy
+  ## to the run folder (NONMEM reads by position, not by header name).
   if(!is.null(original_data)) {
     attr(mod, "original_data") <- original_data
   }
