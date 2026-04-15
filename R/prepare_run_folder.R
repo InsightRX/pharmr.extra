@@ -46,8 +46,12 @@ prepare_run_folder <- function(
       write.csv(data, file = dataset_path, quote = FALSE, row.names = FALSE)
     }
   } else {
-    # When `data` is NULL, prefer using an in-memory dataset if available
-    if (!is.null(model$dataset)) {
+    # When a dictionary was applied, use the original-named CSV
+    dict_data <- attr(model, "dict_data_path")
+    if (!is.null(dict_data) && file.exists(dict_data)) {
+      if (verbose) cli::cli_process_start("Copying dataset (with original column names from dictionary)")
+      file.copy(from = dict_data, to = dataset_path)
+    } else if (!is.null(model$dataset)) {
       if (verbose) cli::cli_process_start("Copying dataset from model object")
       write.csv(model$dataset, file = dataset_path, quote = FALSE, row.names = FALSE)
     } else {
@@ -71,7 +75,10 @@ prepare_run_folder <- function(
   }
 
   ## Copy modelfile
-  model_code <- model$code
+  ## If a dictionary was applied in create_model(), use the aliased model code
+  ## (with $INPUT entries like TIME=TAFD) instead of pharmpy's internal code.
+  dict_code <- attr(model, "dict_model_code")
+  model_code <- if (!is.null(dict_code)) dict_code else model$code
   model_code <- change_nonmem_dataset(
     model_code,
     dataset_path
