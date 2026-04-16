@@ -39,7 +39,7 @@ create_model_from_file <- function(
     model_code <- readLines(model_file) |>
       paste(collapse = "\n") |>
       fix_eta_dummy_bug()
-    if(!is.null(dataset_file)) {
+    if(!is.null(data)) {
       ## if `data` supplied, then make sure current path is DUMMYPATH
       ## otherwise, if it points to a file that does not exists,
       ## Pharmpy will fail
