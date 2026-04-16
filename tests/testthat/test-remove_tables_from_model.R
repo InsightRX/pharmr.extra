@@ -215,6 +215,29 @@ test_that("returns model unchanged for non-NONMEM models", {
   expect_equal(out, mod)
 })
 
+test_that("preserves datainfo column types when removing tables", {
+  local_pharmr.extra_options()
+  dat <- data.frame(
+    ID = c(1, 1, 1, 2, 2, 2),
+    TIME = c(0, 1, 2, 0, 1, 2),
+    DV = c(0, 10, 5, 0, 12, 6),
+    AMT = c(100, 0, 0, 100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0, 1, 0, 0),
+    MDV = c(1, 0, 0, 1, 0, 0)
+  )
+  mod <- create_model(
+    route = "iv", data = dat, tables = c("fit", "parameters"), verbose = FALSE
+  )
+
+  out <- remove_tables_from_model(model = mod, file = NULL)
+
+  # datainfo types must be preserved (not reset to "unknown")
+  expect_false(is.null(out$datainfo))
+  expect_equal(out$datainfo[["ID"]]$type, "id")
+  expect_equal(out$datainfo[["DV"]]$type, "dv")
+})
+
 test_that("preserves dataset when removing tables", {
   local_pharmr.extra_options()
   dat <- data.frame(
