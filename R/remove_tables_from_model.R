@@ -20,22 +20,11 @@ remove_tables_from_model <- function(
       return(model)
     }
 
-    ## workaround for dataset needed to circumvent issues re-reading the model file
-    data <- model$dataset
-    if(!is.null(data)) {
-      temp_csv <- paste0(tempfile(), ".csv")
-      write.csv(data, temp_csv, quote=F, row.names=F)
-      model <- pharmr::set_dataset(model, temp_csv)
-    }
+    ## Reread model without tables
     code_without_tables <- remove_table_sections(model$code, file = file)
-    model <- pharmr::read_model_from_string(
-      code = code_without_tables
-    )
-
-    ## read_model_from_string() will strip the dataset, need to re-add:
-    if(!is.null(data)) {
-      model <- pharmr::set_dataset(model, path_or_df = data)
-    }
+    temp_mod <- tempfile(pattern = "tmp_mod_", fileext = '.mod')
+    writeLines(code_without_tables, temp_mod)
+    model <- create_model_from_file(model_file = temp_mod, data = model$dataset)
   } else {
     ## Removing tables can only be done for NONMEM datasets
   }

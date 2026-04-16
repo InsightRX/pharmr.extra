@@ -2,7 +2,8 @@
 % Please edit documentation in R/clean_modelfit_data.R
 \name{clean_modelfit_data}
 \alias{clean_modelfit_data}
-\title{Clean / check the dataset before passing to model fitting tool}
+\title{Clean / check the dataset so Pharmpy doesn't crash on character / date
+columns}
 \usage{
 clean_modelfit_data(
   model,
@@ -28,5 +29,6 @@ retain column to avoid issues).}
 TODO
 }
 \description{
-Clean / check the dataset before passing to model fitting tool
+Clean / check the dataset so Pharmpy doesn't crash on character / date
+columns
 }

@@ -25,6 +25,7 @@ run_nlme(
   save_final = TRUE,
   check_only = FALSE,
   remove_tables = FALSE,
+  mu_reference = "auto",
   verbose = TRUE
 )
 }
@@ -107,6 +108,12 @@ correct, and \code{FALSE} if not. Will also attach stdout as \code{message} attr
 \item{remove_tables}{if \code{TRUE}, removes all \verb{$TABLE} records from the model
 before running. Applied after any tables added via the \code{tables} argument.
 Default is \code{FALSE}.}
+
+\item{mu_reference}{Controls mu-referencing for SAEM models. \code{"auto"}
+(default) automatically applies \code{pharmr::mu_reference_model()} when SAEM is
+used and the model is not already mu-referenced. \code{TRUE} always applies
+mu-referencing. \code{FALSE} never applies mu-referencing (old behaviour: warns
+when SAEM is used without mu-referencing).}
 
 \item{verbose}{verbose output?}
 }

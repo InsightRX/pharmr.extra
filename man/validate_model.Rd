@@ -4,10 +4,15 @@
 \alias{validate_model}
 \title{Validate the specified model, ensure it's valid Pharmpy model}
 \usage{
-validate_model(model)
+validate_model(model, data = NULL)
 }
 \arguments{
-\item{model}{TODO}
+\item{model}{pharmpy model object or NONMEM model code (character) or path
+to NONMEM model file.}
+
+\item{data}{filename of dataset or data.frame as input to NONMEM / nlmixr.
+Optional, can also be included in \code{model} object (if specified as pharmpy
+model object).}
 }
 \description{
 Validate the specified model, ensure it's valid Pharmpy model
