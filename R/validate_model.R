@@ -1,6 +1,7 @@
 #' Validate the specified model, ensure it's valid Pharmpy model
 #'
-#' @param model TODO
+#' @inheritParams run_nlme
+#' 
 validate_model <- function(
   model,
   data = NULL
