@@ -1,4 +1,5 @@
-#' Clean / check the dataset before passing to model fitting tool
+#' Clean / check the dataset so Pharmpy doesn't crash on character / date
+#' columns
 #'
 #' @inheritParams run_nlme
 #' @param data a data.frame (if not specified, will use `dataset` object in 
@@ -25,11 +26,6 @@ clean_modelfit_data <- function(
   if(any(lapply(data, class) != "character")) {
     for(key in names(data)) {
       if(inherits(data[[key]], "character")) {
-        if(key %in% c("TIME", "DATE") && all(c("TIME", "DATE") %in% names(data))) {
-          ## exception for TIME and DATE columns if they appear together,
-          ## don't convert to numeric
-
-        } else {
           if(try_make_numeric) {
             if (key == "DV") {
               ## special handling, if DV includes BLQ values such as "<0.01"
@@ -54,12 +50,8 @@ clean_modelfit_data <- function(
               })
             }
           } else {
-            if(verbose)
-              # TODO: This warning is misleading since it actually removes the column
-              cli::cli_alert_warning("Detected character column ({key}), setting to 0.")
-            data[[key]] <- NULL
+            data[[key]] <- 0
           }
-        }
       }
       # make sure all NAs are set to 0
       if(any(is.na(data[[key]]))) {
