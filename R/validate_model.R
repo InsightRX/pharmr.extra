@@ -2,7 +2,8 @@
 #'
 #' @param model TODO
 validate_model <- function(
-  model
+  model,
+  data = NULL
 ) {
   if(inherits(model, "pharmpy.model.model.Model")) {
     tool <- get_tool_from_model(model)
@@ -17,7 +18,7 @@ validate_model <- function(
       tmpfile <- tempfile(pattern = "mod_")
       on.exit(unlink(tmpfile), add = TRUE)
       writeLines(paste0(model, collapse = "\n"), tmpfile)
-      model <- create_model_from_file(tmpfile)
+      model <- create_model_from_file(tmpfile, data = data)
     }
   } else {
     cli::cli_abort("`model` should either be model code or a pharmpy model object")

@@ -12,5 +12,6 @@ change_nonmem_dataset(code, path)
 \item{path}{path of new dataset}
 }
 \description{
-Change $DATA in NONMEM model code
+Thin wrapper around \code{\link[=update_nonmem_data]{update_nonmem_data()}} kept for internal callers.
+Always returns a single string regardless of the input shape.
 }

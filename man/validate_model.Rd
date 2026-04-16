@@ -4,7 +4,7 @@
 \alias{validate_model}
 \title{Validate the specified model, ensure it's valid Pharmpy model}
 \usage{
-validate_model(model)
+validate_model(model, data = NULL)
 }
 \arguments{
 \item{model}{TODO}

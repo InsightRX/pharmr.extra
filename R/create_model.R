@@ -159,6 +159,11 @@ create_model <- function(
   }
   if(verbose) cli::cli_alert_info(paste0("Writing model in ", tool, " format"))
 
+  ## Strip any surrounding quote characters from column names. Pharmpy rejects
+  ## column names that are not valid Python identifiers, and NONMEM cannot
+  ## parse CSV headers that start with a quote character.
+  data <- unquote_column_names(data)
+
   ## Save the original data before any modifications (dictionary renaming,
   ## stack_encounters, clean_modelfit_data, etc.) so that prepare_run_folder()
   ## can write an exact copy to the run folder.

@@ -34,6 +34,7 @@ create_model(
   auto_init = TRUE,
   auto_stack_encounters = TRUE,
   drop_input = NULL,
+  dictionary = NULL,
   mu_reference = "auto",
   use_template = FALSE,
   settings = list(),
@@ -151,6 +152,12 @@ not actual time since first overall dose.}
 \item{drop_input}{character vector of column names to drop in the NONMEM
 \verb{$INPUT} record (i.e. mark as \code{DROP}). Can only be used when \code{data} is
 supplied. Column names must exist in the dataset.}
+
+\item{dictionary}{named list mapping NONMEM standard variable names to
+actual column names in the dataset, e.g.
+\code{list(TIME = "TAFD", DV = "CONC")}. Columns are renamed before being
+passed to pharmpy so that \verb{$INPUT} uses the standard names. Uses
+\code{parse_data_dictionary()} defaults for any names not specified.}
 
 \item{mu_reference}{Control mu-referencing of the model. \code{"auto"} (default)
 applies mu-referencing automatically when \code{estimation_method = "saem"}.

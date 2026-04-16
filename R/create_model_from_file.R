@@ -25,7 +25,7 @@ create_model_from_file <- function(
     cli::cli_abort("Model file {model_file} does not exist")
   }
   if(inherits(data, "data.frame") || inherits(data, "tibble")) {
-    ## do nothing
+    ## Do nothing
   } else if (inherits(data, "character")) {
     dataset_file <- data
     if (!file.exists(dataset_file)) {
@@ -39,6 +39,12 @@ create_model_from_file <- function(
     model_code <- readLines(model_file) |>
       paste(collapse = "\n") |>
       fix_eta_dummy_bug()
+    if(!is.null(dataset_file)) {
+      ## if `data` supplied, then make sure current path is DUMMYPATH
+      ## otherwise, if it points to a file that does not exists,
+      ## Pharmpy will fail
+      model_code <- change_nonmem_dataset(model_code, "DUMMYPATH")
+    }
     model <- pharmr::read_model_from_string(model_code)
   })
 

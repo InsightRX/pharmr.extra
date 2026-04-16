@@ -165,7 +165,7 @@ test_that("change_nonmem_dataset handles errors appropriately", {
   model_code_no_data <- "$PROB TEST\n$INPUT ID TIME DV"
   expect_error(
     change_nonmem_dataset(model_code_no_data, "new_data.csv"),
-    "No \\$DATA line found in the model file"
+    "No \\$DATA record found"
   )
 })
 
@@ -220,15 +220,81 @@ test_that("run_nlme preserves tables when remove_tables = FALSE", {
   expect_length(get_tables_in_model_code(captured_model$code), n_tables)
 })
 
+test_that("run_nlme / prepare_run_folder strip surrounding quotes from column names", {
+  local_pharmr.extra_options()
+
+  ## Data.frame with column names wrapped in literal quote characters —
+  ## Pharmpy rejects these (not valid Python identifiers) and NONMEM cannot
+  ## parse a CSV whose header row starts with a quote character.
+  df <- data.frame(
+    ID = rep(1:2, each = 3),
+    TIME = rep(c(0, 1, 2), 2),
+    DV = c(0, 10, 5, 0, 12, 6),
+    AMT = rep(c(100, 0, 0), 2),
+    CMT = 1,
+    EVID = rep(c(1, 0, 0), 2),
+    MDV = rep(c(1, 0, 0), 2)
+  )
+  names(df) <- paste0('"', names(df), '"')
+
+  mod <- create_model(route = "iv", verbose = FALSE)
+  td <- withr::local_tempdir()
+
+  obj <- prepare_run_folder(
+    id = "run1", model = mod, path = td, data = df,
+    auto_stack_encounters = FALSE, verbose = FALSE
+  )
+
+  first_line <- readLines(file.path(obj$fit_folder, "data.csv"), n = 1)
+  expect_false(grepl('^"', first_line))
+  expect_equal(
+    strsplit(first_line, ",", fixed = TRUE)[[1]],
+    c("ID", "TIME", "DV", "AMT", "CMT", "EVID", "MDV")
+  )
+
+  ## Also covers the filename path: when the source CSV has quoted headers,
+  ## the written dataset should have them stripped.
+  quoted_csv <- file.path(withr::local_tempdir(), "quoted.csv")
+  writeLines(c('"ID","TIME","DV"', "1,0,0", "1,1,10"), quoted_csv)
+
+  obj2 <- prepare_run_folder(
+    id = "run1", model = mod, path = withr::local_tempdir(), data = quoted_csv,
+    auto_stack_encounters = FALSE, verbose = FALSE
+  )
+  first_line2 <- readLines(file.path(obj2$fit_folder, "data.csv"), n = 1)
+  expect_false(grepl('^"', first_line2))
+  expect_equal(
+    strsplit(first_line2, ",", fixed = TRUE)[[1]],
+    c("ID", "TIME", "DV")
+  )
+})
+
+test_that("unquote_column_names strips a single pair of surrounding quotes", {
+  df <- data.frame(a = 1, b = 2, c = 3)
+  names(df) <- c('"a"', "'b'", "c")
+  out <- unquote_column_names(df)
+  expect_equal(names(out), c("a", "b", "c"))
+
+  ## Unmatched or internal quotes left alone
+  df2 <- data.frame(x = 1, y = 2, z = 3)
+  names(df2) <- c('"x', 'y"', 'a"b')
+  out2 <- unquote_column_names(df2)
+  expect_equal(names(out2), c('"x', 'y"', 'a"b'))
+
+  ## NULL and non-data.frame input returned unchanged
+  expect_null(unquote_column_names(NULL))
+  expect_equal(unquote_column_names("not a df"), "not a df")
+})
+
 test_that("change_nonmem_dataset preserves whitespace and formatting", {
-  # Test with extra whitespace
+  # Extra whitespace around the path is preserved verbatim
   model_code <- "$PROB TEST\n$DATA    old_data.csv    IGNORE=@   \n$INPUT ID TIME DV"
   result <- change_nonmem_dataset(model_code, "new_data.csv")
-  expect_match(result, "\\$DATA new_data\\.csv IGNORE=@")
-  
-  # Test with tabs
+  expect_match(result, "\\$DATA    new_data\\.csv    IGNORE=@   ")
+
+  # Tabs are preserved verbatim
   model_code_tabs <- "$PROB TEST\n$DATA\told_data.csv\tIGNORE=@\n$INPUT ID TIME DV"
   result <- change_nonmem_dataset(model_code_tabs, "new_data.csv")
-  expect_match(result, "\\$DATA new_data\\.csv IGNORE=@")
+  expect_match(result, "\\$DATA\tnew_data\\.csv\tIGNORE=@")
 })
 

@@ -39,8 +39,19 @@ prepare_run_folder <- function(
         cli::cli_warn("`auto_stack_encounters` can only be used when `data` is specified as data.frame, not when it is a CSV filename.")
       }
       file.copy(from = data, to = dataset_path)
+      ## If the source CSV has quoted headers (e.g. `"ID","TIME",...`), NONMEM
+      ## will try to parse the header row as data. Detect this and rewrite the
+      ## dataset with unquoted headers.
+      first_line <- tryCatch(readLines(dataset_path, n = 1), error = function(e) character(0))
+      if (length(first_line) && grepl('^["\']', first_line)) {
+        if (verbose) cli::cli_alert_info("Stripping quoted column names from dataset header")
+        df <- read.csv(dataset_path, check.names = FALSE)
+        df <- unquote_column_names(df)
+        write.csv(df, file = dataset_path, quote = FALSE, row.names = FALSE)
+      }
     } else {
       if(verbose) cli::cli_process_start("Checking, cleaning, and copying dataset")
+      data <- unquote_column_names(data)
       if(isTRUE(auto_stack_encounters)) {
         data <- stack_encounters(
           data = data,
@@ -52,6 +63,7 @@ prepare_run_folder <- function(
     }
   } else if (!is.null(original_data)) {
     if (verbose) cli::cli_process_start("Copying dataset (original column names)")
+    original_data <- unquote_column_names(original_data)
     write.csv(original_data, file = dataset_path, quote = FALSE, row.names = FALSE)
   } else {
     # When `data` is NULL, prefer using an in-memory dataset if available

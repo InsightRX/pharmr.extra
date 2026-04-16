@@ -106,7 +106,7 @@ run_nlme <- function(
   time_start <- Sys.time()
   ## Preserve R attributes across pharmpy calls (which create new Python objects)
   original_data <- attr(model, "original_data")
-  model <- validate_model(model)
+  model <- validate_model(model, data = data)
   method <- match.arg(method)
 
   ## Set model name
@@ -371,37 +371,16 @@ get_new_run_number <- function(path = getwd()) {
 
 #' Change $DATA in NONMEM model code
 #'
+#' Thin wrapper around [update_nonmem_data()] kept for internal callers.
+#' Always returns a single string regardless of the input shape.
+#'
 #' @param code model code, either as single line string, or vector of lines
 #' @param path path of new dataset
 #'
-change_nonmem_dataset <- function(
-  code,
-  path
-) {
-
-  ## TODO: this implementation is not foolproof, but works in cases
-  ##       where the dataset path immediately follows $DATA
-
-  # Find the $DATA line
-  if(length(code) == 1) {
-    lines <- stringr::str_split(code, pattern = "\\n")[[1]]
-  } else {
-    lines <- code
-  }
-  data_line_idx <- grep("^\\$DATA", lines)
-
-  if (length(data_line_idx) == 0) {
-    cli::cli_abort("No $DATA line found in the model file")
-  }
-
-  # Replace the dataset path while preserving any options after it
-  current_line <- lines[data_line_idx]
-  parts <- strsplit(current_line, "\\s+")[[1]]
-  parts[2] <- path
-  lines[data_line_idx] <- paste(parts, collapse = " ")
-
-  code <- paste0(lines, collapse = "\n")
-  code
+change_nonmem_dataset <- function(code, path) {
+  out <- update_nonmem_data(code, path)
+  if (length(out) > 1) out <- paste(out, collapse = "\n")
+  out
 }
 
 #' Call nmfe
