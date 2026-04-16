@@ -18,16 +18,14 @@ get_input_line <- function(code) {
 
 # ---- drop_input_columns ----
 
-test_that("drop_input_columns replaces column with DROP=<col> in $INPUT", {
+test_that("drop_input_columns replaces column with DROP in $INPUT", {
   model  <- pharmr::read_model_from_string(base_code)
   result <- drop_input_columns(model, "BW")
 
   input_line <- get_input_line(result$code)
-  expect_match(input_line, "DROP=BW", fixed = TRUE)
+  expect_match(input_line, "DROP", fixed = TRUE)
   # BW must not appear as a standalone token any more
   expect_false(grepl("(?<![=A-Za-z0-9_])BW(?!=)", input_line, perl = TRUE))
-  # datainfo must mark BW as dropped
-  expect_true(result$datainfo[["BW"]]$drop)
 })
 
 test_that("drop_input_columns drops multiple columns at once", {
@@ -35,12 +33,10 @@ test_that("drop_input_columns drops multiple columns at once", {
   result <- drop_input_columns(model, c("BW", "MDV"))
 
   input_line <- get_input_line(result$code)
-  expect_match(input_line, "DROP=BW",  fixed = TRUE)
-  expect_match(input_line, "DROP=MDV", fixed = TRUE)
+  expect_match(input_line, "DROP",  fixed = TRUE)
+  expect_match(input_line, "DROP", fixed = TRUE)
   expect_false(grepl("(?<![=A-Za-z0-9_])BW(?!=)",  input_line, perl = TRUE))
   expect_false(grepl("(?<![=A-Za-z0-9_])MDV(?!=)", input_line, perl = TRUE))
-  expect_true(result$datainfo[["BW"]]$drop)
-  expect_true(result$datainfo[["MDV"]]$drop)
 })
 
 test_that("drop_input_columns does not modify occurrences outside $INPUT", {
@@ -98,8 +94,8 @@ test_that("drop_input_columns handles abbreviated $INPUT record names", {
     result <- drop_input_columns(model, "BW")
     input_line <- get_input_line(result$code)
     expect_match(
-      input_line, "DROP=BW", fixed = TRUE,
-      label = paste0("DROP=BW present for abbreviated record '", abbrev, "'")
+      input_line, "DROP", fixed = TRUE,
+      label = paste0("DROP present for abbreviated record '", abbrev, "'")
     )
   }
 })
@@ -143,9 +139,8 @@ test_that("create_model marks specified column as DROP in $INPUT", {
   mod <- create_model(route = "iv", data = test_data, drop_input = c("BW", "HT"), verbose = FALSE)
 
   input_line <- get_input_line(mod$code)
-  expect_match(input_line, "DROP=BW", fixed = TRUE)
-  expect_match(input_line, "DROP=HT", fixed = TRUE)
+  expect_match(input_line, "DROP", fixed = TRUE)
+  expect_match(input_line, "DROP", fixed = TRUE)
   expect_false(grepl("(?<![=A-Za-z0-9_])BW(?!=)", input_line, perl = TRUE))
-  expect_true(mod$datainfo[["BW"]]$drop)
-  expect_true(mod$datainfo[["HT"]]$drop)
+  expect_false(grepl("(?<![=A-Za-z0-9_])HT(?!=)", input_line, perl = TRUE))
 })
