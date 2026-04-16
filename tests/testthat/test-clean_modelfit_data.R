@@ -42,7 +42,7 @@ test_that("converts character columns to numeric when try_make_numeric = TRUE", 
   expect_equal(out$dataset$WT, c(70, 70, 70))
 })
 
-test_that("removes character columns when try_make_numeric = FALSE", {
+test_that("does not removes character columns when try_make_numeric = FALSE, but sets to 0", {
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -57,7 +57,8 @@ test_that("removes character columns when try_make_numeric = FALSE", {
   mod <- create_model(route = "iv", data = dat, verbose = FALSE)
   out <- clean_modelfit_data(mod, data = dat, try_make_numeric = FALSE, verbose = FALSE)
   
-  expect_false("WT" %in% names(out$dataset))
+  expect_true("WT" %in% names(out$dataset))
+  expect_true(all(out$dataset$WT == 0))
 })
 
 test_that("handles BLQ data with < in DV column", {
