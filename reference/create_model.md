@@ -36,6 +36,7 @@ create_model(
   auto_init = TRUE,
   auto_stack_encounters = TRUE,
   drop_input = NULL,
+  dictionary = NULL,
   mu_reference = "auto",
   use_template = FALSE,
   settings = list(),
@@ -211,6 +212,15 @@ create_model(
   character vector of column names to drop in the NONMEM `$INPUT` record
   (i.e. mark as `DROP`). Can only be used when `data` is supplied.
   Column names must exist in the dataset.
+
+- dictionary:
+
+  named list mapping NONMEM standard variable names to actual column
+  names in the dataset, e.g. `list(TIME = "TAFD", DV = "CONC")`. Columns
+  are renamed before being passed to pharmpy so that `$INPUT` uses the
+  standard names. Uses
+  [`parse_data_dictionary()`](https://insightrx.github.io/pharmr.extra/reference/parse_data_dictionary.md)
+  defaults for any names not specified.
 
 - mu_reference:
 

@@ -1,6 +1,7 @@
-# Clean / check the dataset before passing to model fitting tool
+# Clean / check the dataset so Pharmpy doesn't crash on character / date columns
 
-Clean / check the dataset before passing to model fitting tool
+Clean / check the dataset so Pharmpy doesn't crash on character / date
+columns
 
 ## Usage
 

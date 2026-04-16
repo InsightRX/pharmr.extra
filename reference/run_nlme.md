@@ -29,6 +29,7 @@ run_nlme(
   save_final = TRUE,
   check_only = FALSE,
   remove_tables = FALSE,
+  mu_reference = "auto",
   verbose = TRUE
 )
 ```
@@ -152,6 +153,15 @@ run_nlme(
   if `TRUE`, removes all `$TABLE` records from the model before running.
   Applied after any tables added via the `tables` argument. Default is
   `FALSE`.
+
+- mu_reference:
+
+  Controls mu-referencing for SAEM models. `"auto"` (default)
+  automatically applies
+  [`pharmr::mu_reference_model()`](https://rdrr.io/pkg/pharmr/man/mu_reference_model.html)
+  when SAEM is used and the model is not already mu-referenced. `TRUE`
+  always applies mu-referencing. `FALSE` never applies mu-referencing
+  (old behaviour: warns when SAEM is used without mu-referencing).
 
 - verbose:
 

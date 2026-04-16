@@ -59,7 +59,8 @@
   : Check NONMEM table variables
 
 - [`clean_modelfit_data()`](https://insightrx.github.io/pharmr.extra/reference/clean_modelfit_data.md)
-  : Clean / check the dataset before passing to model fitting tool
+  : Clean / check the dataset so Pharmpy doesn't crash on character /
+  date columns
 
 - [`clean_nonmem_folder()`](https://insightrx.github.io/pharmr.extra/reference/clean_nonmem_folder.md)
   : Remove temporary files from NONMEM run
@@ -445,6 +446,9 @@
   : Stack encounters when data from multiple encounters is available for
   the same ID, and TIME is starting at 0 for each encounter.
 
+- [`unquote_column_names()`](https://insightrx.github.io/pharmr.extra/reference/unquote_column_names.md)
+  : Strip surrounding quote characters from data.frame column names
+
 - [`update_advan()`](https://insightrx.github.io/pharmr.extra/reference/update_advan.md)
   : Update the ADVAN number
 
@@ -453,6 +457,9 @@
 
 - [`update_estimation_method()`](https://insightrx.github.io/pharmr.extra/reference/update_estimation_method.md)
   : Wrapper around pharmr's functions to set/add estimation methods
+
+- [`update_nonmem_data()`](https://insightrx.github.io/pharmr.extra/reference/update_nonmem_data.md)
+  : Update the dataset path in NONMEM model code
 
 - [`update_parameters()`](https://insightrx.github.io/pharmr.extra/reference/update_parameters.md)
   : Update parameter estimates (and fix)

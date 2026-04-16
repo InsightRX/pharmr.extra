@@ -87,6 +87,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_route_from_data.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_shrinkage_summary.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_shrinkage_values.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/get_table_records.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_tables_from_fit.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_tables_from_folder.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_tables_in_model_code.html</loc></url>
@@ -128,6 +129,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/remove_table_from_model.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/remove_table_sections.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/remove_tables_from_model.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/restore_table_records.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/run_nlme.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/run_psn.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/run_sim.html</loc></url>
@@ -142,9 +144,11 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/set_residual_error.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/set_simulation_clean.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/stack_encounters.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/unquote_column_names.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/update_advan.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/update_covariance_record.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/update_estimation_method.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/update_nonmem_data.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/update_parameters.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/update_pk_tables.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/validate_model.html</loc></url>

@@ -13,7 +13,7 @@ inspection of intermediate model fit."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9042</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9044</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -72,6 +72,7 @@ inspection of intermediate model fit.</p>
 <span>  save_final <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  check_only <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  remove_tables <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  mu_reference <span class="op">=</span> <span class="st">"auto"</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -197,6 +198,14 @@ correct, and <code>FALSE</code> if not. Will also attach stdout as <code>message
 <dd><p>if <code>TRUE</code>, removes all <code>$TABLE</code> records from the model
 before running. Applied after any tables added via the <code>tables</code> argument.
 Default is <code>FALSE</code>.</p></dd>
+
+
+<dt id="arg-mu-reference">mu_reference<a class="anchor" aria-label="anchor" href="#arg-mu-reference"></a></dt>
+<dd><p>Controls mu-referencing for SAEM models. <code>"auto"</code>
+(default) automatically applies <code><a href="https://rdrr.io/pkg/pharmr/man/mu_reference_model.html" class="external-link">pharmr::mu_reference_model()</a></code> when SAEM is
+used and the model is not already mu-referenced. <code>TRUE</code> always applies
+mu-referencing. <code>FALSE</code> never applies mu-referencing (old behaviour: warns
+when SAEM is used without mu-referencing).</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
