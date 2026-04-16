@@ -24,6 +24,11 @@ prepare_run_folder <- function(
   output_file <- "run.lst"
   model_path <- file.path(fit_folder, model_file)
 
+  ## When a dictionary was applied in create_model(), use the original data
+  ## (with original column names) so the CSV is an exact copy of the input.
+  ## NONMEM reads by column position, so the header names don't matter.
+  original_data <- attr(model, "original_data")
+
   if(!is.null(data)) {
     if(inherits(data, "character")) {
       if(verbose) cli::cli_process_start("Copying dataset")
@@ -45,6 +50,9 @@ prepare_run_folder <- function(
       if(verbose) cli::cli_alert_info("Updating model dataset with provided dataset")
       write.csv(data, file = dataset_path, quote = FALSE, row.names = FALSE)
     }
+  } else if (!is.null(original_data)) {
+    if (verbose) cli::cli_process_start("Copying dataset (original column names)")
+    write.csv(original_data, file = dataset_path, quote = FALSE, row.names = FALSE)
   } else {
     # When `data` is NULL, prefer using an in-memory dataset if available
     if (!is.null(model$dataset)) {
@@ -72,6 +80,8 @@ prepare_run_folder <- function(
 
   ## Copy modelfile
   model_code <- model$code
+  ## Replace dictionary placeholder column names with DROP
+  model_code <- gsub("_DDRP_[A-Za-z0-9_]+", "DROP", model_code, perl = TRUE)
   model_code <- change_nonmem_dataset(
     model_code,
     dataset_path

@@ -80,6 +80,11 @@
 #' @param drop_input character vector of column names to drop in the NONMEM
 #' `$INPUT` record (i.e. mark as `DROP`). Can only be used when `data` is
 #' supplied. Column names must exist in the dataset.
+#' @param dictionary named list mapping NONMEM standard variable names to
+#' actual column names in the dataset, e.g.
+#' `list(TIME = "TAFD", DV = "CONC")`. Columns are renamed before being
+#' passed to pharmpy so that `$INPUT` uses the standard names. Uses
+#' `parse_data_dictionary()` defaults for any names not specified.
 #' @param mu_reference Control mu-referencing of the model. `"auto"` (default)
 #' applies mu-referencing automatically when `estimation_method = "saem"`.
 #' `TRUE` always applies mu-referencing. `FALSE` never applies it.
@@ -126,6 +131,7 @@ create_model <- function(
     auto_init = TRUE,
     auto_stack_encounters = TRUE,
     drop_input = NULL,
+    dictionary = NULL,
     mu_reference = "auto",
     use_template = FALSE,
     settings = list(), # TBD
@@ -152,6 +158,38 @@ create_model <- function(
     tool <- "nlmixr"
   }
   if(verbose) cli::cli_alert_info(paste0("Writing model in ", tool, " format"))
+
+  ## Save the original data before any modifications (dictionary renaming,
+  ## stack_encounters, clean_modelfit_data, etc.) so that prepare_run_folder()
+  ## can write an exact copy to the run folder.
+  original_data <- if(inherits(data, "data.frame")) data else NULL
+
+  ## Apply dictionary: rename data columns from actual names to NONMEM standard
+  ## names so that $INPUT uses standard names (TIME, DV, ID, etc.). The original
+  ## dataset is preserved and written as-is to the run folder; NONMEM reads by
+  ## column position so the header names don't matter.
+  ## If a standard name already exists as a column (e.g. TIME exists alongside
+  ## TAFD), the original is renamed to a placeholder and marked DROP in $INPUT.
+  if(!is.null(dictionary) && inherits(data, "data.frame")) {
+    original_data <- data
+    dict <- parse_data_dictionary(dictionary)
+    for(nm_name in names(dict)) {
+      actual_name <- dict[[nm_name]]
+      if(actual_name != nm_name && actual_name %in% names(data)) {
+        ## If the standard name already exists as a different column, rename it
+        ## to a placeholder so it becomes DROP in $INPUT
+        if(nm_name %in% names(data)) {
+          placeholder <- paste0("_DDRP_", nm_name)
+          if(verbose) cli::cli_alert_info(
+            "Column {nm_name} will be dropped (replaced by {actual_name} via dictionary)"
+          )
+          names(data)[names(data) == nm_name] <- placeholder
+        }
+        if(verbose) cli::cli_alert_info("Mapping column {actual_name} -> {nm_name}")
+        names(data)[names(data) == actual_name] <- nm_name
+      }
+    }
+  }
 
   ## Pick route
   if(route == "auto") {
@@ -436,11 +474,19 @@ create_model <- function(
       if(verbose) cli::cli_alert_info("Checking and cleaning dataset.")
       mod <- clean_modelfit_data(
         model = mod,
-        try_make_numeric = TRUE
-      ) 
+        try_make_numeric = FALSE
+      )
     }
   }
   
+  ## Always drop DATE column (non-numeric, NONMEM reserved name)
+  if(!is.null(data) && inherits(data, "data.frame")) {
+    dataset_cols <- if(!is.null(mod$dataset)) names(mod$dataset) else names(data)
+    if("DATE" %in% dataset_cols && !("DATE" %in% drop_input)) {
+      drop_input <- c(drop_input, "DATE")
+    }
+  }
+
   ## Drop columns in $INPUT
   if(!is.null(drop_input)) {
     if(!inherits(drop_input, "character")) {
@@ -487,6 +533,14 @@ create_model <- function(
       mod, 
       new_name = name
     )
+  }
+
+  ## Store the original data so prepare_run_folder() writes an exact copy
+  ## to the run folder (NONMEM reads by position, not by header name).
+  ## Must be set last — pharmpy calls like set_name() create new objects
+  ## that lose R attributes.
+  if(!is.null(original_data)) {
+    attr(mod, "original_data") <- original_data
   }
 
   if(verbose) cli::cli_alert_success("Done")
@@ -749,10 +803,11 @@ drop_input_columns <- function(model, columns) {
 
     for (col in columns) {
       # Replace standalone column name (not part of an alias like DV=COL)
-      # with DROP=<col> so the original name is preserved in the record
+      # with bare DROP. Using DROP=<col> or <col>=DROP causes NONMEM warnings
+      # for reserved names like DATE.
       line <- gsub(
         paste0("(?<![=A-Za-z0-9_])\\b", col, "\\b(?!=)"),
-        paste0("DROP=", col),
+        "DROP",
         line, perl = TRUE
       )
     }
@@ -764,3 +819,4 @@ drop_input_columns <- function(model, columns) {
   writeLines(new_code, tmpmod)
   create_model_from_file(tmpmod, data = model$dataset)
 }
+
