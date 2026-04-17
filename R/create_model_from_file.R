@@ -81,8 +81,7 @@ create_model_from_file <- function(
       write.csv(data, dataset_file, quote = F, row.names = F)
       model <- model |>
         pharmr::set_dataset(
-          path_or_df = dataset_file, datatype = "nonmem") |>
-        pharmr::load_dataset()
+          path_or_df = dataset_file, datatype = "nonmem")
     }
     model_code <- model$code
     model_path <- tempfile(fileext = ".mod")
