@@ -58,9 +58,22 @@ get_initial_estimates_from_data <- function(
   pars <- dplyr::bind_rows(pars_list)
   tmp <- pars |>
     # remove all Inf values and replace them with the maximum value for the column
-    dplyr::mutate(dplyr::across(where(is.numeric), ~ ifelse(is.infinite(.), max(.[!is.infinite(.)], na.rm = TRUE), .))) 
-  est <- apply(tmp[,1:2], 2, function(x) { 
-    signif(weighted.mean(x, w = tmp$weight, na.rm=TRUE), 3)
+    dplyr::mutate(dplyr::across(where(is.numeric), ~ ifelse(is.infinite(.), max(.[!is.infinite(.)], na.rm = TRUE), .)))
+
+  safe_weighted_mean <- function(x, w) {
+    ok <- !(is.na(x) | is.na(w) | !is.finite(x) | !is.finite(w))
+    x <- x[ok]
+    w <- w[ok]
+
+    if(length(w) == 0 || sum(w) == 0) {
+      return(NA_real_)
+    }
+
+    weighted.mean(x, w = w)
+  }
+
+  est <- apply(tmp[,1:2], 2, function(x) {
+    signif(safe_weighted_mean(x, w = tmp$weight), 3)
   })
   if(n_cmt >= 2) {
     est$QP1 <- est$CL
