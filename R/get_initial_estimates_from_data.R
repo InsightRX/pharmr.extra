@@ -72,9 +72,9 @@ get_initial_estimates_from_data <- function(
     weighted.mean(x, w = w)
   }
 
-  est <- apply(tmp[,1:2], 2, function(x) {
+  est <- as.list(apply(tmp[,1:2], 2, function(x) {
     signif(safe_weighted_mean(x, w = tmp$weight), 3)
-  })
+  }))
   if(n_cmt >= 2) {
     est$QP1 <- est$CL
     est$VP1 <- est$V * 2

@@ -112,7 +112,7 @@ test_that("get_initial_estimates_from_individual_data works with simple PK data"
   estimates <- get_initial_estimates_from_individual_data(test_data)
   
   # Test that we get the expected parameters
-  expect_named(estimates, c("V", "CL"))
+  expect_named(estimates, c("V", "CL", "weight"))
   
   # Test that values are positive
   expect_true(all(estimates > 0))
@@ -143,7 +143,7 @@ test_that("get_initial_estimates_from_individual_data handles missing data", {
   estimates <- get_initial_estimates_from_individual_data(test_data)
   
   # Test that we still get estimates
-  expect_named(estimates, c("V", "CL"))
+  expect_named(estimates, c("V", "CL", "weight"))
   expect_true(all(estimates > 0))
 })
 
@@ -188,7 +188,7 @@ test_that("get_initial_estimates_from_individual_data handles insufficient data"
   estimates <- get_initial_estimates_from_individual_data(test_data)
   
   # Test that we get an empty result
-  expect_equal(estimates, c(V = 2, CL = 0.2))
+  expect_equal(estimates, c(V = 2, CL = 0.1, weight = 0.001))
 })
 
 test_that("get_initial_estimates_from_individual_data handles two observations at the same timepoint", {
@@ -205,7 +205,7 @@ test_that("get_initial_estimates_from_individual_data handles two observations a
 
   estimates <- get_initial_estimates_from_individual_data(test_data)
 
-  expect_named(estimates, c("V", "CL"))
+  expect_named(estimates, c("V", "CL", "weight"))
   expect_true(all(!is.na(estimates)), label = "estimates must not be NA with duplicate timepoints")
   expect_true(all(estimates > 0),    label = "estimates must be positive")
 })
@@ -225,7 +225,7 @@ test_that("get_initial_estimates_from_individual_data handles absorption-phase o
 
   estimates <- get_initial_estimates_from_individual_data(test_data)
 
-  expect_named(estimates, c("V", "CL"))
+  expect_named(estimates, c("V", "CL", "weight"))
   expect_true(estimates["CL"] > 0, label = "CL must be positive even with absorption-phase-only data")
   expect_true(estimates["V"]  > 0, label = "V must be positive")
 })
