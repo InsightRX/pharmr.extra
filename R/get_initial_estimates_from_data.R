@@ -56,10 +56,25 @@ get_initial_estimates_from_data <- function(
     }
   }
   pars <- dplyr::bind_rows(pars_list)
-  est <- pars |>
-    dplyr::mutate(dplyr::across(where(is.numeric), ~ ifelse(is.infinite(.), max(.[!is.infinite(.)], na.rm = TRUE), .))) |> # remove all Inf values and replace them with the maximum value for the column
-    dplyr::summarise_all(function(x) signif(mean(x, na.rm=TRUE), 3)) |>
-    as.list()
+  tmp <- pars |>
+    # remove all Inf values and replace them with the maximum value for the column
+    dplyr::mutate(dplyr::across(where(is.numeric), ~ ifelse(is.infinite(.), max(.[!is.infinite(.)], na.rm = TRUE), .)))
+
+  safe_weighted_mean <- function(x, w) {
+    ok <- !(is.na(x) | is.na(w) | !is.finite(x) | !is.finite(w))
+    x <- x[ok]
+    w <- w[ok]
+
+    if(length(w) == 0 || sum(w) == 0) {
+      return(NA_real_)
+    }
+
+    weighted.mean(x, w = w)
+  }
+
+  est <- as.list(apply(tmp[,1:2], 2, function(x) {
+    signif(safe_weighted_mean(x, w = tmp$weight), 3)
+  }))
   if(n_cmt >= 2) {
     est$QP1 <- est$CL
     est$VP1 <- est$V * 2
@@ -121,7 +136,8 @@ get_initial_estimates_from_individual_data <- function(
   tmp <- tail(obs, 3)
   dose <- dat$AMT[dat$dosenr == dose_nr & dat$EVID == 1]
   est <- c()
-  if(inherits(tmp$TIME, "numeric") && length(unique(tmp$TIME)) > 1) { # two datapoints at least
+  n_points <- length(unique(tmp$TIME))
+  if(inherits(tmp$TIME, "numeric") && n_points > 1) { # two datapoints at least
     fit <- stats::lm(log(DV) ~ TIME, tmp)
     KEL <- -as.numeric(coef(fit)[2])
     if(is.null(KEL) || is.na(KEL)) {
@@ -134,14 +150,16 @@ get_initial_estimates_from_individual_data <- function(
     }
     est$V <- dose / max(obs$DV, na.rm=TRUE)
     est$CL <- KEL * est$V
+    est$weight <- n_points
   } else { # more crude estimation
-    
     if(length(tmp$DV) > 0) {
       est$V <- dose / (max(tmp$DV, na.rm=TRUE) * 5)
-      est$CL <- est$V / 10
+      est$CL <- est$V / 20
+      est$weight <- 0.001 # downweigh this, since very crude estimate. Only use if no subjects with >2 samples available
     } else { # for placebo patients, DV may all be zero or NA so we should not attempt to ballpark V or CL
       est$V <- NA
       est$CL <- NA
+      est$weight <- 0
     }
   }
 
