@@ -230,6 +230,73 @@ test_that("get_initial_estimates_from_individual_data handles absorption-phase o
   expect_true(estimates["V"]  > 0, label = "V must be positive")
 })
 
+test_that("get_initial_estimates_from_data downweighs single-observation subjects", {
+  # Subject 1 has a well-characterized PK profile (multiple samples) -> reliable
+  # V and CL estimates. Subject 2 has only a single observation -> crude guess.
+  # The pooled estimate should be dominated by subject 1, not the crude guess
+  # from subject 2, because single-observation subjects are downweighted.
+  rich <- data.frame(
+    ID   = 1,
+    TIME = c(0, 1, 4, 8),
+    DV   = c(0, 100, 50, 25),
+    EVID = c(1, 0, 0, 0),
+    MDV  = c(1, 0, 0, 0),
+    AMT  = c(1000, 0, 0, 0)
+  )
+  sparse <- data.frame(
+    ID   = 2,
+    TIME = c(0, 4),
+    DV   = c(0, 50),
+    EVID = c(1, 0),
+    MDV  = c(1, 0),
+    AMT  = c(1000, 0)
+  )
+  combined <- rbind(rich, sparse)
+
+  result_rich_only <- get_initial_estimates_from_data(rich, n_cmt = 1)
+  result_sparse_only <- get_initial_estimates_from_data(sparse, n_cmt = 1)
+  result_combined <- get_initial_estimates_from_data(combined, n_cmt = 1)
+
+  # Sanity check: the crude single-point estimate differs substantially from
+  # the well-characterized one (otherwise this test proves nothing).
+  expect_true(abs(result_sparse_only$CL - result_rich_only$CL) > 0.5)
+
+  # Combined estimate should be very close to the rich-only estimate, because
+  # the single-observation subject carries weight ~0.001.
+  expect_equal(result_combined$V,  result_rich_only$V,  tolerance = 0.01)
+  expect_equal(result_combined$CL, result_rich_only$CL, tolerance = 0.01)
+})
+
+test_that("get_initial_estimates_from_individual_data assigns low weight for single-observation subjects", {
+  # With only one observation we cannot estimate a slope; the function returns
+  # a crude guess that should be flagged with a very low weight so it is
+  # effectively ignored when richer data is available.
+  sparse <- data.frame(
+    ID   = 1,
+    TIME = c(0, 4),
+    DV   = c(0, 50),
+    EVID = c(1, 0),
+    MDV  = c(1, 0),
+    AMT  = c(1000, 0)
+  )
+  rich <- data.frame(
+    ID   = 1,
+    TIME = c(0, 1, 4, 8),
+    DV   = c(0, 100, 50, 25),
+    EVID = c(1, 0, 0, 0),
+    MDV  = c(1, 0, 0, 0),
+    AMT  = c(1000, 0, 0, 0)
+  )
+
+  est_sparse <- get_initial_estimates_from_individual_data(sparse)
+  est_rich   <- get_initial_estimates_from_individual_data(rich)
+
+  expect_true("weight" %in% names(est_sparse))
+  expect_true("weight" %in% names(est_rich))
+  expect_lt(est_sparse[["weight"]], est_rich[["weight"]])
+  expect_lt(est_sparse[["weight"]], 0.01)
+})
+
 test_that("get_initial_estimates_from_data works with CSV filename", {
   test_data <- data.frame(
     ID = c(1, 1, 1, 1),
