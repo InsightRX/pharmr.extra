@@ -320,6 +320,30 @@ test_that("calc_pk_variables: AUC_SS absent when regimen is NULL", {
   expect_false("AUC_SS" %in% names(out))
 })
 
+test_that("calc_pk_variables: warns and skips AUC_SS when last dose is '.' (NONMEM missing)", {
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5)
+  reg <- data.frame(
+    time = c(0, 12), dose = c("100", "."), route = "iv", regimen = "100mg",
+    stringsAsFactors = FALSE
+  )
+  expect_warning(
+    out <- calc_pk_variables(dat, regimen = reg),
+    "Could not calculate AUCss"
+  )
+  expect_false("AUC_SS" %in% names(out))
+})
+
+test_that("calc_pk_variables: AUC_SS computed when dose is numeric-like character", {
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5)
+  reg <- data.frame(
+    time = c(0, 12), dose = c("100", "100"), route = "iv", regimen = "100mg",
+    stringsAsFactors = FALSE
+  )
+  out <- calc_pk_variables(dat, regimen = reg)
+  expect_true("AUC_SS" %in% names(out))
+  expect_equal(unique(out$AUC_SS), 100 / 5)
+})
+
 # ── create_dosing_records() ─────────────────────────────────────────────────
 
 .dose_data2 <- function() data.frame(ID = 1:2, TIME = 0, DV = 0, EVID = 1)

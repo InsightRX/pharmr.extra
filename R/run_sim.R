@@ -261,8 +261,15 @@ calc_pk_variables <- function(
 
     ## Add AUC_SS as CL/dose, if we're simulating a specific regimen
     if(!is.null(regimen) && "CL" %in% names(data)) {
-      data <- data |>
-        dplyr::mutate(AUC_SS = utils::tail(regimen$dose, 1) / .data$CL)
+      suppressWarnings(
+        last_dose <- as.numeric(utils::tail(regimen$dose, 1))
+      )
+      if(!is.na(last_dose) && last_dose > 0) {
+        data <- data |>
+          dplyr::mutate(AUC_SS = last_dose / .data$CL)
+      } else {
+        cli::cli_warn("Could not calculate AUCss, last dose could not be identified.")
+      }
     }
   }
 
