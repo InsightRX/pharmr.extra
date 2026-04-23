@@ -18,6 +18,7 @@ run_nlme(
   save_fit = TRUE,
   save_summary = TRUE,
   estimation_method = NULL,
+  estimation_options = NULL,
   sir_options = NULL,
   auto_stack_encounters = TRUE,
   clean = TRUE,
@@ -73,6 +74,15 @@ Default is \code{TRUE}. Will use current folder, and save as
 \item{estimation_method}{Optional. Character vector of estimation method(s)
 to apply to model. Will remove all existing estimation steps in the model
 and update with methods specified in argument.}
+
+\item{estimation_options}{Optional. Options for the estimation step(s).
+Either a flat named list (applied to the first step) or a named list of
+lists keyed by method name for multi-step estimation, e.g.
+\code{list(SAEM = list(NBURN = 500), IMP = list(NITER = 10))}. Options are
+merged with package defaults; user values take precedence. Keys that
+correspond to pharmpy structured fields (MAXEVAL, NITER, ISAMPLE, PRINT,
+AUTO, ETASAMPLES) are routed to the appropriate attribute to avoid
+duplication in the rendered \verb{$EST} record.}
 
 \item{sir_options}{options for running SIR in covariance step. A list with
 options \code{niter} (number of SIR iterations) and \code{samples} (number of

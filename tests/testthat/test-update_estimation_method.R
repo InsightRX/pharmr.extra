@@ -301,3 +301,128 @@ test_that("$TABLE preserved with multiple estimation steps", {
   expect_equal(length(tables_after), length(tables_before))
   expect_equal(tables_after, tables_before)
 })
+
+# -- $EST option deduplication and override tests ----------------------------
+
+# Helper: a base model whose $EST already has all the SAEM structured options
+# (the reproducer scenario) plus a non-structured tool_option (NBURN).
+make_saem_model_with_full_opts <- function(niter = 1000) {
+  code <- paste0(
+    "$PROBLEM Test\n",
+    "$INPUT ID TIME DV AMT EVID MDV\n",
+    "$DATA data.csv IGNORE=@\n",
+    "$SUBROUTINES ADVAN1 TRANS2\n",
+    "$PK\n",
+    "MU_1=LOG(THETA(1))\nMU_2=LOG(THETA(2))\n",
+    "CL=EXP(MU_1+ETA(1))\nV=EXP(MU_2+ETA(2))\nS1=V\n",
+    "$ERROR\nY=F+EPS(1)\n",
+    "$THETA (0,10) ; POP_CL\n$THETA (0,50) ; POP_V\n",
+    "$OMEGA 0.1\n$OMEGA 0.1\n$SIGMA 0.1\n",
+    "$ESTIMATION METHOD=SAEM INTER MAXEVAL=99999 PRINT=5 NBURN=500 ",
+    "NITER=", niter, " ISAMPLE=2\n"
+  )
+  pharmr::read_model_from_string(code)
+}
+
+# Helper: extract the $EST line (first occurrence) from model code.
+get_est_line <- function(code) {
+  lines <- strsplit(code, "\n", fixed = TRUE)[[1]]
+  est <- grep("^\\$EST", lines, value = TRUE)
+  if (length(est) == 0) "" else est[1]
+}
+
+# Helper: count how many times a given option token appears in the $EST line.
+count_opt <- function(code, opt) {
+  est <- get_est_line(code)
+  length(gregexpr(paste0("\\b", opt, "\\b"), est)[[1]] |>
+    (\(x) x[x > 0])())
+}
+
+test_that("same-method update does not duplicate structured options", {
+  local_pharmr.extra_options()
+  mod <- make_saem_model_with_full_opts()
+  updated <- update_estimation_method(mod, "SAEM", verbose = FALSE)
+  est <- get_est_line(updated$code)
+
+  for (opt in c("MAXEVAL", "NITER", "ISAMPLE", "PRINT", "NBURN")) {
+    expect_equal(
+      count_opt(updated$code, opt), 1L,
+      info = paste("option duplicated:", opt, "in:", est)
+    )
+  }
+})
+
+test_that("same-method, no overrides, leaves $EST unchanged byte-for-byte", {
+  local_pharmr.extra_options()
+  mod <- make_saem_model_with_full_opts()
+  before <- get_est_line(mod$code)
+  updated <- update_estimation_method(mod, "SAEM", verbose = FALSE)
+  after <- get_est_line(updated$code)
+  expect_equal(after, before)
+})
+
+test_that("user override updates an existing structured option", {
+  local_pharmr.extra_options()
+  mod <- make_saem_model_with_full_opts(niter = 100)
+  updated <- update_estimation_method(
+    mod, "SAEM",
+    per_step_options = list(list(NITER = 200)),
+    verbose = FALSE
+  )
+  est <- get_est_line(updated$code)
+  expect_match(est, "NITER=200")
+  expect_false(grepl("NITER=100", est))
+  expect_equal(count_opt(updated$code, "NITER"), 1L)
+})
+
+test_that("user override updates an existing non-structured tool_option", {
+  local_pharmr.extra_options()
+  mod <- make_saem_model_with_full_opts()
+  updated <- update_estimation_method(
+    mod, "SAEM",
+    per_step_options = list(list(NBURN = 700)),
+    verbose = FALSE
+  )
+  est <- get_est_line(updated$code)
+  expect_match(est, "NBURN=700")
+  expect_false(grepl("NBURN=500", est))
+  expect_equal(count_opt(updated$code, "NBURN"), 1L)
+})
+
+test_that("method change applies defaults plus preserves non-structured opts", {
+  local_pharmr.extra_options()
+  # Start FOCE with NOABORT (a non-structured tool_option) set
+  code <- paste0(
+    "$PROBLEM Test\n$INPUT ID TIME DV AMT EVID MDV\n",
+    "$DATA data.csv IGNORE=@\n$SUBROUTINES ADVAN1 TRANS2\n",
+    "$PK\nCL=THETA(1)\nV=THETA(2)\nS1=V\n$ERROR\nY=F+EPS(1)\n",
+    "$THETA (0,10)\n$THETA (0,50)\n$OMEGA 0.1\n$SIGMA 0.1\n",
+    "$ESTIMATION METHOD=COND INTER MAXEVAL=9999 NOABORT\n"
+  )
+  mod <- pharmr::read_model_from_string(code)
+  updated <- update_estimation_method(mod, "SAEM", verbose = FALSE)
+  est <- get_est_line(updated$code)
+  expect_match(est, "METHOD=SAEM")
+  expect_match(est, "NOABORT")
+  # Defaults applied exactly once
+  expect_equal(count_opt(updated$code, "NITER"), 1L)
+  expect_equal(count_opt(updated$code, "ISAMPLE"), 1L)
+})
+
+test_that("arbitrary option passthrough works without duplication", {
+  local_pharmr.extra_options()
+  mod <- make_saem_model_with_full_opts()
+  updated <- update_estimation_method(
+    mod, "SAEM",
+    per_step_options = list(list(LIKELIHOOD = "", NBURN = 700)),
+    verbose = FALSE
+  )
+  est <- get_est_line(updated$code)
+  expect_match(est, "LIKELIHOOD")
+  expect_match(est, "NBURN=700")
+  expect_equal(count_opt(updated$code, "LIKELIHOOD"), 1L)
+  expect_equal(count_opt(updated$code, "NBURN"), 1L)
+  # NITER not overridden, existing value preserved
+  expect_match(est, "NITER=1000")
+  expect_equal(count_opt(updated$code, "NITER"), 1L)
+})
