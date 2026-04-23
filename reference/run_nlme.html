@@ -13,7 +13,7 @@ inspection of intermediate model fit."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9048</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9049</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -65,6 +65,7 @@ inspection of intermediate model fit.</p>
 <span>  save_fit <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  save_summary <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  estimation_method <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  estimation_options <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  sir_options <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auto_stack_encounters <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  clean <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -149,6 +150,17 @@ Default is <code>TRUE</code>. Will use current folder, and save as
 <dd><p>Optional. Character vector of estimation method(s)
 to apply to model. Will remove all existing estimation steps in the model
 and update with methods specified in argument.</p></dd>
+
+
+<dt id="arg-estimation-options">estimation_options<a class="anchor" aria-label="anchor" href="#arg-estimation-options"></a></dt>
+<dd><p>Optional. Options for the estimation step(s).
+Either a flat named list (applied to the first step) or a named list of
+lists keyed by method name for multi-step estimation, e.g.
+<code>list(SAEM = list(NBURN = 500), IMP = list(NITER = 10))</code>. Options are
+merged with package defaults; user values take precedence. Keys that
+correspond to pharmpy structured fields (MAXEVAL, NITER, ISAMPLE, PRINT,
+AUTO, ETASAMPLES) are routed to the appropriate attribute to avoid
+duplication in the rendered <code>$EST</code> record.</p></dd>
 
 
 <dt id="arg-sir-options">sir_options<a class="anchor" aria-label="anchor" href="#arg-sir-options"></a></dt>
