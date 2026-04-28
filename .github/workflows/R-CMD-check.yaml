@@ -19,7 +19,12 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - {os: ubuntu-latest,   r: 'release'}
+          # Pinned to R 4.5 because qs (a transitive dep of nlmixr2est) is
+          # archived from CRAN and its source no longer compiles against
+          # R 4.6+ (LEVELS, Rf_allocSExp etc. removed). P3M has qs binaries
+          # for R 4.5 but not R 4.6. Revert to 'release' once the dep chain
+          # drops qs or upstream restores R 4.6 compatibility.
+          - {os: ubuntu-latest,   r: '4.5'}
           #- {os: macos-latest,   r: 'release'}
           #- {os: windows-latest, r: 'release'}
           #- {os: ubuntu-latest,   r: 'devel', http-user-agent: 'release'}
@@ -48,15 +53,9 @@ jobs:
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           pak-version: devel
-          # qs has been archived from CRAN, so the default P3M `latest`
-          # snapshot returns 404. nlmixr2est still requires qs, and the
-          # qsbase/qs HEAD source no longer compiles against R 4.5+. Pin a
-          # dated P3M snapshot that still has the qs binary as a fallback.
-          extra-repositories: |
-            https://packagemanager.posit.co/cran/__linux__/noble/2025-09-01
           extra-packages: |
             any::rcmdcheck
-            qs
+            qsbase/qs
             cran/lotri
             cran/rxode2
             cran/nlmixr2est
