@@ -27,7 +27,7 @@ devtools::document()
 
 - **Bump the package version** (in `DESCRIPTION`) for every code change.
 - **After changing any function documentation**, regenerate docs with
-  [`devtools::document()`](https://devtools.r-lib.org/reference/document.html).
+  `devtools::document()`.
 
 ## Architecture
 
