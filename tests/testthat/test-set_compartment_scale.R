@@ -207,18 +207,26 @@ test_that("set_compartment_scale infers compartment 1 for ADVAN 1, 3, 11", {
 })
 
 test_that("set_compartment_scale adds new scaling when none exists", {
-  model <- list(code = "other code\nmore code")
+  model <- list(code = paste(
+    "$PK",
+    "VC = THETA(2)",
+    "$ERROR",
+    "IPRED = A(2)/VC",
+    "Y = IPRED + EPS(1)",
+    sep = "\n"
+  ))
 
   mockery::stub(set_compartment_scale, "get_compartment_scale", NULL)
+  captured_code <- NULL
   mockery::stub(set_compartment_scale, "pharmr::read_model_from_string",
     function(code) {
-      grepl("S2 = V/1000", code, fixed = TRUE)
+      captured_code <<- code
       return(list(code = code))
     })
   mockery::stub(set_compartment_scale, "scale_initial_estimates_pk",
     function(model, scale) model)
   mockery::stub(set_compartment_scale, "find_pk_parameter",
-    function(model, scale) "V")
+    function(parameter, model) "VC")
 
   expect_message(
     result <- set_compartment_scale(
@@ -228,6 +236,11 @@ test_that("set_compartment_scale adds new scaling when none exists", {
     ),
     "No scaling specified for compartment 2, adding scale"
   )
+  ## S2 line is inserted before $ERROR
+  expect_true(grepl("S2 = VC/1000", captured_code, fixed = TRUE))
+  ## IPRED is rewritten to use S2 instead of VC so scaling takes effect
+  expect_true(grepl("IPRED = A(2)/S2", captured_code, fixed = TRUE))
+  expect_false(grepl("IPRED = A(2)/VC", captured_code, fixed = TRUE))
 })
 
 test_that("set_compartment_scale updates existing scaling", {
