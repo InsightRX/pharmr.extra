@@ -19,7 +19,12 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          - {os: ubuntu-latest,   r: 'release'}
+          # Pinned to R 4.5 because qs (a transitive dep of nlmixr2est) is
+          # archived from CRAN and its source no longer compiles against
+          # R 4.6+ (LEVELS, Rf_allocSExp etc. removed). P3M has qs binaries
+          # for R 4.5 but not R 4.6. Revert to 'release' once the dep chain
+          # drops qs or upstream restores R 4.6 compatibility.
+          - {os: ubuntu-latest,   r: '4.5'}
           #- {os: macos-latest,   r: 'release'}
           #- {os: windows-latest, r: 'release'}
           #- {os: ubuntu-latest,   r: 'devel', http-user-agent: 'release'}
