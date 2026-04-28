@@ -55,7 +55,27 @@ set_compartment_scale <- function(
   code <- stringr::str_split(model$code, "\\n")[[1]]
   pattern <- paste0("^S", compartment, " *=")
   idx <- grep(pattern, code)[1]
-  code[idx] <- new_expr
+  if (is.na(idx)) {
+    ## No existing S<n> assignment — insert one just before the $ERROR block
+    ## (or at end of code if $ERROR is absent).
+    error_idx <- grep("^\\$ERROR", code)[1]
+    insert_at <- if (is.na(error_idx)) length(code) + 1L else error_idx
+    code <- append(code, new_expr, after = insert_at - 1L)
+
+    ## When pharmpy writes IPRED manually as `A(<n>)/<volume_var>` in $ERROR,
+    ## NONMEM's S<n> scaling is bypassed. Rewrite that division to use S<n> so
+    ## the new scaling actually affects the predicted concentration.
+    ipred_idx <- grep("^\\s*IPRED\\s*=", code)
+    if (length(ipred_idx) > 0) {
+      code[ipred_idx] <- gsub(
+        paste0("/\\s*", expr_var, "\\b"),
+        paste0("/S", compartment),
+        code[ipred_idx]
+      )
+    }
+  } else {
+    code[idx] <- new_expr
+  }
   new_code <- paste0(code, collapse = "\n")
 
   ## Reload model from file
