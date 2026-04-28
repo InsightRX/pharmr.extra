@@ -22,9 +22,13 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
+          # See R-CMD-check.yaml for why a dated P3M snapshot is pinned.
+          extra-repositories: |
+            https://packagemanager.posit.co/cran/__linux__/noble/2025-09-01
           extra-packages: |
             any::covr
             any::xml2
+            qs
             cran/lotri
             cran/rxode2
             cran/nlmixr2est

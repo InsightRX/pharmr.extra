@@ -48,8 +48,15 @@ jobs:
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           pak-version: devel
+          # qs has been archived from CRAN, so the default P3M `latest`
+          # snapshot returns 404. nlmixr2est still requires qs, and the
+          # qsbase/qs HEAD source no longer compiles against R 4.5+. Pin a
+          # dated P3M snapshot that still has the qs binary as a fallback.
+          extra-repositories: |
+            https://packagemanager.posit.co/cran/__linux__/noble/2025-09-01
           extra-packages: |
             any::rcmdcheck
+            qs
             cran/lotri
             cran/rxode2
             cran/nlmixr2est
