@@ -178,6 +178,18 @@ run_sim <- function(
       verbose = FALSE
     )
 
+    ## Detect silent NONMEM failures: pharmpy/run_nlme do not raise when a
+    ## simulation produces no output table, so we check here and surface the
+    ## .lst error before the next regimen overwrites the run folder.
+    res_tables <- attr(results, "tables")
+    sim_tab <- if(length(res_tables) > 0) res_tables[[1]] else NULL
+    if(is.null(sim_tab) || nrow(sim_tab) == 0) {
+      abort_on_failed_sim(
+        regimen_label = reg_label,
+        fit_folder = file.path(getwd(), id)
+      )
+    }
+
     ## post-processing
     if(update_table) {
       if(add_pk_variables) {
@@ -446,8 +458,57 @@ fill_missing <- function(x, default = NA) {
   }
 }
 
+#' Abort with the NONMEM error from .lst when a simulation produced no output
+#'
+#' @param regimen_label label of the regimen that failed
+#' @param fit_folder NONMEM run folder for this regimen
+#' @noRd
+abort_on_failed_sim <- function(regimen_label, fit_folder) {
+  lst_path <- file.path(fit_folder, "run.lst")
+  stderr_path <- file.path(fit_folder, "stderr")
+  lst <- if(file.exists(lst_path)) readLines(lst_path, warn = FALSE) else character(0)
+  err <- if(file.exists(stderr_path)) readLines(stderr_path, warn = FALSE) else character(0)
+
+  ## Try to find a known NONMEM error marker and grab nearby context.
+  ## Otherwise fall back to the tail of the .lst file.
+  markers <- c(
+    "AN ERROR WAS FOUND IN THE CONTROL STATEMENTS",
+    "MESSAGE ISSUED FROM NMTRAN",
+    "PROGRAM TERMINATED BY OBJ",
+    "PRED EXIT CODE",
+    "ERROR IN",
+    "NUMERICAL DIFFICULTIES"
+  )
+  marker_hit <- which(stringr::str_detect(lst, paste(markers, collapse = "|")))
+  if(length(marker_hit) > 0) {
+    first <- marker_hit[1]
+    snippet <- lst[seq(first, min(length(lst), first + 25))]
+  } else if(length(lst) > 0) {
+    snippet <- utils::tail(lst, 30)
+  } else {
+    snippet <- character(0)
+  }
+
+  ## Escape braces so cli/glue doesn't interpret raw NONMEM output as
+  ## interpolation expressions.
+  esc <- function(x) gsub("}", "}}", gsub("{", "{{", x, fixed = TRUE), fixed = TRUE)
+
+  msg <- c(
+    "NONMEM simulation produced no output for regimen {.val {regimen_label}}.",
+    i = "Run folder: {.path {fit_folder}}"
+  )
+  if(length(snippet) > 0) {
+    msg <- c(msg, "NONMEM output (run.lst):", paste0("  ", esc(snippet)))
+  } else if(length(err) > 0) {
+    msg <- c(msg, "NONMEM stderr:", paste0("  ", esc(utils::tail(err, 20))))
+  } else {
+    msg <- c(msg, x = "No run.lst or stderr found in run folder.")
+  }
+  cli::cli_abort(msg, class = "pharmr_extra_sim_failed")
+}
+
 #' Create a dictionary from given specs and default dictionary as fallback
-#' 
+#'
 parse_data_dictionary <- function(
   dictionary,
   default = list(
