@@ -286,6 +286,88 @@ test_that("unquote_column_names strips a single pair of surrounding quotes", {
   expect_equal(unquote_column_names("not a df"), "not a df")
 })
 
+test_that("run_nlme converts data.frame input to a CSV file path", {
+  local_pharmr.extra_options()
+  mod <- create_model(route = "iv", verbose = FALSE)
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 1, 2), DV = c(0, 10, 5),
+    AMT = c(100, 0, 0), CMT = 1, EVID = c(1, 0, 0), MDV = c(1, 0, 0)
+  )
+
+  captured_data <- "<not captured>"
+  stub(run_nlme, "prepare_run_folder", function(id, model, path, data, ...) {
+    captured_data <<- data
+    stop("abort before NONMEM")
+  })
+
+  tryCatch(
+    run_nlme(mod, data = dat, id = "run1", path = withr::local_tempdir(),
+             verbose = FALSE),
+    error = function(e) NULL
+  )
+
+  expect_true(is.character(captured_data))
+  expect_match(captured_data, "\\.csv$")
+  expect_true(file.exists(captured_data))
+
+  ## Round-trip: file should contain the same data we passed in
+  written <- read.csv(captured_data)
+  expect_equal(written, dat, ignore_attr = TRUE)
+})
+
+test_that("run_nlme passes through a CSV file path unchanged", {
+  local_pharmr.extra_options()
+  mod <- create_model(route = "iv", verbose = FALSE)
+  csv_path <- tempfile(fileext = ".csv")
+  write.csv(
+    data.frame(ID = 1, TIME = 0, DV = 0, AMT = 100, CMT = 1, EVID = 1, MDV = 1),
+    csv_path, quote = FALSE, row.names = FALSE
+  )
+
+  captured_data <- "<not captured>"
+  stub(run_nlme, "prepare_run_folder", function(id, model, path, data, ...) {
+    captured_data <<- data
+    stop("abort before NONMEM")
+  })
+
+  tryCatch(
+    run_nlme(mod, data = csv_path, id = "run1", path = withr::local_tempdir(),
+             verbose = FALSE),
+    error = function(e) NULL
+  )
+
+  expect_identical(captured_data, csv_path)
+})
+
+test_that("run_nlme accepts NULL data (uses dataset embedded in model)", {
+  local_pharmr.extra_options()
+  mod <- create_model(route = "iv", verbose = FALSE)
+
+  captured_data <- "<not captured>"
+  stub(run_nlme, "prepare_run_folder", function(id, model, path, data, ...) {
+    captured_data <<- data
+    stop("abort before NONMEM")
+  })
+
+  tryCatch(
+    run_nlme(mod, id = "run1", path = withr::local_tempdir(), verbose = FALSE),
+    error = function(e) NULL
+  )
+
+  expect_null(captured_data)
+})
+
+test_that("run_nlme aborts when `data` is neither data.frame, character, nor NULL", {
+  local_pharmr.extra_options()
+  mod <- create_model(route = "iv", verbose = FALSE)
+
+  expect_error(
+    run_nlme(mod, data = list(a = 1), id = "run1",
+             path = withr::local_tempdir(), verbose = FALSE),
+    "unknown type"
+  )
+})
+
 test_that("change_nonmem_dataset preserves whitespace and formatting", {
   # Extra whitespace around the path is preserved verbatim
   model_code <- "$PROB TEST\n$DATA    old_data.csv    IGNORE=@   \n$INPUT ID TIME DV"
