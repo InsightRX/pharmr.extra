@@ -113,6 +113,21 @@ run_nlme <- function(
 ) {
 
   time_start <- Sys.time()
+  
+  ## Make sure `data` is pointing to a file. This is to avoid issue with
+  ## Pharmpy trying to parse the data.frame. `data` may also be NULL, in
+  ## which case `prepare_run_folder()` falls back to `model$dataset` or the
+  ## $DATA section of the model code.
+  if(!is.null(data)) {
+    if(inherits(data, "data.frame")) {
+      datafile <- tempfile(pattern = "data_", fileext = ".csv")
+      write.csv(data, datafile, quote = FALSE, row.names = FALSE)
+      data <- datafile
+    } else if(!inherits(data, "character")) {
+      cli::cli_abort("`data` is of unknown type.")
+    }
+  }
+  
   ## Preserve R attributes across pharmpy calls (which create new Python objects)
   original_data <- attr(model, "original_data")
   model <- validate_model(model, data = data)

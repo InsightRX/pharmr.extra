@@ -16,7 +16,7 @@ validate_model <- function(
     if(file.exists(model)) { ## specified as file?
       model <- create_model_from_file(model)
     } else { ## specified as code?
-      tmpfile <- tempfile(pattern = "mod_")
+      tmpfile <- tempfile(pattern = "mod_", fileext = ".mod")
       on.exit(unlink(tmpfile), add = TRUE)
       writeLines(paste0(model, collapse = "\n"), tmpfile)
       model <- create_model_from_file(tmpfile, data = data)
