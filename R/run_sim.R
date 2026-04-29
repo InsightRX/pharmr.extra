@@ -43,6 +43,7 @@ run_sim <- function(
     seed = 12345,
     verbose = TRUE
 ) {
+  
   ## parse arguments
   if(is.null(fit) && is.null(model)) {
     cli::cli_abort("For simulations we need either a `fit` object, or a `model` file (with updated estimates)")

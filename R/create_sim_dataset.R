@@ -141,7 +141,7 @@ create_sim_dataset <- function(
     n_input  <- length(idx$nonmem_name)
     addl_cols <- n_data - n_input
     if(addl_cols > 0) {
-      names(input_data)[seq_len(n_input)] <- idx$nonmem_name
+      names(input_data) <- c(idx$nonmem_name, paste0("EXTRA_", seq(addl_cols)))
       cli::cli_warn("Number of columns for input dataset is higher than number of columns in $INPUT. Please check dataset and $INPUT correctness. Will continue, assuming extra columns are not needed.")
     } else if (addl_cols < 0) {
       cli::cli_abort("Number of columns for input dataset is lower than number of columns in $INPUT. Please check dataset and $INPUT. Cannot continue creating dataset.")

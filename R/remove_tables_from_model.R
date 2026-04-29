@@ -24,7 +24,7 @@ remove_tables_from_model <- function(
     code_without_tables <- remove_table_sections(model$code, file = file)
     temp_mod <- tempfile(pattern = "tmp_mod_", fileext = '.mod')
     writeLines(code_without_tables, temp_mod)
-    model <- create_model_from_file(model_file = temp_mod, data = model$dataset)
+    model <- create_model_from_file(model_file = temp_mod)
   } else {
     ## Removing tables can only be done for NONMEM datasets
   }
