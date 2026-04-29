@@ -20,11 +20,17 @@ remove_tables_from_model <- function(
       return(model)
     }
 
-    ## Reread model without tables
+    ## Reread model without tables. We deliberately don't pass `data` to
+    ## avoid Pharmpy re-parsing it; instead, reattach the original dataset
+    ## afterwards so downstream callers see the same `$dataset`.
+    original_dataset <- model$dataset
     code_without_tables <- remove_table_sections(model$code, file = file)
     temp_mod <- tempfile(pattern = "tmp_mod_", fileext = '.mod')
     writeLines(code_without_tables, temp_mod)
     model <- create_model_from_file(model_file = temp_mod)
+    if(!is.null(original_dataset)) {
+      model <- pharmr::set_dataset(model, original_dataset)
+    }
   } else {
     ## Removing tables can only be done for NONMEM datasets
   }
