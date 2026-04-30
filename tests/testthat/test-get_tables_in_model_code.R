@@ -42,3 +42,8 @@ test_that("get_tables_in_model_code extracts table filenames correctly", {
     character(0)
   )
 })
+
+test_that("get_tables_in_model_code handles empty/NULL input", {
+  expect_equal(get_tables_in_model_code(NULL), character(0))
+  expect_equal(get_tables_in_model_code(character(0)), character(0))
+})
