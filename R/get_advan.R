@@ -6,6 +6,12 @@
 #'
 #' @export
 get_advan <- function(model) {
+  ## ADVAN is a NONMEM concept; nlmixr / generic pharmpy models have no
+  ## $SUBROUTINES record, so just return NULL and let downstream callers
+  ## (e.g. create_dosing_records) fall back to their defaults.
+  if(get_tool_from_model(model) != "nonmem") {
+    return(invisible())
+  }
   tmp <- model$internals$control_stream$records
   idx <- lapply(seq_along(tmp), function(i) {
     if(inherits(tmp[[i]], "pharmpy.model.external.nonmem.records.subroutine_record.SubroutineRecord")) {
@@ -40,9 +46,10 @@ get_advan <- function(model) {
 #'
 get_obs_compartment <- function(model) {
   advan <- get_advan(model)
-  if(advan %in% c(1, 3, 11)) { # iv
+  if(is.null(advan)) advan <- NA_integer_
+  if(!is.na(advan) && advan %in% c(1, 3, 11)) { # iv
     return(1)
-  } else if(advan %in% c(2, 4, 12)) { # with absorption
+  } else if(!is.na(advan) && advan %in% c(2, 4, 12)) { # with absorption
     return(2)
   } else {
     s1 <- model$statements$find_assignment("S1")
@@ -78,7 +85,7 @@ get_obs_compartment <- function(model) {
 #'
 get_ode_size <- function(model) {
   advan <- get_advan(model)
-  if(advan %in% c(1,2,3,4,5,11,12)) {
+  if(!is.null(advan) && advan %in% c(1,2,3,4,5,11,12)) {
     return(0)
   }
   length(model$statements$ode_system$compartment_names)

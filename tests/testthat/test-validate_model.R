@@ -25,7 +25,7 @@ test_that("handles single character string as model code", {
   expect_s3_class(out, "pharmpy.model.external.nonmem.model.Model")
 })
 
-test_that("errors when pharmpy model object is not NONMEM", {
+test_that("accepts nlmixr2 pharmpy model objects", {
   local_pharmr.extra_options()
   dat <- data.frame(
     ID = 1,
@@ -37,8 +37,9 @@ test_that("errors when pharmpy model object is not NONMEM", {
     MDV = c(1, 0, 0)
   )
   mod <- create_model(route = "iv", data = dat, tool = "nlmixr2", verbose = FALSE)
-  
-  expect_error(validate_model(mod), "Currently only NONMEM is supported")
+
+  out <- validate_model(mod)
+  expect_s3_class(out, "pharmpy.model.external.nlmixr.model.Model")
 })
 
 test_that("errors when input is neither model object nor character", {

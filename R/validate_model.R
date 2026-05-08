@@ -8,8 +8,8 @@ validate_model <- function(
 ) {
   if(inherits(model, "pharmpy.model.model.Model")) {
     tool <- get_tool_from_model(model)
-    if(tool != "nonmem") {
-      cli::cli_abort("Currently only NONMEM is supported.")
+    if(! tool %in% c("nonmem", "nlmixr")) {
+      cli::cli_abort("Unsupported model engine: {tool}.")
     }
   } else if(inherits(model, "character")) {
     tool <- "nonmem"

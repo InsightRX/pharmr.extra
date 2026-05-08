@@ -210,11 +210,14 @@ test_that("run_sim: error when data is a file path instead of a data.frame", {
   )
 })
 
-test_that("run_sim: error when tool is not nonmem", {
+test_that("run_sim: error when tool/model engine is mismatched", {
+  ## Asking for an nlmixr2 simulation on a NONMEM model object now reaches
+  ## the nlmixr2 dispatch, which fails when it can't parse a function out
+  ## of the NONMEM control stream.
   mod <- pharmr::load_example_model("pheno")
   expect_error(
     run_sim(model = mod, tool = "nlmixr2"),
-    "currently only supporting NONMEM"
+    "Could not extract an nlmixr2 model function"
   )
 })
 

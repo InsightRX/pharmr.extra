@@ -77,12 +77,29 @@ run_sim <- function(
 
   tool <- match.arg(tool)
   if(tool == "auto") {
-    if(inherits(model, "pharmpy.model.external.nonmem.model.Model")) {
-      tool <- "nonmem"
-    }
+    tool <- get_tool_from_model(model)
+    if(tool == "nlmixr") tool <- "nlmixr2"
   }
-  if(tool != "nonmem") {
-    cli::cli_abort("Sorry, currently only supporting NONMEM simulations.")
+  if(! tool %in% c("nonmem", "nlmixr2")) {
+    cli::cli_abort("Unsupported simulation tool: {tool}.")
+  }
+
+  ## Engine dispatch: nlmixr2 simulations go through rxode2::rxSolve()
+  ## directly. Pharmpy-driven nlmixr simulation needs the same pyreadr
+  ## dependency that blocks the fitter, and rxSolve avoids the round-trip.
+  if(tool == "nlmixr2") {
+    return(run_sim_nlmixr(
+      fit = fit,
+      data = data,
+      model = model,
+      id = id,
+      n_iterations = n_iterations,
+      variables = variables,
+      add_pk_variables = add_pk_variables,
+      output_file = output_file,
+      seed = seed,
+      verbose = verbose
+    ))
   }
 
   ## Use provided data or fall back to model's dataset

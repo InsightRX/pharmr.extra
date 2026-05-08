@@ -28,25 +28,25 @@ create_vpc_data <- function(
   use_pharmpy = TRUE
 ) {
 
-  ## Make a copy of the model for simulations, and update initial estimates
-  tool <- get_tool_from_model(model)
+  ## Resolve model first (was being inspected before assignment)
   if(is.null(model)) {
     model <- attr(fit, "model")
     if(is.null(model)) {
       cli::cli_abort("Either a `fit` object with a model attached, or a `model` argument is required.")
     }
   }
+  tool <- get_tool_from_model(model)
   data <- model$dataset
-  if(tool != "nonmem") {
-    warning("Currently, simulation is not supported by pharmpy for nlmixr-type models. Trying to convert to NONMEM model.")
-    ## dataset sometimes gets altered by pharmpy (CMT), make sure this doesn't happen
-    model <- pharmr::convert_model(
-      model,
-      to_format = "nonmem"
-    )
-    if(!is.null(data)) {
-      model <- pharmr::set_dataset(model, data)
-    }
+
+  if(tool == "nlmixr") {
+    return(create_vpc_data_nlmixr(
+      fit = fit,
+      model = model,
+      parameters = parameters,
+      keep_columns = keep_columns,
+      n = n,
+      verbose = verbose
+    ))
   }
   if(!is.null(parameters)) {
     if(verbose) message("Using supplied `parameters` object")
@@ -159,5 +159,86 @@ create_vpc_data <- function(
   }
 
   ## Return
+  list(obs = obs, sim = sim)
+}
+
+#' Build VPC obs/sim data for an nlmixr-format model
+#'
+#' Mirrors [create_vpc_data()] but stays in nlmixr2-land: the observation
+#' dataset is taken from the model's data, and `n` simulation iterations
+#' are produced via [run_sim()] (which dispatches to rxode2's `rxSolve`
+#' for nlmixr2 models).
+#'
+#' @noRd
+create_vpc_data_nlmixr <- function(
+  fit = NULL,
+  model = NULL,
+  parameters = NULL,
+  keep_columns = c(),
+  n = 100,
+  verbose = FALSE
+) {
+  if(is.null(model)) {
+    if(is.null(fit)) cli::cli_abort("Need either `fit` or `model`.")
+    model <- attr(fit, "final_model")
+    if(is.null(model)) model <- attr(fit, "model")
+  }
+
+  ## Update estimates if supplied (or, when a fit is given, take them from
+  ## the fit). For nlmixr2 simulations the model already carries the final
+  ## estimates if `attr(fit, 'final_model')` is used.
+  if(!is.null(parameters)) {
+    model <- pharmr::set_initial_estimates(model, inits = parameters)
+  } else if(!is.null(fit) && !is.null(fit$parameter_estimates) &&
+            is.null(attr(fit, "final_model"))) {
+    model <- pharmr::set_initial_estimates(model, inits = as.list(fit$parameter_estimates))
+  }
+
+  data <- as.data.frame(model$dataset)
+
+  ## Build obs from the model dataset. Compute TAD per ID if not present.
+  obs <- data
+  if(!"EVID" %in% names(obs)) obs$EVID <- 0L
+  if(!"MDV" %in% names(obs)) obs$MDV <- ifelse(obs$EVID == 0, 0L, 1L)
+  if(is.null(obs$TAD)) {
+    obs <- obs |>
+      dplyr::group_by(.data$ID) |>
+      dplyr::mutate(last_dose_time = dplyr::if_else(.data$EVID == 1, .data$TIME, NA_real_)) |>
+      tidyr::fill("last_dose_time", .direction = "downup") |>
+      dplyr::mutate(TAD = .data$TIME - .data$last_dose_time) |>
+      dplyr::select(-"last_dose_time") |>
+      dplyr::ungroup() |>
+      as.data.frame()
+  }
+
+  ## Run n simulations against the same dataset; reuse run_sim() so the
+  ## engine dispatch lives in one place.
+  if(verbose) cli::cli_alert_info("Running {n} simulations for VPC")
+  sim <- run_sim_nlmixr(
+    fit = fit,
+    data = NULL,        # use model dataset
+    model = model,
+    n_iterations = n,
+    verbose = FALSE
+  )
+
+  ## Optional column carry-over from obs to sim
+  for(col in keep_columns) {
+    if(col %in% names(obs)) {
+      ## sim has multiple iterations per obs row; left_join on (ID, TIME)
+      sim <- sim |>
+        dplyr::left_join(
+          obs[, c("ID", "TIME", col), drop = FALSE] |> unique(),
+          by = c("ID", "TIME"),
+          suffix = c("", ".obs")
+        )
+      ## prefer existing column on sim; otherwise rename .obs back
+      sim_col <- paste0(col, ".obs")
+      if(sim_col %in% names(sim) && !col %in% names(sim)) {
+        names(sim)[names(sim) == sim_col] <- col
+      }
+    }
+  }
+
   list(obs = obs, sim = sim)
 }

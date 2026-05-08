@@ -6,7 +6,12 @@
 #'
 compare_nlme_fit <- function(..., return_object = FALSE) {
   fits <- list(...)
-  if(length(fits) == 1) {
+  ## Unwrap when the caller passed a single argument that is itself a list of
+  ## fits (e.g. `compare_nlme_fit(list(fit1, fit2))`). A single fit object
+  ## already has `attr(., "info")` set by attach_fit_info(), so we use that
+  ## as the marker — this avoids treating an R-list-shaped fit (e.g. from
+  ## nlmixr2) as a list of fits.
+  if(length(fits) == 1 && is.null(attr(fits[[1]], "info"))) {
     if(length(fits[[1]]) >= 1) {
       fits <- fits[[1]]
     }
