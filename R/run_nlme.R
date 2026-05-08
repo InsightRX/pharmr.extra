@@ -81,6 +81,14 @@
 #' used and the model is not already mu-referenced. `TRUE` always applies
 #' mu-referencing. `FALSE` never applies mu-referencing (old behaviour: warns
 #' when SAEM is used without mu-referencing).
+#' @param threads number of threads to use for MPI parallelization of a
+#' single NONMEM run. `NULL` (default) or `1` runs single-threaded (no
+#' parafile written). Values `>= 2` cause an MPI parafile (`parafile.pnm`)
+#' to be written into the run folder and passed to the selected backend.
+#' Requires MPI (e.g. OpenMPI) installed on the host running NONMEM, with
+#' `mpirun` on the PATH. When `method = "pharmpy"` is combined with
+#' `threads >= 2`, the run is dispatched via `nmfe` instead, since
+#' pharmpy's API does not expose a parafile hook.
 #' @param verbose verbose output?
 #'
 #' @returns TODO
@@ -109,6 +117,7 @@ run_nlme <- function(
   check_only = FALSE,
   remove_tables = FALSE,
   mu_reference = "auto",
+  threads = NULL,
   verbose = TRUE
 ) {
 
@@ -217,6 +226,23 @@ run_nlme <- function(
     return(model_ok)
   }
 
+  ## Generate MPI parafile if multi-threaded run requested
+  parafile <- NULL
+  if(!is.null(threads) && threads >= 2) {
+    parafile <- create_mpi_parafile(path = obj$fit_folder, threads = threads)
+    if(verbose) {
+      cli::cli_alert_info(
+        "Wrote MPI parafile {.path {parafile}} with [nodes]={threads}"
+      )
+    }
+    if(method == "pharmpy") {
+      cli::cli_warn(
+        "Pharmpy backend does not support parafiles; falling back to method = 'nmfe'."
+      )
+      method <- "nmfe"
+    }
+  }
+
   ## Run NONMEM and direct stdout/stderr
   if(method == "pharmpy") {
     if(as_job) {
@@ -256,7 +282,9 @@ run_nlme <- function(
       path = obj$fit_folder,
       nmfe = nmfe,
       console = console,
-      verbose = verbose
+      verbose = verbose,
+      parafile = parafile,
+      threads = threads
     )
   } else if(method == "psn") {
     if(as_job) {
@@ -268,7 +296,9 @@ run_nlme <- function(
       path = obj$fit_folder,
       tool = "execute",
       console = console,
-      verbose = verbose
+      verbose = verbose,
+      parafile = parafile,
+      threads = threads
     )
   } else{
     cli::cli_abort("Model run method {method} not recognized.")
@@ -422,6 +452,11 @@ change_nonmem_dataset <- function(code, path) {
 #' @param console show output from nmfe in console? Default `FALSE`
 #' @param check_only only run NM-TRAN, to check the model syntax
 #' @param verbose verbose output?
+#' @param parafile absolute path to a NONMEM parafile (MPI or FPI). If
+#' supplied, will be passed to nmfe as `-parafile=<path>`. Default `NULL`
+#' (no parafile).
+#' @param threads number of nodes to request, passed to nmfe as
+#' `[nodes]=N`. Only applied when `parafile` is supplied.
 #'
 #' @export
 #'
@@ -432,7 +467,9 @@ call_nmfe <- function(
   nmfe = "/opt/NONMEM/nm_cxurrent/run/nmfe75",
   console = FALSE,
   check_only = FALSE,
-  verbose = FALSE
+  verbose = FALSE,
+  parafile = NULL,
+  threads = NULL
 ) {
 
   if(! file.exists(nmfe)) {
@@ -486,9 +523,16 @@ call_nmfe <- function(
     attr(has_no_error, "message") <- cons
     return(has_no_error)
   } else {
+    nmfe_args <- c(model_file, output_file)
+    if(!is.null(parafile)) {
+      nmfe_args <- c(nmfe_args, paste0("-parafile=", parafile))
+      if(!is.null(threads)) {
+        nmfe_args <- c(nmfe_args, paste0("[nodes]=", as.integer(threads)))
+      }
+    }
     system2(
       command = nmfe,
-      args = c(model_file, output_file),
+      args = nmfe_args,
       wait = TRUE,
       stdout = stdout,
       stderr = stderr,

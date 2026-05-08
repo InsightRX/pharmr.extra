@@ -380,3 +380,236 @@ test_that("change_nonmem_dataset preserves whitespace and formatting", {
   expect_match(result, "\\$DATA\tnew_data\\.csv\tIGNORE=@")
 })
 
+# Helper: stub `prepare_run_folder` to return a fit_folder pointed at a
+# temp dir. We pass `nmfe = "/fake/nmfe"` explicitly because the default
+# `get_nmfe_location()` reads the pharmpy config and aborts in CI/dev
+# machines without one.
+make_obj_stub <- function(fit_folder) {
+  function(id, model, ...) {
+    if(!dir.exists(fit_folder)) dir.create(fit_folder, recursive = TRUE)
+    list(
+      model = model,
+      model_file = "run.mod",
+      output_file = "run.lst",
+      fit_folder = fit_folder,
+      dataset_path = file.path(fit_folder, "data.csv")
+    )
+  }
+}
+
+test_that("run_nlme with threads writes a parafile to the fit folder", {
+  local_pharmr.extra_options()
+  mod <- make_model_without_cov()
+  fit_folder <- withr::local_tempdir()
+
+  stub(run_nlme, "prepare_run_folder", make_obj_stub(fit_folder))
+  stub(run_nlme, "call_nmfe", function(...) stop("abort after dispatch"))
+
+  tryCatch(
+    run_nlme(mod, id = "run1", path = withr::local_tempdir(),
+             method = "nmfe", threads = 4, mu_reference = FALSE,
+             nmfe = "/fake/nmfe",
+             save_fit = FALSE, save_summary = FALSE, save_final = FALSE,
+             clean = FALSE, verbose = FALSE),
+    error = function(e) NULL
+  )
+
+  parafile_path <- file.path(fit_folder, "parafile.pnm")
+  expect_true(file.exists(parafile_path))
+  expect_true(any(grepl("\\[nodes\\]=4", readLines(parafile_path))))
+})
+
+test_that("run_nlme with method='nmfe' + threads passes -parafile and [nodes] to call_nmfe", {
+  local_pharmr.extra_options()
+  mod <- make_model_without_cov()
+  fit_folder <- withr::local_tempdir()
+  state <- new.env()
+
+  stub(run_nlme, "prepare_run_folder", make_obj_stub(fit_folder))
+  stub(run_nlme, "call_nmfe", function(...) {
+    state$captured <- list(...)
+    stop("abort after dispatch")
+  })
+
+  tryCatch(
+    run_nlme(mod, id = "run1", path = withr::local_tempdir(),
+             method = "nmfe", threads = 3, mu_reference = FALSE,
+             nmfe = "/fake/nmfe",
+             save_fit = FALSE, save_summary = FALSE, save_final = FALSE,
+             clean = FALSE, verbose = FALSE),
+    error = function(e) NULL
+  )
+
+  expect_true(!is.null(state$captured$parafile))
+  expect_true(file.exists(state$captured$parafile))
+  expect_identical(state$captured$threads, 3)
+})
+
+test_that("run_nlme with method='psn' + threads passes parafile and threads to call_psn", {
+  local_pharmr.extra_options()
+  mod <- make_model_without_cov()
+  fit_folder <- withr::local_tempdir()
+  state <- new.env()
+
+  stub(run_nlme, "prepare_run_folder", make_obj_stub(fit_folder))
+  stub(run_nlme, "call_psn", function(...) {
+    state$captured <- list(...)
+    stop("abort after dispatch")
+  })
+
+  tryCatch(
+    run_nlme(mod, id = "run1", path = withr::local_tempdir(),
+             method = "psn", threads = 2, mu_reference = FALSE,
+             nmfe = "/fake/nmfe",
+             save_fit = FALSE, save_summary = FALSE, save_final = FALSE,
+             clean = FALSE, verbose = FALSE),
+    error = function(e) NULL
+  )
+
+  expect_true(!is.null(state$captured$parafile))
+  expect_true(file.exists(state$captured$parafile))
+  expect_identical(state$captured$threads, 2)
+})
+
+test_that("run_nlme with method='pharmpy' + threads warns and falls back to nmfe", {
+  local_pharmr.extra_options()
+  mod <- make_model_without_cov()
+  fit_folder <- withr::local_tempdir()
+  state <- new.env()
+  state$nmfe_called <- FALSE
+  state$pharmpy_called <- FALSE
+
+  stub(run_nlme, "prepare_run_folder", make_obj_stub(fit_folder))
+  stub(run_nlme, "call_nmfe", function(...) {
+    state$nmfe_called <- TRUE
+    stop("abort after dispatch")
+  })
+  stub(run_nlme, "call_pharmpy_fit", function(...) {
+    state$pharmpy_called <- TRUE
+    stop("abort after dispatch")
+  })
+
+  expect_warning(
+    tryCatch(
+      run_nlme(mod, id = "run1", path = withr::local_tempdir(),
+               method = "pharmpy", threads = 2, mu_reference = FALSE,
+               nmfe = "/fake/nmfe",
+               save_fit = FALSE, save_summary = FALSE, save_final = FALSE,
+               clean = FALSE, verbose = FALSE),
+      error = function(e) NULL
+    ),
+    "Pharmpy backend does not support parafiles"
+  )
+
+  expect_true(state$nmfe_called)
+  expect_false(state$pharmpy_called)
+})
+
+test_that("run_nlme without threads does not write a parafile or pass parafile args", {
+  local_pharmr.extra_options()
+  mod <- make_model_without_cov()
+  fit_folder <- withr::local_tempdir()
+  state <- new.env()
+
+  stub(run_nlme, "prepare_run_folder", make_obj_stub(fit_folder))
+  stub(run_nlme, "call_nmfe", function(...) {
+    state$captured <- list(...)
+    stop("abort after dispatch")
+  })
+
+  tryCatch(
+    run_nlme(mod, id = "run1", path = withr::local_tempdir(),
+             method = "nmfe", mu_reference = FALSE,
+             nmfe = "/fake/nmfe",
+             save_fit = FALSE, save_summary = FALSE, save_final = FALSE,
+             clean = FALSE, verbose = FALSE),
+    error = function(e) NULL
+  )
+
+  expect_false(file.exists(file.path(fit_folder, "parafile.pnm")))
+  expect_null(state$captured$parafile)
+  expect_null(state$captured$threads)
+})
+
+test_that("run_nlme with threads=1 does not write a parafile", {
+  local_pharmr.extra_options()
+  mod <- make_model_without_cov()
+  fit_folder <- withr::local_tempdir()
+  state <- new.env()
+
+  stub(run_nlme, "prepare_run_folder", make_obj_stub(fit_folder))
+  stub(run_nlme, "call_nmfe", function(...) {
+    state$captured <- list(...)
+    stop("abort after dispatch")
+  })
+
+  tryCatch(
+    run_nlme(mod, id = "run1", path = withr::local_tempdir(),
+             method = "nmfe", threads = 1, mu_reference = FALSE,
+             nmfe = "/fake/nmfe",
+             save_fit = FALSE, save_summary = FALSE, save_final = FALSE,
+             clean = FALSE, verbose = FALSE),
+    error = function(e) NULL
+  )
+
+  expect_false(file.exists(file.path(fit_folder, "parafile.pnm")))
+  expect_null(state$captured$parafile)
+})
+
+test_that("call_nmfe appends -parafile and [nodes] args when parafile supplied", {
+  local_pharmr.extra_options()
+  tmp <- withr::local_tempdir()
+  fake_nmfe <- file.path(tmp, "fake_nmfe")
+  writeLines("#!/bin/sh\necho \"$@\" > nmfe_args.txt\nexit 0", fake_nmfe)
+  Sys.chmod(fake_nmfe, "0755")
+
+  parafile <- create_mpi_parafile(tmp, threads = 4)
+
+  call_nmfe(
+    model_file = "run.mod",
+    output_file = "run.lst",
+    path = tmp,
+    nmfe = fake_nmfe,
+    parafile = parafile,
+    threads = 4,
+    console = TRUE,
+    verbose = FALSE
+  )
+
+  args_line <- readLines(file.path(tmp, "nmfe_args.txt"))
+  expect_match(args_line, "run\\.mod")
+  expect_match(args_line, "run\\.lst")
+  expect_match(args_line, paste0("-parafile=", parafile), fixed = TRUE)
+  expect_match(args_line, "\\[nodes\\]=4")
+})
+
+test_that("call_psn injects --parafile and --nodes via parse_psn_args", {
+  local_pharmr.extra_options()
+  tmp <- withr::local_tempdir()
+
+  ## Stub system2 to capture args without running PsN
+  captured_args <- NULL
+  stub(call_psn, "system2", function(command, args, ...) {
+    captured_args <<- args
+    0L
+  })
+
+  parafile <- create_mpi_parafile(tmp, threads = 3)
+
+  call_psn(
+    model_file = "run.mod",
+    output_file = "run.lst",
+    path = tmp,
+    tool = "execute",
+    parafile = parafile,
+    threads = 3,
+    console = TRUE,
+    verbose = FALSE
+  )
+
+  ## `args` may be a vector — collapse for the regex check
+  joined <- paste(captured_args, collapse = " ")
+  expect_true(grepl(paste0("--parafile=", parafile), joined, fixed = TRUE))
+  expect_true(grepl("--nodes=3", joined, fixed = TRUE))
+})
+
