@@ -11,9 +11,12 @@
   models instead of erroring on the missing control stream.
 * `add_sir()` now warns and no-ops for non-NONMEM models instead of silently
   doing nothing or aborting deep inside the covariance-record reader.
-* `call_pharmpy_tool()` errors clearly when a NONMEM-only pharmpy tool
-  (`modelsearch`, `covsearch`, `iivsearch`, `ruvsearch`, `amd`, `bootstrap`)
-  is invoked with an nlmixr-format model.
+* `call_pharmpy_tool()` now forwards `esttool = "nlmixr"` to pharmpy when a
+  search tool (`modelsearch`, `covsearch`, `iivsearch`, `ruvsearch`, `amd`,
+  `bootstrap`) is invoked with an nlmixr-format model. Pharmpy can drive
+  these searches against nlmixr2 if the Python package `pyreadr` is
+  installed and the system Rscript that pharmpy spawns has a working
+  nlmixr2 / data.table install.
 * `compare_nlme_runs()` now detects the engine per run folder and loads
   nlmixr2 fits from the saved `<id>.rds` next to the run directory, so
   `compare_nlme_runs()` works for nlmixr2 runs too.

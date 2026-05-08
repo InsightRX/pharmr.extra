@@ -69,20 +69,30 @@ call_pharmpy_tool <- function(
     }
   }
 
-  ## Guard NONMEM-only pharmpy tools. Upstream pharmpy implements these
-  ## tools only for the NONMEM backend; calling them with an nlmixr-format
-  ## model fails deep inside Python with a confusing error.
-  nonmem_only_tools <- c(
+  ## Pharmpy can drive nlmixr2 for modelsearch / covsearch / iivsearch /
+  ## ruvsearch / amd / bootstrap (each candidate model is fit via
+  ## pharmpy.tools.fit, which honours `esttool`). Upstream support is
+  ## fairly young, so we surface a one-time info note pointing at the
+  ## runtime requirements; the actual fitting is dispatched to pharmpy.
+  ##
+  ## Requirements when running these tools against an nlmixr-format model:
+  ##   - Python package `pyreadr` installed (pharmpy reads nlmixr fit
+  ##     results from .RData files).
+  ##   - The system `Rscript` that pharmpy invokes must have a working
+  ##     nlmixr2 install compatible with its data.table version.
+  engine <- get_tool_from_model(model)
+  search_tools <- c(
     "modelsearch", "covsearch", "iivsearch", "ruvsearch",
     "amd", "bootstrap"
   )
-  engine <- get_tool_from_model(model)
-  if(tool %in% nonmem_only_tools && engine != "nonmem") {
-    cli::cli_abort(c(
-      "Pharmpy's {.val {tool}} tool only supports NONMEM models.",
-      x = "The supplied model is in {.val {engine}} format.",
-      i = "Convert with {.code pharmr::convert_model(model, 'nonmem')} or supply a NONMEM-format model."
-    ))
+  if(tool %in% search_tools && engine != "nonmem") {
+    if(verbose) {
+      cli::cli_alert_info(c(
+        "Running {.val {tool}} against an nlmixr-format model.",
+        i = "Pharmpy will dispatch each candidate fit via {.code pharmpy.tools.fit(esttool = 'nlmixr')}; ensure {.pkg pyreadr} (Python) and a working {.pkg nlmixr2} install are available to the Rscript that pharmpy invokes."
+      ))
+    }
+    options[["esttool"]] <- "nlmixr"
   }
 
   ## Remove $TABLE records, if requested
