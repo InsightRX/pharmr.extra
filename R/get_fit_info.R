@@ -96,7 +96,16 @@ create_modelfit_info_table <- function(fit) {
   condition_number <- ifelse(!is.null(x$condition_number), signif(x$condition_number, 3), NA)
   tools <- attr(fit, "tools")
   model <- attr(fit, "model")
-  est_steps <- model$execution_steps$to_dataframe()
+  ## When a fit object is reloaded from disk, the pharmpy model attribute
+  ## is a Python reference that didn't survive serialization. Don't fail —
+  ## just report estimation steps as unknown.
+  est_steps <- tryCatch(
+    model$execution_steps$to_dataframe(),
+    error = function(e) NULL
+  )
+  if(is.null(est_steps)) {
+    est_steps <- data.frame(method = NA_character_)
+  }
   info_tab <- data.frame(
     c("OFV:", paste0(ofv, " (", sign, dofv, ref_run, ")")),
     c("Condition number:", condition_number),

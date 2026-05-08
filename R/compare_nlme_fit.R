@@ -16,12 +16,19 @@ compare_nlme_fit <- function(..., return_object = FALSE) {
       fits <- fits[[1]]
     }
   }
-  ## First, combine into a list of parsed info
+  ## First, combine into a list of parsed info. Prefer an explicit
+  ## `run_name` attribute (set by compare_nlme_runs() for reloaded fits)
+  ## over `attr(., "model")$name`, since the latter dereferences a pharmpy
+  ## model object that may be an invalid Python pointer after readRDS.
   fit_info <- purrr::map(fits, function(x) {
+    nm <- attr(x, "run_name")
+    if(is.null(nm)) {
+      nm <- tryCatch(attr(x, "model")$name, error = function(e) NA_character_)
+    }
     list(
       info_tab = create_modelfit_info_table(x),
       par_tab = create_modelfit_parameter_table(x),
-      name = attr(x, "model")$name
+      name = nm
     )
   })
   ## Then grab the right info and combine columns from different runs

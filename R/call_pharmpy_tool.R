@@ -69,6 +69,22 @@ call_pharmpy_tool <- function(
     }
   }
 
+  ## Guard NONMEM-only pharmpy tools. Upstream pharmpy implements these
+  ## tools only for the NONMEM backend; calling them with an nlmixr-format
+  ## model fails deep inside Python with a confusing error.
+  nonmem_only_tools <- c(
+    "modelsearch", "covsearch", "iivsearch", "ruvsearch",
+    "amd", "bootstrap"
+  )
+  engine <- get_tool_from_model(model)
+  if(tool %in% nonmem_only_tools && engine != "nonmem") {
+    cli::cli_abort(c(
+      "Pharmpy's {.val {tool}} tool only supports NONMEM models.",
+      x = "The supplied model is in {.val {engine}} format.",
+      i = "Convert with {.code pharmr::convert_model(model, 'nonmem')} or supply a NONMEM-format model."
+    ))
+  }
+
   ## Remove $TABLE records, if requested
   if(remove_tables) {
     if(verbose) cli::cli_alert_info("Removing $TABLE records from model")
