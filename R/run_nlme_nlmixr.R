@@ -41,8 +41,16 @@ run_nlme_nlmixr <- function(
   fit_data <- resolve_nlmixr_data(model, data)
 
   ## Set the run name on the model (drives the function name in the generated
-  ## code, which we extract below).
-  model <- pharmr::set_name(model = model, new_name = id)
+  ## code, which we extract below). pharmpy uses the name verbatim as the R
+  ## function identifier, so coerce to a syntactic name — e.g. an id like
+  ## "05:13:30_..." would otherwise produce unparseable R.
+  model <- pharmr::set_name(model = model, new_name = make.names(id))
+
+  ## Pharmpy emits residual-error aliases inside model({}) — `add_error <- sigma;
+  ## prop_error <- 0; Y ~ add(add_error) + prop(prop_error)`. SAEM rejects this
+  ## (residual params must reference ini() entries directly), so inline the
+  ## aliases. Equivalent for focei.
+  model_code <- inline_nlmixr_residual_aliases(model$code)
 
   ## Build a fresh run folder (mirrors NONMEM layout — dataset.csv +
   ## run.R holding the nlmixr2 function).
@@ -52,12 +60,12 @@ run_nlme_nlmixr <- function(
   model_path <- file.path(fit_folder, model_file)
   dataset_path <- file.path(fit_folder, "data.csv")
   utils::write.csv(fit_data, dataset_path, row.names = FALSE, quote = FALSE)
-  writeLines(model$code, model_path)
+  writeLines(model_code, model_path)
 
   ## Pull the function definition out of the generated code and eval it.
   ## (The generated script ends with a `fit <- nlmixr2(name, dataset, ...)`
   ## call that references undefined symbols; we drop it.)
-  nlmixr_fn <- extract_nlmixr_function(model$code)
+  nlmixr_fn <- extract_nlmixr_function(model_code)
   if(is.null(nlmixr_fn)) {
     cli::cli_abort("Could not extract an nlmixr2 model function from the model code.")
   }
@@ -310,3 +318,44 @@ get_fit_info_nlmixr <- function(fit) {
 }
 
 `%||%` <- function(x, y) if(is.null(x)) y else x
+
+#' Inline pharmpy's residual-error aliases for SAEM compatibility
+#'
+#' Pharmpy's nlmixr converter always emits the residual block as
+#' \preformatted{
+#'   add_error <- <expr_a>     # in model({})
+#'   prop_error <- <expr_p>
+#'   Y ~ add(add_error) + prop(prop_error)
+#' }
+#' nlmixr2's SAEM rejects this — residual-error terms in the `~` formula must
+#' reference `ini()` parameters directly, not variables computed in
+#' `model({})`. Rewrite the formula to use `<expr_a>` / `<expr_p>` inline,
+#' drop terms that resolve to 0, and remove the alias assignments. The
+#' transformed form is equally valid for focei, so we apply it unconditionally.
+#'
+#' Returns the original code unchanged if the expected pattern is not present
+#' (e.g. ltbs, hand-written models).
+#'
+#' @noRd
+inline_nlmixr_residual_aliases <- function(code) {
+  lines <- strsplit(code, "\n", fixed = TRUE)[[1]]
+  add_idx <- grep("^\\s*add_error\\s*<-\\s*", lines)
+  prop_idx <- grep("^\\s*prop_error\\s*<-\\s*", lines)
+  formula_idx <- grep(
+    "^\\s*Y\\s*~\\s*add\\(\\s*add_error\\s*\\)\\s*\\+\\s*prop\\(\\s*prop_error\\s*\\)\\s*$",
+    lines
+  )
+  if(length(add_idx) != 1 || length(prop_idx) != 1 || length(formula_idx) != 1) {
+    return(code)
+  }
+  add_val  <- trimws(sub("^\\s*add_error\\s*<-\\s*",  "", lines[add_idx]))
+  prop_val <- trimws(sub("^\\s*prop_error\\s*<-\\s*", "", lines[prop_idx]))
+  parts <- character(0)
+  if(add_val  != "0") parts <- c(parts, paste0("add(",  add_val,  ")"))
+  if(prop_val != "0") parts <- c(parts, paste0("prop(", prop_val, ")"))
+  if(length(parts) == 0) return(code)  # both 0; leave model alone
+  indent <- sub("\\S.*$", "", lines[formula_idx])
+  lines[formula_idx] <- paste0(indent, "Y ~ ", paste(parts, collapse = " + "))
+  lines <- lines[-c(add_idx, prop_idx)]
+  paste(lines, collapse = "\n")
+}
