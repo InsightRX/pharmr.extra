@@ -31,6 +31,56 @@ test_that("extract_nlmixr_function: returns NULL on un-parseable code", {
   expect_null(extract_nlmixr_function("not valid R syntax }{["))
 })
 
+# ── expand_predictions_to_full_dataset() ───────────────────────────────────
+
+test_that("expand_predictions_to_full_dataset: inserts NA at non-obs rows (EVID)", {
+  obs_df <- data.frame(PRED = c(10, 5, 2.5), IPRED = c(11, 4.8, 2.4))
+  src <- data.frame(
+    ID   = c(1, 1, 1, 1),
+    TIME = c(0, 1, 2, 4),
+    EVID = c(1, 0, 0, 0)
+  )
+  out <- expand_predictions_to_full_dataset(obs_df, src)
+  expect_equal(nrow(out), nrow(src))
+  expect_true(all(is.na(out[1, ])))
+  expect_equal(out$PRED[2:4], c(10, 5, 2.5))
+  expect_equal(out$IPRED[2:4], c(11, 4.8, 2.4))
+})
+
+test_that("expand_predictions_to_full_dataset: prefers MDV over EVID", {
+  obs_df <- data.frame(PRED = c(7, 3))
+  src <- data.frame(
+    ID   = c(1, 1, 1),
+    TIME = c(0, 1, 2),
+    EVID = c(1, 0, 0),  # both EVID==0
+    MDV  = c(1, 0, 0)   # MDV agrees here, but presence routes through MDV branch
+  )
+  out <- expand_predictions_to_full_dataset(obs_df, src)
+  expect_equal(out$PRED, c(NA_real_, 7, 3))
+})
+
+test_that("expand_predictions_to_full_dataset: falls back to obs-only on row-count mismatch", {
+  obs_df <- data.frame(PRED = c(10, 5))  # only 2 rows
+  src <- data.frame(
+    ID   = c(1, 1, 1, 1),
+    TIME = c(0, 1, 2, 4),
+    EVID = c(1, 0, 0, 0)             # 3 obs rows
+  )
+  out <- expand_predictions_to_full_dataset(obs_df, src)
+  expect_identical(out, obs_df)
+})
+
+test_that("expand_predictions_to_full_dataset: passes through when input_data is NULL", {
+  obs_df <- data.frame(PRED = c(10, 5))
+  expect_identical(expand_predictions_to_full_dataset(obs_df, NULL), obs_df)
+})
+
+test_that("expand_predictions_to_full_dataset: passes through when no EVID/MDV", {
+  obs_df <- data.frame(PRED = c(10, 5))
+  src <- data.frame(ID = c(1, 1), TIME = c(0, 1))
+  expect_identical(expand_predictions_to_full_dataset(obs_df, src), obs_df)
+})
+
 # ── shape_rxsolve_output() ─────────────────────────────────────────────────
 
 test_that("shape_rxsolve_output: drops duplicate ipredSim when IPRED already present", {

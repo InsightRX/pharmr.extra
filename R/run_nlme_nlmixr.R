@@ -94,7 +94,7 @@ run_nlme_nlmixr <- function(
   if(verbose) cli::cli_process_done()
 
   ## Build a uniform fit object (pharmpy-shaped).
-  fit <- as_pharmpy_shaped_fit(raw_fit, model)
+  fit <- as_pharmpy_shaped_fit(raw_fit, model, input_data = fit_data)
 
   ## Attach model + tables + info, same surface as the NONMEM path.
   fit <- attach_fit_info_nlmixr(
@@ -192,7 +192,7 @@ extract_nlmixr_function <- function(code) {
 #' [create_modelfit_parameter_table()], and [update_parameters()].
 #'
 #' @noRd
-as_pharmpy_shaped_fit <- function(raw_fit, model) {
+as_pharmpy_shaped_fit <- function(raw_fit, model, input_data = NULL) {
   pf <- raw_fit$parFixedDf
   ## Population fixed-effect names + estimates
   est_fixed <- stats::setNames(pf$Estimate, rownames(pf))
@@ -232,7 +232,27 @@ as_pharmpy_shaped_fit <- function(raw_fit, model) {
                 NA_real_)
   rse <- stats::setNames(rse, names(parameter_estimates))
 
-  list(
+  ## Build pharmpy-style predictions / residuals frames from the nlmixr2 fit
+  ## data.frame. pharmpy's ModelfitResults exposes these as top-level slots
+  ## (e.g. `fit$predictions`), so example/GoF code that reads `fit$predictions`
+  ## works regardless of engine.
+  ##
+  ## Match pharmpy's row-shape convention: `predictions` keeps all rows from
+  ## the input dataset (NA for non-observation events), so that
+  ## `bind_cols(model$dataset, fit$predictions)` works. `residuals` is
+  ## observation-only (pharmpy filters non-obs out — see `_parse_residuals`).
+  fit_df <- tryCatch(as.data.frame(raw_fit), error = function(e) NULL)
+  pred_cols <- c("PRED", "IPRED", "CPRED", "CIPREDI", "EPRED")
+  res_cols  <- c("RES", "IRES", "WRES", "IWRES", "CWRES", "CWRESI")
+  predictions <- if(!is.null(fit_df)) {
+    expand_predictions_to_full_dataset(
+      fit_df[, intersect(pred_cols, names(fit_df)), drop = FALSE],
+      input_data
+    )
+  } else NULL
+  residuals   <- if(!is.null(fit_df)) fit_df[, intersect(res_cols,  names(fit_df)), drop = FALSE] else NULL
+
+  out <- list(
     ofv = unname(raw_fit$objf),
     ofv_iterations = numeric(0),
     function_evaluations = NA_integer_,
@@ -240,6 +260,8 @@ as_pharmpy_shaped_fit <- function(raw_fit, model) {
     standard_errors = standard_errors,
     relative_standard_errors = rse,
     correlation_matrix = tryCatch(raw_fit$cor, error = function(e) NULL),
+    predictions = predictions,
+    residuals = residuals,
     estimation_runtime = unname(raw_fit$time$optimize),
     runtime_total = sum(unname(unlist(raw_fit$time)), na.rm = TRUE),
     minimization_successful = !isTRUE(grepl("error|fail", raw_fit$message %||% "", ignore.case = TRUE)),
@@ -249,6 +271,8 @@ as_pharmpy_shaped_fit <- function(raw_fit, model) {
     significant_digits = NA_real_,
     raw_nlmixr_fit = raw_fit
   )
+  class(out) <- c("nlmixr2_modelfit_results", "list")
+  out
 }
 
 #' Attach model, tables, and fit info to an nlmixr-shaped fit
@@ -312,6 +336,50 @@ get_fit_info_nlmixr <- function(fit) {
 }
 
 `%||%` <- function(x, y) if(is.null(x)) y else x
+
+#' Expand an observation-level prediction frame to full input-dataset shape
+#'
+#' nlmixr2's `as.data.frame(fit)` returns one row per evaluated observation;
+#' dose and other non-observation events are dropped. Pharmpy on the NONMEM
+#' side keeps all rows (NaN at non-obs), so that
+#' `bind_cols(model$dataset, fit$predictions)` works. This helper inserts
+#' NA rows at the non-observation positions to match that convention.
+#'
+#' Falls back to the obs-only frame if observation rows can't be identified
+#' (no EVID/MDV column) or the count doesn't match (e.g. nlmixr2 dropped
+#' some rows during fitting — LLOQ handling, missing DV, etc.).
+#'
+#' @noRd
+expand_predictions_to_full_dataset <- function(obs_df, input_data) {
+  if(is.null(obs_df) || ncol(obs_df) == 0) return(obs_df)
+  if(is.null(input_data) || nrow(input_data) == 0) return(obs_df)
+  obs_idx <- find_observation_rows(input_data)
+  if(is.null(obs_idx) || length(obs_idx) != nrow(obs_df)) return(obs_df)
+  n_total <- nrow(input_data)
+  out <- as.data.frame(
+    lapply(obs_df, function(col) {
+      res <- rep(col[NA_integer_], n_total)
+      res[obs_idx] <- col
+      res
+    }),
+    stringsAsFactors = FALSE
+  )
+  names(out) <- names(obs_df)
+  out
+}
+
+#' Identify observation-row positions in a NONMEM-style dataset
+#'
+#' Prefers MDV (the canonical observation flag) and falls back to EVID == 0.
+#' Returns NULL when neither column is present so callers can decide how to
+#' degrade gracefully.
+#'
+#' @noRd
+find_observation_rows <- function(data) {
+  if("MDV" %in% names(data)) return(which(data$MDV == 0))
+  if("EVID" %in% names(data)) return(which(data$EVID == 0))
+  NULL
+}
 
 #' Inline pharmpy's residual-error aliases for SAEM compatibility
 #'

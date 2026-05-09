@@ -42,6 +42,26 @@ get_fit_info <- function(fit, path = NULL, output_file = "run.lst") {
 #'
 #' @export
 print.pharmpy.workflows.results.ModelfitResults <- function(x, ...) {
+  print_modelfit(x, ...)
+}
+
+#' Print function for an nlmixr2 fit shaped like a pharmpy modelfit
+#'
+#' Reuses the same layout as [print.pharmpy.workflows.results.ModelfitResults]
+#' so NONMEM and nlmixr2 fits look identical at the console.
+#'
+#' @param x nlmixr2 fit object (pharmpy-shaped list produced by [run_nlme()])
+#' @param ... ignored
+#'
+#' @export
+print.nlmixr2_modelfit_results <- function(x, ...) {
+  print_modelfit(x, ...)
+}
+
+#' Shared body for the modelfit print methods
+#'
+#' @noRd
+print_modelfit <- function(x, ...) {
 
   ## Run description, notes, etc
   run <- attr(x, "run")
@@ -67,6 +87,7 @@ print.pharmpy.workflows.results.ModelfitResults <- function(x, ...) {
   par_tab <- create_modelfit_parameter_table(x)
   print(knitr::kable(par_tab, row.names = FALSE))
 
+  invisible(x)
 }
   
 #' Create a data.frame with basic model fit info
