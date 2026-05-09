@@ -534,8 +534,13 @@ create_model <- function(
 
   ## Set name?
   if(!is.null(name)) {
+    if(tool == "nlmixr") {
+      ## Pharmpy uses the model name verbatim as the R function name in the
+      ## generated nlmixr2 code, so coerce to a syntactic identifier.
+      name <- make.names(name)
+    }
     mod <- pharmr::set_name(
-      mod, 
+      mod,
       new_name = name
     )
   }
@@ -546,6 +551,17 @@ create_model <- function(
   ## that lose R attributes.
   if(!is.null(original_data)) {
     attr(mod, "original_data") <- original_data
+  }
+
+  ## For nlmixr models, cache an SAEM-safe rewrite of the generated R code as
+  ## an attribute so run_nlme() / run_sim() can use it verbatim. Pharmpy emits
+  ## residual-error aliases (`add_error <- sigma; ... Y ~ add(add_error)`)
+  ## inside model({}) that nlmixr2 SAEM rejects — we inline them once here.
+  ## Must be set last (after all pharmpy ops, since `$code` regenerates from
+  ## internal state). NB: subsequent pharmpy operations on this model will
+  ## drop this attribute; re-run create_model() if the model is modified.
+  if(tool == "nlmixr") {
+    attr(mod, "nlmixr_code") <- inline_nlmixr_residual_aliases(mod$code)
   }
 
   if(verbose) cli::cli_alert_success("Done")

@@ -40,17 +40,11 @@ run_nlme_nlmixr <- function(
   ## then `model$dataset`. nlmixr2 wants a data.frame in memory.
   fit_data <- resolve_nlmixr_data(model, data)
 
-  ## Set the run name on the model (drives the function name in the generated
-  ## code, which we extract below). pharmpy uses the name verbatim as the R
-  ## function identifier, so coerce to a syntactic name — e.g. an id like
-  ## "05:13:30_..." would otherwise produce unparseable R.
-  model <- pharmr::set_name(model = model, new_name = make.names(id))
-
-  ## Pharmpy emits residual-error aliases inside model({}) — `add_error <- sigma;
-  ## prop_error <- 0; Y ~ add(add_error) + prop(prop_error)`. SAEM rejects this
-  ## (residual params must reference ini() entries directly), so inline the
-  ## aliases. Equivalent for focei.
-  model_code <- inline_nlmixr_residual_aliases(model$code)
+  ## Use the SAEM-safe code cached by create_model(); fall back to the
+  ## pharmpy-generated $code verbatim for models built outside create_model().
+  ## Note: pharmpy's default residual-alias pattern is not SAEM-compatible,
+  ## so SAEM fits on a BYO model will hit the upstream nlmixr2 error.
+  model_code <- attr(model, "nlmixr_code") %||% model$code
 
   ## Build a fresh run folder (mirrors NONMEM layout — dataset.csv +
   ## run.R holding the nlmixr2 function).
