@@ -55,7 +55,6 @@ jobs:
           pak-version: devel
           extra-packages: |
             any::rcmdcheck
-            qsbase/qs
             cran/lotri
             cran/rxode2
             cran/nlmixr2est
