@@ -55,7 +55,7 @@ jobs:
           pak-version: devel
           extra-packages: |
             any::rcmdcheck
-            qsbase/stringfish
+            qsbase/stringfish@964e514
             qsbase/qs
             cran/lotri
             cran/rxode2
