@@ -211,3 +211,62 @@ test_that("data as CSV filename: missing covariate warns and is skipped", {
   expect_s3_class(out, "pharmpy.model.external.nonmem.model.Model")
   expect_false(grepl("WT", out$statements$before_odes$full_expression("CL")))
 })
+
+
+## Regression test: pharmpy's add_covariate_effect() needs model.dataset to
+## compute the covariate centering value. Previously, calling create_model()
+## with both `data` and `covariates` failed with
+## "AttributeError: 'NoneType' object has no attribute 'groupby'" because the
+## dataset was attached only after add_covariates_to_model() ran.
+test_that("create_model() with `covariates` works (model dataset not yet attached)", {
+  local_pharmr.extra_options()
+  dat <- data.frame(
+    ID = rep(1:3, each = 4),
+    TIME = rep(c(0, 1, 2, 4), 3),
+    DV = c(0, 10, 8, 5, 0, 12, 9, 6, 0, 9, 7, 4),
+    AMT = rep(c(100, 0, 0, 0), 3),
+    CMT = 1,
+    EVID = rep(c(1, 0, 0, 0), 3),
+    MDV = rep(c(1, 0, 0, 0), 3),
+    WT = rep(c(70, 80, 65), each = 4),
+    CRCL = rep(c(80, 100, 90), each = 4)
+  )
+  mod <- create_model(
+    route = "oral",
+    data = dat,
+    covariates = list(CL = list(WT = "pow", CRCL = "lin"), V = list(WT = "pow")),
+    verbose = FALSE
+  )
+  expect_s3_class(mod, "pharmpy.model.external.nonmem.model.Model")
+  expect_true(grepl("WT", mod$statements$before_odes$full_expression("CL")))
+  expect_true(grepl("CRCL", mod$statements$before_odes$full_expression("CL")))
+  expect_true(grepl("WT", mod$statements$before_odes$full_expression("V")))
+})
+
+
+## Regression test: when create_model() is called with a dataset containing
+## non-numeric columns (e.g. a character GROUP column), the temporary dataset
+## attached inside add_covariates_to_model() must not leave datainfo state that
+## breaks the subsequent set_dataset() + clean_modelfit_data() flow.
+test_that("create_model() with `covariates` works when data has character cols", {
+  local_pharmr.extra_options()
+  dat <- data.frame(
+    ID = rep(1:3, each = 4),
+    TIME = rep(c(0, 1, 2, 4), 3),
+    DV = c(0, 10, 8, 5, 0, 12, 9, 6, 0, 9, 7, 4),
+    AMT = rep(c(100, 0, 0, 0), 3),
+    CMT = 1,
+    EVID = rep(c(1, 0, 0, 0), 3),
+    MDV = rep(c(1, 0, 0, 0), 3),
+    WT = rep(c(70, 80, 65), each = 4),
+    GROUP = rep(c("DrugA", "DrugB", "DrugA"), each = 4)
+  )
+  mod <- create_model(
+    route = "oral",
+    data = dat,
+    covariates = list(CL = list(WT = "pow")),
+    verbose = FALSE
+  )
+  expect_s3_class(mod, "pharmpy.model.external.nonmem.model.Model")
+  expect_true(grepl("WT", mod$statements$before_odes$full_expression("CL")))
+})
