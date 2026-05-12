@@ -40,10 +40,10 @@ samples, *M*) and `SIRNITER` (number of SIR iterations, *m*):
 
 Typical settings:
 
-| Setting     | Value    | Notes                                                              |
-|-------------|----------|--------------------------------------------------------------------|
-| `SIRSAMPLE` | 500–5000 | More samples → better coverage but longer runtime                  |
-| `SIRNITER`  | 1–10     | Additional iterations refine the proposal; 1 is usually sufficient |
+| Setting | Value | Notes |
+|----|----|----|
+| `SIRSAMPLE` | 500–5000 | More samples → better coverage but longer runtime |
+| `SIRNITER` | 1–10 | Additional iterations refine the proposal; 1 is usually sufficient |
 
 A ratio of `SIRSAMPLE / SIRNITER` ≥ 5 is generally recommended. Start
 with `SIRSAMPLE=1000 SIRNITER=1` and increase `SIRSAMPLE` if diagnostic
@@ -56,6 +56,7 @@ Use
 to add SIR options to an existing Pharmpy model object:
 
 ``` r
+
 library(pharmr.extra)
 
 model <- pharmr::read_model("run1/run.mod")
@@ -80,6 +81,7 @@ parameter estimates and a missing covariance matrix when a SIR table is
 present:
 
 ``` r
+
 fit <- read_modelfit_results("run1/run.mod")
 
 fit$parameter_estimates   # FOCE point estimates (from table 1)
@@ -116,6 +118,7 @@ down over iterations, increase `SIRSAMPLE` or `SIRNITER`.
 ## Example workflow
 
 ``` r
+
 library(pharmr.extra)
 
 # Build model, add covariance step and SIR

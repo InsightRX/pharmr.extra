@@ -54,6 +54,7 @@ TODO
 ## Examples
 
 ``` r
+
 if (FALSE) { # \dontrun{
 reg1 <- create_regimen(
   dose = 500,

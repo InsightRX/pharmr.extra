@@ -6,6 +6,7 @@ with code in this repository.
 ## Commands
 
 ``` r
+
 # Install dependencies and load package
 devtools::install_deps()
 devtools::load_all()
