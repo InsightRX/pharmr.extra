@@ -126,6 +126,10 @@ run_nlme <- function(
     } else if(!inherits(data, "character")) {
       cli::cli_abort("`data` is of unknown type.")
     }
+  } else if (!is.null(model$dataset)) {
+    data <- model$dataset
+    datafile <- tempfile(pattern = "data_", fileext = ".csv")
+    write.csv(data, datafile, quote = FALSE, row.names = FALSE)
   }
   
   ## Preserve R attributes across pharmpy calls (which create new Python objects)
