@@ -11,7 +11,9 @@ call_nmfe(
   nmfe = "/opt/NONMEM/nm_cxurrent/run/nmfe75",
   console = FALSE,
   check_only = FALSE,
-  verbose = FALSE
+  verbose = FALSE,
+  parafile = NULL,
+  threads = NULL
 )
 }
 \arguments{
@@ -28,6 +30,13 @@ call_nmfe(
 \item{check_only}{only run NM-TRAN, to check the model syntax}
 
 \item{verbose}{verbose output?}
+
+\item{parafile}{absolute path to a NONMEM parafile (MPI or FPI). If
+supplied, will be passed to nmfe as \verb{-parafile=<path>}. Default \code{NULL}
+(no parafile).}
+
+\item{threads}{number of nodes to request, passed to nmfe as
+\verb{[nodes]=N}. Only applied when \code{parafile} is supplied.}
 }
 \description{
 Call nmfe

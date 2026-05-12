@@ -11,7 +11,9 @@ call_psn(
   options = c(),
   tool = c("execute", "vpc", "bootstrap", "sir", "proseval", "update_inits", "cdd"),
   console = TRUE,
-  verbose = TRUE
+  verbose = TRUE,
+  parafile = NULL,
+  threads = NULL
 )
 }
 \arguments{
@@ -29,6 +31,14 @@ call_psn(
 \item{console}{show output from nmfe in console? Default \code{FALSE}}
 
 \item{verbose}{verbose output?}
+
+\item{parafile}{absolute path to a NONMEM parafile (MPI or FPI). If
+supplied, will be passed to PsN as \verb{--parafile=<path>}. Default \code{NULL}
+(no parafile).}
+
+\item{threads}{number of nodes to request, passed to PsN as
+\code{--nodes=N} (within-model parallelism). Only applied when \code{parafile} is
+supplied.}
 }
 \value{
 TODO

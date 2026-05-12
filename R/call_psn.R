@@ -4,9 +4,15 @@
 #' @param options a vector of arguments to pass to the PsN tool, e.g.
 #' `c("--samples=100", "--dir="test")`
 #' @param tool TODO
+#' @param parafile absolute path to a NONMEM parafile (MPI or FPI). If
+#' supplied, will be passed to PsN as `--parafile=<path>`. Default `NULL`
+#' (no parafile).
+#' @param threads number of nodes to request, passed to PsN as
+#' `--nodes=N` (within-model parallelism). Only applied when `parafile` is
+#' supplied.
 #'
 #' @returns TODO
-#' 
+#'
 #' @export
 call_psn <- function(
   model_file,
@@ -18,7 +24,9 @@ call_psn <- function(
     "cdd"
   ),
   console = TRUE,
-  verbose = TRUE
+  verbose = TRUE,
+  parafile = NULL,
+  threads = NULL
 ) {
 
   tool <- match.arg(tool)
@@ -36,6 +44,14 @@ call_psn <- function(
   } else {
     stdout <- file.path(path, "stdout")
     stderr <- file.path(path, "stderr")
+  }
+
+  ## Inject parafile / nodes options for within-model parallelization
+  if(!is.null(parafile)) {
+    if(is.null(options) || length(options) == 0) options <- list()
+    if(!is.list(options)) options <- as.list(options)
+    options$parafile <- parafile
+    if(!is.null(threads)) options$nodes <- as.integer(threads)
   }
 
   psn_args <- parse_psn_args(options)
