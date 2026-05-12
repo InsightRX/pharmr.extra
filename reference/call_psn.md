@@ -12,7 +12,9 @@ call_psn(
   options = c(),
   tool = c("execute", "vpc", "bootstrap", "sir", "proseval", "update_inits", "cdd"),
   console = TRUE,
-  verbose = TRUE
+  verbose = TRUE,
+  parafile = NULL,
+  threads = NULL
 )
 ```
 
@@ -46,6 +48,16 @@ call_psn(
 - verbose:
 
   verbose output?
+
+- parafile:
+
+  absolute path to a NONMEM parafile (MPI or FPI). If supplied, will be
+  passed to PsN as `--parafile=<path>`. Default `NULL` (no parafile).
+
+- threads:
+
+  number of nodes to request, passed to PsN as `--nodes=N` (within-model
+  parallelism). Only applied when `parafile` is supplied.
 
 ## Value
 

@@ -13,7 +13,7 @@ inspection of intermediate model fit."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9056</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9059</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -74,6 +74,7 @@ inspection of intermediate model fit.</p>
 <span>  check_only <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  remove_tables <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  mu_reference <span class="op">=</span> <span class="st">"auto"</span>,</span>
+<span>  threads <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -218,6 +219,17 @@ Default is <code>FALSE</code>.</p></dd>
 used and the model is not already mu-referenced. <code>TRUE</code> always applies
 mu-referencing. <code>FALSE</code> never applies mu-referencing (old behaviour: warns
 when SAEM is used without mu-referencing).</p></dd>
+
+
+<dt id="arg-threads">threads<a class="anchor" aria-label="anchor" href="#arg-threads"></a></dt>
+<dd><p>number of threads to use for MPI parallelization of a
+single NONMEM run. <code>NULL</code> (default) or <code>1</code> runs single-threaded (no
+parafile written). Values <code>&gt;= 2</code> cause an MPI parafile (<code>parafile.pnm</code>)
+to be written into the run folder and passed to the selected backend.
+Requires MPI (e.g. OpenMPI) installed on the host running NONMEM, with
+<code>mpirun</code> on the PATH. When <code>method = "pharmpy"</code> is combined with
+<code>threads &gt;= 2</code>, the run is dispatched via <code>nmfe</code> instead, since
+pharmpy's API does not expose a parafile hook.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>

@@ -31,6 +31,7 @@ run_nlme(
   check_only = FALSE,
   remove_tables = FALSE,
   mu_reference = "auto",
+  threads = NULL,
   verbose = TRUE
 )
 ```
@@ -174,6 +175,17 @@ run_nlme(
   when SAEM is used and the model is not already mu-referenced. `TRUE`
   always applies mu-referencing. `FALSE` never applies mu-referencing
   (old behaviour: warns when SAEM is used without mu-referencing).
+
+- threads:
+
+  number of threads to use for MPI parallelization of a single NONMEM
+  run. `NULL` (default) or `1` runs single-threaded (no parafile
+  written). Values `>= 2` cause an MPI parafile (`parafile.pnm`) to be
+  written into the run folder and passed to the selected backend.
+  Requires MPI (e.g. OpenMPI) installed on the host running NONMEM, with
+  `mpirun` on the PATH. When `method = "pharmpy"` is combined with
+  `threads >= 2`, the run is dispatched via `nmfe` instead, since
+  pharmpy's API does not expose a parafile hook.
 
 - verbose:
 

@@ -12,7 +12,9 @@ call_nmfe(
   nmfe = "/opt/NONMEM/nm_cxurrent/run/nmfe75",
   console = FALSE,
   check_only = FALSE,
-  verbose = FALSE
+  verbose = FALSE,
+  parafile = NULL,
+  threads = NULL
 )
 ```
 
@@ -45,3 +47,13 @@ call_nmfe(
 - verbose:
 
   verbose output?
+
+- parafile:
+
+  absolute path to a NONMEM parafile (MPI or FPI). If supplied, will be
+  passed to nmfe as `-parafile=<path>`. Default `NULL` (no parafile).
+
+- threads:
+
+  number of nodes to request, passed to nmfe as `[nodes]=N`. Only
+  applied when `parafile` is supplied.
