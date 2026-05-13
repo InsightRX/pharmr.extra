@@ -4,13 +4,17 @@
 \alias{remove_tables_from_model}
 \title{Remove all $TABLE records from a model}
 \usage{
-remove_tables_from_model(model, file = NULL)
+remove_tables_from_model(model, file = NULL, reload_dataset = TRUE)
 }
 \arguments{
 \item{model}{pharmpy model object}
 
 \item{file}{remove only a specific table defined as FILE=\if{html}{\out{<file>}}. \code{file} can
 also specify only the start of a filename, e.g. \code{patab}}
+
+\item{reload_dataset}{should dataset be reloaded into the Pharmpy model object
+after updating the model. Default is TRUE, to ensure a proper Pharmpy model object,
+but can result in issues.}
 }
 \value{
 TODO
