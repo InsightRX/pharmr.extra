@@ -15,8 +15,8 @@ add_table_to_model <- function(
     model,
     variables,
     firstonly = FALSE,
-    reload_dataset = TRUE,
-    file
+    file,
+    reload_dataset = TRUE
 ) {
   check_nm_table_variables(model, variables)
   tool <- get_tool_from_model(model)
