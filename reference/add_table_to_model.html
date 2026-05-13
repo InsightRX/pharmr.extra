@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9060</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9061</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,7 +42,13 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">add_table_to_model</span><span class="op">(</span><span class="va">model</span>, <span class="va">variables</span>, firstonly <span class="op">=</span> <span class="cn">FALSE</span>, <span class="va">file</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">add_table_to_model</span><span class="op">(</span></span>
+<span>  <span class="va">model</span>,</span>
+<span>  <span class="va">variables</span>,</span>
+<span>  firstonly <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  reload_dataset <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  <span class="va">file</span></span>
+<span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -59,6 +65,12 @@
 
 <dt id="arg-firstonly">firstonly<a class="anchor" aria-label="anchor" href="#arg-firstonly"></a></dt>
 <dd><p>add <code>FIRSTONLY</code> parameter to $TABLE record</p></dd>
+
+
+<dt id="arg-reload-dataset">reload_dataset<a class="anchor" aria-label="anchor" href="#arg-reload-dataset"></a></dt>
+<dd><p>should dataset be reloaded into the Pharmpy model object
+after updating the model. Default is TRUE, to ensure a proper Pharmpy model object,
+but can result in issues.</p></dd>
 
 
 <dt id="arg-file">file<a class="anchor" aria-label="anchor" href="#arg-file"></a></dt>
