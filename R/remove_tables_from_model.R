@@ -3,13 +3,17 @@
 #' @param model pharmpy model object
 #' @param file remove only a specific table defined as FILE=<file>. `file` can
 #' also specify only the start of a filename, e.g. `patab`
+#' @param reload_dataset should dataset be reloaded into the Pharmpy model object
+#' after updating the model. Default is TRUE, to ensure a proper Pharmpy model object,
+#' but can result in issues.
 #'
 #' @returns TODO
 #' 
 #' @export
 remove_tables_from_model <- function(
   model,
-  file = NULL
+  file = NULL,
+  reload_dataset = TRUE
 ) {
   tool <- get_tool_from_model(model)
   if(tool == "nonmem") {
@@ -28,7 +32,7 @@ remove_tables_from_model <- function(
     temp_mod <- tempfile(pattern = "tmp_mod_", fileext = '.mod')
     writeLines(code_without_tables, temp_mod)
     model <- create_model_from_file(model_file = temp_mod)
-    if(!is.null(original_dataset)) {
+    if(reload_dataset && !is.null(original_dataset)) {
       ## `datatype = "nonmem"` keeps datainfo column types (id, dv, etc.)
       ## inferred from $INPUT — without it they get reset to "unknown".
       ## Write the dataset to a temp CSV so pharmr::set_dataset() takes the

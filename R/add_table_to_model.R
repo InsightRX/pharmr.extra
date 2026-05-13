@@ -4,7 +4,10 @@
 #' @param variables character vector with variable names
 #' @param firstonly add `FIRSTONLY` parameter to $TABLE record
 #' @param file path to file, e.g. `sdtab`
-#'
+#' @param reload_dataset should dataset be reloaded into the Pharmpy model object
+#' after updating the model. Default is TRUE, to ensure a proper Pharmpy model object,
+#' but can result in issues.
+#' 
 #' @returns TODO
 #'
 #' @export
@@ -12,6 +15,7 @@ add_table_to_model <- function(
     model,
     variables,
     firstonly = FALSE,
+    reload_dataset = TRUE,
     file
 ) {
   check_nm_table_variables(model, variables)
@@ -38,7 +42,7 @@ add_table_to_model <- function(
     model <- pharmr::read_model_from_string(
       code = paste0(model$code, table_code)
     )
-    if(!is.null(data)) {
+    if(reload_dataset && !is.null(data)) {
       model <- pharmr::set_dataset(model, data)
     }
   } else {

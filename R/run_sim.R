@@ -155,8 +155,8 @@ run_sim <- function(
       }
       table_variables <- unique(c(checked_variables, parameter_names))
       sim_model <- sim_model |>
-        remove_tables_from_model() |>
-        add_table_to_model(table_variables, file = output_file)
+        remove_tables_from_model(reload_dataset = FALSE) |>
+        add_table_to_model(table_variables, file = output_file, reload_dataset = FALSE)
     } else {
       if(verbose) cli::cli_alert_info("Using existing table record(s)")
     }
