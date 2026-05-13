@@ -4,7 +4,13 @@
 \alias{add_table_to_model}
 \title{Add new $TABLE record to output variables}
 \usage{
-add_table_to_model(model, variables, firstonly = FALSE, file)
+add_table_to_model(
+  model,
+  variables,
+  firstonly = FALSE,
+  reload_dataset = TRUE,
+  file
+)
 }
 \arguments{
 \item{model}{pharmpy model object}
@@ -12,6 +18,10 @@ add_table_to_model(model, variables, firstonly = FALSE, file)
 \item{variables}{character vector with variable names}
 
 \item{firstonly}{add \code{FIRSTONLY} parameter to $TABLE record}
+
+\item{reload_dataset}{should dataset be reloaded into the Pharmpy model object
+after updating the model. Default is TRUE, to ensure a proper Pharmpy model object,
+but can result in issues.}
 
 \item{file}{path to file, e.g. \code{sdtab}}
 }

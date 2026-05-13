@@ -55,13 +55,14 @@ jobs:
           pak-version: devel
           extra-packages: |
             any::rcmdcheck
+            traversc/stringfish@36c0ed0
             qsbase/qs
             cran/lotri
             cran/rxode2
             cran/nlmixr2est
             cran/nlmixr2extra
             cran/nlmixr2plot
-            pharmpy/pharmr
+            pharmpy/pharmr@v2.0.0
             InsightRX/irxutils
             InsightRX/PKPDsim
           needs: check
