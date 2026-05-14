@@ -22,5 +22,12 @@
   `compare_nlme_runs()` works for nlmixr2 runs too.
 * `create_modelfit_info_table()` is robust to fit objects reloaded from RDS
   whose pharmpy model attribute is no longer a live Python reference.
+* `create_vpc_data()` on an nlmixr fit now uses the fitted model's
+  parameter estimates (was silently falling back to the pre-fit initial
+  estimates when only a `fit` was supplied), and restricts `obs` to
+  observation rows so it matches the simulation row set.
+* `run_nlme_nlmixr()` now stashes an explicit `data` argument on the
+  model so saved fits sim/VPC against the right dataset (previously the
+  saved model still referenced the original `model$dataset`).
 
 * Initial CRAN submission.

@@ -28,9 +28,13 @@ create_vpc_data <- function(
   use_pharmpy = TRUE
 ) {
 
-  ## Resolve model first (was being inspected before assignment)
+  ## Resolve model first (was being inspected before assignment).
+  ## When only `fit` is supplied, prefer `final_model` (carries fitted
+  ## estimates) over `model` (pre-fit, initial estimates) so VPCs don't
+  ## silently simulate against the starting point.
+  caller_supplied_model <- !is.null(model)
   if(is.null(model)) {
-    model <- attr(fit, "model")
+    model <- attr(fit, "final_model") %||% attr(fit, "model")
     if(is.null(model)) {
       cli::cli_abort("Either a `fit` object with a model attached, or a `model` argument is required.")
     }
@@ -41,7 +45,7 @@ create_vpc_data <- function(
   if(tool == "nlmixr") {
     return(create_vpc_data_nlmixr(
       fit = fit,
-      model = model,
+      model = if(caller_supplied_model) model else NULL,
       parameters = parameters,
       keep_columns = keep_columns,
       n = n,
@@ -194,9 +198,15 @@ create_vpc_data_nlmixr <- function(
     model <- pharmr::set_initial_estimates(model, inits = as.list(fit$parameter_estimates))
   }
 
-  data <- as.data.frame(model$dataset)
+  ## Prefer an explicitly-attached input dataset (set by run_nlme_nlmixr
+  ## when `data` was supplied) over `model$dataset`, which may not have
+  ## been refreshed.
+  data <- as.data.frame(attr(model, "original_data") %||% model$dataset)
 
-  ## Build obs from the model dataset. Compute TAD per ID if not present.
+  ## Build obs from the model dataset. Compute TAD on the full event log
+  ## (dose rows are needed to derive last_dose_time), then restrict to
+  ## observation rows so the row-set matches what rxSolve returns and
+  ## downstream VPC alignment between obs and sim is preserved.
   obs <- data
   if(!"EVID" %in% names(obs)) obs$EVID <- 0L
   if(!"MDV" %in% names(obs)) obs$MDV <- ifelse(obs$EVID == 0, 0L, 1L)
@@ -210,6 +220,7 @@ create_vpc_data_nlmixr <- function(
       dplyr::ungroup() |>
       as.data.frame()
   }
+  obs <- obs[obs$MDV == 0, , drop = FALSE]
 
   ## Run n simulations against the same dataset; reuse run_sim() so the
   ## engine dispatch lives in one place.

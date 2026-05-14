@@ -40,6 +40,12 @@ run_nlme_nlmixr <- function(
   ## then `model$dataset`. nlmixr2 wants a data.frame in memory.
   fit_data <- resolve_nlmixr_data(model, data)
 
+  ## When the caller supplied an explicit `data`, pharmpy's `model$dataset`
+  ## still points at whatever was attached at model-build time. Stash the
+  ## actual fit dataset on the model so resolve_nlmixr_data() and
+  ## create_vpc_data_nlmixr() pick it up when the saved fit is re-used.
+  if(!is.null(data)) attr(model, "original_data") <- fit_data
+
   ## Use the SAEM-safe code cached by create_model(); fall back to the
   ## pharmpy-generated $code verbatim for models built outside create_model().
   ## Note: pharmpy's default residual-alias pattern is not SAEM-compatible,
@@ -108,6 +114,7 @@ run_nlme_nlmixr <- function(
   ## run_sim() / create_vpc_data() can rely on `attr(fit, 'final_model')`.
   final_model <- update_parameters(model, fit)
   if(!is.null(final_model)) {
+    if(!is.null(data)) attr(final_model, "original_data") <- fit_data
     attr(fit, "final_model") <- final_model
     if(save_final) {
       writeLines(final_model$code, file.path(fit_folder, "final.R"))
