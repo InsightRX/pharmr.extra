@@ -32,6 +32,7 @@ run_nlme(
   remove_tables = FALSE,
   mu_reference = "auto",
   threads = NULL,
+  control = NULL,
   verbose = TRUE
 )
 ```
@@ -186,6 +187,15 @@ run_nlme(
   `mpirun` on the PATH. When `method = "pharmpy"` is combined with
   `threads >= 2`, the run is dispatched via `nmfe` instead, since
   pharmpy's API does not expose a parafile hook.
+
+- control:
+
+  nlmixr2-only. Optional control list passed verbatim to
+  `nlmixr2::nlmixr2()` (e.g.
+  [`nlmixr2est::foceiControl()`](https://nlmixr2.github.io/nlmixr2est/reference/foceiControl.html)
+  or
+  [`nlmixr2est::saemControl()`](https://nlmixr2.github.io/nlmixr2est/reference/saemControl.html)).
+  Ignored for NONMEM models.
 
 - verbose:
 
