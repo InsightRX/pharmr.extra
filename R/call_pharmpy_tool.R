@@ -69,6 +69,32 @@ call_pharmpy_tool <- function(
     }
   }
 
+  ## Pharmpy can drive nlmixr2 for modelsearch / covsearch / iivsearch /
+  ## ruvsearch / amd / bootstrap (each candidate model is fit via
+  ## pharmpy.tools.fit, which honours `esttool`). Upstream support is
+  ## fairly young, so we surface a one-time info note pointing at the
+  ## runtime requirements; the actual fitting is dispatched to pharmpy.
+  ##
+  ## Requirements when running these tools against an nlmixr-format model:
+  ##   - Python package `pyreadr` installed (pharmpy reads nlmixr fit
+  ##     results from .RData files).
+  ##   - The system `Rscript` that pharmpy invokes must have a working
+  ##     nlmixr2 install compatible with its data.table version.
+  engine <- get_tool_from_model(model)
+  search_tools <- c(
+    "modelsearch", "covsearch", "iivsearch", "ruvsearch",
+    "amd", "bootstrap"
+  )
+  if(tool %in% search_tools && engine != "nonmem") {
+    if(verbose) {
+      cli::cli_alert_info(c(
+        "Running {.val {tool}} against an nlmixr-format model.",
+        i = "Pharmpy will dispatch each candidate fit via {.code pharmpy.tools.fit(esttool = 'nlmixr')}; ensure {.pkg pyreadr} (Python) and a working {.pkg nlmixr2} install are available to the Rscript that pharmpy invokes."
+      ))
+    }
+    options[["esttool"]] <- "nlmixr"
+  }
+
   ## Remove $TABLE records, if requested
   if(remove_tables) {
     if(verbose) cli::cli_alert_info("Removing $TABLE records from model")

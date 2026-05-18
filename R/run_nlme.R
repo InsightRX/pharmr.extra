@@ -89,6 +89,9 @@
 #' `mpirun` on the PATH. When `method = "pharmpy"` is combined with
 #' `threads >= 2`, the run is dispatched via `nmfe` instead, since
 #' pharmpy's API does not expose a parafile hook.
+#' @param control nlmixr2-only. Optional control list passed verbatim to
+#' [nlmixr2::nlmixr2()] (e.g. [nlmixr2est::foceiControl()] or
+#' [nlmixr2est::saemControl()]). Ignored for NONMEM models.
 #' @param verbose verbose output?
 #'
 #' @returns TODO
@@ -118,6 +121,7 @@ run_nlme <- function(
   remove_tables = FALSE,
   mu_reference = "auto",
   threads = NULL,
+  control = NULL,
   verbose = TRUE
 ) {
 
@@ -145,6 +149,27 @@ run_nlme <- function(
   original_data <- attr(model, "original_data")
   model <- validate_model(model, data = data)
   method <- match.arg(method)
+
+  ## Engine dispatch: nlmixr-format models go through a separate fitter
+  ## that calls nlmixr2 directly. Pharmpy-driven nlmixr fitting needs the
+  ## Python `pyreadr` package which is not part of the standard install,
+  ## and the direct path avoids an R→Python→R round-trip.
+  if(get_tool_from_model(model) == "nlmixr") {
+    return(run_nlme_nlmixr(
+      model = model,
+      data = data,
+      id = id,
+      path = path,
+      estimation_method = estimation_method,
+      control = control,
+      force = force,
+      save_fit = save_fit,
+      save_summary = save_summary,
+      save_final = save_final,
+      clean = clean,
+      verbose = verbose
+    ))
+  }
 
   ## Set model name
   model <- pharmr::set_name(

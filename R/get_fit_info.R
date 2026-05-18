@@ -42,6 +42,26 @@ get_fit_info <- function(fit, path = NULL, output_file = "run.lst") {
 #'
 #' @export
 print.pharmpy.workflows.results.ModelfitResults <- function(x, ...) {
+  print_modelfit(x, ...)
+}
+
+#' Print function for an nlmixr2 fit shaped like a pharmpy modelfit
+#'
+#' Reuses the same layout as [print.pharmpy.workflows.results.ModelfitResults]
+#' so NONMEM and nlmixr2 fits look identical at the console.
+#'
+#' @param x nlmixr2 fit object (pharmpy-shaped list produced by [run_nlme()])
+#' @param ... ignored
+#'
+#' @export
+print.nlmixr2_modelfit_results <- function(x, ...) {
+  print_modelfit(x, ...)
+}
+
+#' Shared body for the modelfit print methods
+#'
+#' @noRd
+print_modelfit <- function(x, ...) {
 
   ## Run description, notes, etc
   run <- attr(x, "run")
@@ -67,6 +87,7 @@ print.pharmpy.workflows.results.ModelfitResults <- function(x, ...) {
   par_tab <- create_modelfit_parameter_table(x)
   print(knitr::kable(par_tab, row.names = FALSE))
 
+  invisible(x)
 }
   
 #' Create a data.frame with basic model fit info
@@ -96,7 +117,16 @@ create_modelfit_info_table <- function(fit) {
   condition_number <- ifelse(!is.null(x$condition_number), signif(x$condition_number, 3), NA)
   tools <- attr(fit, "tools")
   model <- attr(fit, "model")
-  est_steps <- model$execution_steps$to_dataframe()
+  ## When a fit object is reloaded from disk, the pharmpy model attribute
+  ## is a Python reference that didn't survive serialization. Don't fail —
+  ## just report estimation steps as unknown.
+  est_steps <- tryCatch(
+    model$execution_steps$to_dataframe(),
+    error = function(e) NULL
+  )
+  if(is.null(est_steps)) {
+    est_steps <- data.frame(method = NA_character_)
+  }
   info_tab <- data.frame(
     c("OFV:", paste0(ofv, " (", sign, dofv, ref_run, ")")),
     c("Condition number:", condition_number),

@@ -28,6 +28,7 @@ run_nlme(
   remove_tables = FALSE,
   mu_reference = "auto",
   threads = NULL,
+  control = NULL,
   verbose = TRUE
 )
 }
@@ -134,6 +135,10 @@ Requires MPI (e.g. OpenMPI) installed on the host running NONMEM, with
 \code{mpirun} on the PATH. When \code{method = "pharmpy"} is combined with
 \code{threads >= 2}, the run is dispatched via \code{nmfe} instead, since
 pharmpy's API does not expose a parafile hook.}
+
+\item{control}{nlmixr2-only. Optional control list passed verbatim to
+\code{\link[nlmixr2:nlmixr2]{nlmixr2::nlmixr2()}} (e.g. \code{\link[nlmixr2est:foceiControl]{nlmixr2est::foceiControl()}} or
+\code{\link[nlmixr2est:saemControl]{nlmixr2est::saemControl()}}). Ignored for NONMEM models.}
 
 \item{verbose}{verbose output?}
 }
