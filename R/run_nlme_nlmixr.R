@@ -46,11 +46,15 @@ run_nlme_nlmixr <- function(
   ## create_vpc_data_nlmixr() pick it up when the saved fit is re-used.
   if(!is.null(data)) attr(model, "original_data") <- fit_data
 
-  ## Use the SAEM-safe code cached by create_model(); fall back to the
-  ## pharmpy-generated $code verbatim for models built outside create_model().
-  ## Note: pharmpy's default residual-alias pattern is not SAEM-compatible,
-  ## so SAEM fits on a BYO model will hit the upstream nlmixr2 error.
-  model_code <- attr(model, "nlmixr_code") %||% model$code
+  ## Use the SAEM-safe code cached by create_model() when present; otherwise
+  ## re-apply the residual-alias cleanup on $code. The cached attribute can
+  ## be lost across subsequent pharmpy ops (e.g. update_parameters), and
+  ## models built outside create_model() never had it. Without this fallback
+  ## SAEM hits `endpoint 'Y' for saem cannot locate the residual error(s)
+  ## correctly` because pharmpy emits `Y ~ add(add_error) + prop(prop_error)`
+  ## with `add_error`/`prop_error` defined as aliases inside model({}).
+  model_code <- attr(model, "nlmixr_code") %||%
+    inline_nlmixr_residual_aliases(model$code)
 
   ## Build a fresh run folder (mirrors NONMEM layout — dataset.csv +
   ## run.R holding the nlmixr2 function).
@@ -66,6 +70,7 @@ run_nlme_nlmixr <- function(
   ## (The generated script ends with a `fit <- nlmixr2(name, dataset, ...)`
   ## call that references undefined symbols; we drop it.)
   nlmixr_fn <- extract_nlmixr_function(model_code)
+  cat(nlmi)
   if(is.null(nlmixr_fn)) {
     cli::cli_abort("Could not extract an nlmixr2 model function from the model code.")
   }
@@ -112,9 +117,14 @@ run_nlme_nlmixr <- function(
   final_model <- update_parameters(model, fit)
   if(!is.null(final_model)) {
     if(!is.null(data)) attr(final_model, "original_data") <- fit_data
+    ## update_parameters() returns a fresh pharmpy object — re-cache the
+    ## SAEM-safe code so any later run_nlme()/run_sim() on the final model
+    ## doesn't fall back to the raw alias pattern.
+    attr(final_model, "nlmixr_code") <-
+      inline_nlmixr_residual_aliases(final_model$code)
     attr(fit, "final_model") <- final_model
     if(save_final) {
-      writeLines(final_model$code, file.path(fit_folder, "final.R"))
+      writeLines(attr(final_model, "nlmixr_code"), file.path(fit_folder, "final.R"))
     }
   }
 
