@@ -772,6 +772,57 @@ test_that("create_model with scaling works", {
 
 })
 
+test_that("create_model scaling works for nlmixr2 models", {
+  local_pharmr.extra_options()
+  test_data <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 15, 9),
+    AMT = c(1, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0),
+    BW = 70
+  )
+
+  ## Pharmpy's NONMEM->nlmixr conversion fails when S<n> scaling is combined
+  ## with additive/combined error models, so scaling is injected directly on
+  ## the cached nlmixr code (attr "nlmixr_code"). Verify it works for all
+  ## error model types — oral (S2) and IV (S1) — including the cases that
+  ## previously errored with "No resulting term found".
+  for(route_arg in c("oral", "iv")) {
+    sx <- if(route_arg == "oral") "S2" else "S1"
+    for(err in c("proportional", "additive", "combined")) {
+      mod <- create_model(
+        route = route_arg,
+        data = test_data,
+        ruv = err,
+        scale_observations = 1000,
+        tool = "nlmixr2",
+        verbose = FALSE
+      )
+      code <- attr(mod, "nlmixr_code")
+      expect_true(
+        stringr::str_detect(code, paste0(sx, " <- VC/1000")),
+        info = paste("route=", route_arg, "err=", err)
+      )
+      expect_true(
+        stringr::str_detect(code, paste0("IPRED <- A_CENTRAL/", sx)),
+        info = paste("route=", route_arg, "err=", err)
+      )
+      ## Initial estimates scaled by the same factor as the NONMEM path
+      expect_true(
+        stringr::str_detect(code, "POP_CL <- c\\(0\\.0, 34\\.1, Inf\\)"),
+        info = paste("route=", route_arg, "err=", err)
+      )
+      expect_true(
+        stringr::str_detect(code, "POP_VC <- c\\(0\\.0, 66\\.7, Inf\\)"),
+        info = paste("route=", route_arg, "err=", err)
+      )
+    }
+  }
+})
+
 test_that("create_model BLQ with LLOQ coded in DV works", {
 
   ## This behavior was deprecated. Any dataset passed to

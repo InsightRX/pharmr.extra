@@ -8,8 +8,8 @@ add_table_to_model(
   model,
   variables,
   firstonly = FALSE,
-  reload_dataset = TRUE,
-  file
+  file,
+  reload_dataset = TRUE
 )
 }
 \arguments{
@@ -19,11 +19,11 @@ add_table_to_model(
 
 \item{firstonly}{add \code{FIRSTONLY} parameter to $TABLE record}
 
+\item{file}{path to file, e.g. \code{sdtab}}
+
 \item{reload_dataset}{should dataset be reloaded into the Pharmpy model object
 after updating the model. Default is TRUE, to ensure a proper Pharmpy model object,
 but can result in issues.}
-
-\item{file}{path to file, e.g. \code{sdtab}}
 }
 \value{
 TODO
