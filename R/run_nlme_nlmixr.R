@@ -70,7 +70,6 @@ run_nlme_nlmixr <- function(
   ## (The generated script ends with a `fit <- nlmixr2(name, dataset, ...)`
   ## call that references undefined symbols; we drop it.)
   nlmixr_fn <- extract_nlmixr_function(model_code)
-  cat(nlmi)
   if(is.null(nlmixr_fn)) {
     cli::cli_abort("Could not extract an nlmixr2 model function from the model code.")
   }
@@ -94,7 +93,7 @@ run_nlme_nlmixr <- function(
     sink(type = "output", split = TRUE)
     close(log_con)
   }, add = TRUE)
-  raw_fit <- do.call(nlmixr2::nlmixr2, fit_args)
+  raw_fit <- do.call(nlmixr2est::nlmixr2, fit_args)
   sink(type = "message")
   sink(type = "output", split = TRUE)
   close(log_con)
@@ -409,6 +408,40 @@ inline_nlmixr_residual_aliases <- function(code) {
   }
   add_val  <- trimws(sub("^\\s*add_error\\s*<-\\s*",  "", lines[add_idx]))
   prop_val <- trimws(sub("^\\s*prop_error\\s*<-\\s*", "", lines[prop_idx]))
+
+  ## nlmixr2's SAEM parser rejects expressions inside add()/prop() — each must
+  ## be a bare `ini()` parameter. The `use_template = TRUE` path emits
+  ## `add_error <- RUV_ADD*W` with `W <- 1` defined inside model({}), which
+  ## stays a multiplication after the alias substitution. Simplify
+  ## `<param>*<var>` (or `<var>*<param>`) when `<var>` is assigned a numeric
+  ## constant in the same code (so RUV_ADD*W with W=1 collapses to RUV_ADD).
+  const_assigns <- regmatches(
+    lines,
+    regexec("^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*<-\\s*(-?[0-9.eE+-]+)\\s*$", lines)
+  )
+  const_map <- list()
+  for(m in const_assigns) {
+    if(length(m) == 3) {
+      val <- suppressWarnings(as.numeric(m[[3]]))
+      if(!is.na(val)) const_map[[m[[2]]]] <- val
+    }
+  }
+  simplify_alias <- function(expr) {
+    m <- regmatches(expr,
+                    regexec("^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*\\*\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*$",
+                            expr))[[1]]
+    if(length(m) != 3) return(expr)
+    lhs_const <- const_map[[m[[2]]]]
+    rhs_const <- const_map[[m[[3]]]]
+    if(!is.null(lhs_const) && lhs_const == 1) return(m[[3]])
+    if(!is.null(rhs_const) && rhs_const == 1) return(m[[2]])
+    if(!is.null(lhs_const) && lhs_const == 0) return("0")
+    if(!is.null(rhs_const) && rhs_const == 0) return("0")
+    expr
+  }
+  add_val  <- simplify_alias(add_val)
+  prop_val <- simplify_alias(prop_val)
+
   parts <- character(0)
   if(add_val  != "0") parts <- c(parts, paste0("add(",  add_val,  ")"))
   if(prop_val != "0") parts <- c(parts, paste0("prop(", prop_val, ")"))
