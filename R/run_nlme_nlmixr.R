@@ -47,14 +47,14 @@ run_nlme_nlmixr <- function(
   if(!is.null(data)) attr(model, "original_data") <- fit_data
 
   ## Use the SAEM-safe code cached by create_model() when present; otherwise
-  ## re-apply the residual-alias cleanup on $code. The cached attribute can
-  ## be lost across subsequent pharmpy ops (e.g. update_parameters), and
-  ## models built outside create_model() never had it. Without this fallback
-  ## SAEM hits `endpoint 'Y' for saem cannot locate the residual error(s)
-  ## correctly` because pharmpy emits `Y ~ add(add_error) + prop(prop_error)`
-  ## with `add_error`/`prop_error` defined as aliases inside model({}).
+  ## re-apply the residual-alias cleanup + residual-bound enforcement on
+  ## $code. The cached attribute can be lost across subsequent pharmpy ops
+  ## (e.g. update_parameters), and models built outside create_model() never
+  ## had it. Without this fallback SAEM hits `endpoint 'Y' for saem cannot
+  ## locate the residual error(s) correctly` (alias issue) or drifts the
+  ## residual σ negative (unbounded-init issue).
   model_code <- attr(model, "nlmixr_code") %||%
-    inline_nlmixr_residual_aliases(model$code)
+    make_nlmixr_saem_safe(model$code)
 
   ## Build a fresh run folder (mirrors NONMEM layout — dataset.csv +
   ## run.R holding the nlmixr2 function).
@@ -119,8 +119,7 @@ run_nlme_nlmixr <- function(
     ## update_parameters() returns a fresh pharmpy object — re-cache the
     ## SAEM-safe code so any later run_nlme()/run_sim() on the final model
     ## doesn't fall back to the raw alias pattern.
-    attr(final_model, "nlmixr_code") <-
-      inline_nlmixr_residual_aliases(final_model$code)
+    attr(final_model, "nlmixr_code") <- make_nlmixr_saem_safe(final_model$code)
     attr(fit, "final_model") <- final_model
     if(save_final) {
       writeLines(attr(final_model, "nlmixr_code"), file.path(fit_folder, "final.R"))
@@ -377,6 +376,24 @@ find_observation_rows <- function(data) {
   NULL
 }
 
+#' Rewrite pharmpy-emitted nlmixr code into a SAEM-safe form
+#'
+#' Composes the two SAEM-safety transforms applied to pharmpy's nlmixr
+#' output:
+#'   1. [inline_nlmixr_residual_aliases()] — collapse `add_error`/`prop_error`
+#'      indirection so the residual terms in `~` reference `ini()` params
+#'      directly.
+#'   2. [enforce_residual_bounds()] — stamp `c(0, init, Inf)` on the
+#'      residual-error params so SAEM can't drift them negative.
+#'
+#' Both are no-ops when the expected pattern isn't present, so this is safe
+#' to apply unconditionally on any pharmpy-emitted nlmixr code.
+#'
+#' @noRd
+make_nlmixr_saem_safe <- function(code) {
+  enforce_residual_bounds(inline_nlmixr_residual_aliases(code))
+}
+
 #' Inline pharmpy's residual-error aliases for SAEM compatibility
 #'
 #' Pharmpy's nlmixr converter always emits the residual block as
@@ -449,6 +466,77 @@ inline_nlmixr_residual_aliases <- function(code) {
   indent <- sub("\\S.*$", "", lines[formula_idx])
   lines[formula_idx] <- paste0(indent, "Y ~ ", paste(parts, collapse = " + "))
   lines <- lines[-c(add_idx, prop_idx)]
+  paste(lines, collapse = "\n")
+}
+
+#' Stamp `c(0, init, Inf)` bounds on residual-error params in nlmixr ini()
+#'
+#' Pharmpy emits THETAs with explicit `c(lower, init, upper)` bounds but
+#' typically leaves the residual-error params unbounded — e.g.
+#' \preformatted{
+#'   sigma1 <- 0.01     # additive
+#'   sigma  <- 0.09     # proportional
+#' }
+#' nlmixr2's SAEM is gradient-free and treats unbounded params as truly
+#' unbounded, so `sigma1` can drift to negative values during the E-step.
+#' Once σ goes negative the likelihood inverts sign, ETAs explode, and the
+#' ODE solver gets driven into unphysical states (the source of the
+#' `EE:[lsoda] / intdy --` warning cascade). pharmpy's downstream
+#' `update_parameters()` also refuses to ingest the resulting negative inits
+#' because every THETA has lower bound 0.
+#'
+#' This function scans the `ini({...})` block for any unbounded
+#' `name <- <numeric>` line whose `name` appears inside an `add(...)` or
+#' `prop(...)` call in the model formula (i.e. it's a residual-error param)
+#' and rewrites it as `name <- c(0, <numeric>, Inf)`.
+#'
+#' Run *after* [inline_nlmixr_residual_aliases()] so the residual params
+#' show up as bare identifiers inside `add()`/`prop()` (not as `add_error`
+#' aliases). Returns the input unchanged if no such params are found.
+#'
+#' @noRd
+enforce_residual_bounds <- function(code) {
+  lines <- strsplit(code, "\n", fixed = TRUE)[[1]]
+  ini_start <- grep("^\\s*ini\\(", lines)
+  if(length(ini_start) == 0) return(code)
+  ini_close <- grep("^\\s*\\}\\)\\s*$", lines)
+  ini_close <- ini_close[ini_close > ini_start[1]]
+  if(length(ini_close) == 0) return(code)
+  ini_end <- ini_close[1]
+
+  ## Collect identifiers used inside add(...) / prop(...) in the Y formula
+  y_idx <- grep("^\\s*Y\\s*~", lines)
+  if(length(y_idx) == 0) return(code)
+  residual_refs <- character(0)
+  call_re <- "(?:add|prop)\\(([^)]+)\\)"
+  for(idx in y_idx) {
+    calls <- regmatches(lines[idx], gregexpr(call_re, lines[idx], perl = TRUE))[[1]]
+    for(call in calls) {
+      inside <- sub("^[a-z]+\\(", "", call)
+      inside <- sub("\\)$", "", inside)
+      ## Split on operators / whitespace to grab identifier tokens
+      tokens <- strsplit(inside, "[*+\\-/\\s]+", perl = TRUE)[[1]]
+      idents <- tokens[grepl("^[A-Za-z_][A-Za-z0-9_]*$", tokens)]
+      residual_refs <- c(residual_refs, idents)
+    }
+  }
+  residual_refs <- unique(residual_refs)
+  if(length(residual_refs) == 0) return(code)
+
+  ## Wrap unbounded numeric assignments inside ini({...})
+  bound_re <- "^(\\s*)([A-Za-z_][A-Za-z0-9_]*)\\s*<-\\s*(-?[0-9.eE+-]+)\\s*$"
+  changed <- FALSE
+  for(i in seq(ini_start[1], ini_end)) {
+    m <- regmatches(lines[i], regexec(bound_re, lines[i]))[[1]]
+    if(length(m) == 4 && m[[3]] %in% residual_refs) {
+      ## guard: skip if init is already non-positive (would invert the bound)
+      val <- suppressWarnings(as.numeric(m[[4]]))
+      if(is.na(val) || val <= 0) next
+      lines[i] <- paste0(m[[2]], m[[3]], " <- c(0, ", m[[4]], ", Inf)")
+      changed <- TRUE
+    }
+  }
+  if(!changed) return(code)
   paste(lines, collapse = "\n")
 }
 

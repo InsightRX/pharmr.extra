@@ -563,6 +563,13 @@ create_model <- function(
   if(!is.null(original_data)) {
     attr(mod, "original_data") <- original_data
   }
+  ## For nlmixr, stash the stacked/standard-name dataset instead — rxode2
+  ## references columns by name and cannot auto-stack encounters, so the raw
+  ## pre-stacking input would conflate periods in a crossover trial and drive
+  ## SAEM into the lsoda step-limit cascade.
+  if(tool == "nlmixr" && inherits(data, "data.frame")) {
+    attr(mod, "original_data") <- data
+  }
 
   ## For nlmixr models, cache an SAEM-safe rewrite of the generated R code as
   ## an attribute so run_nlme() / run_sim() can use it verbatim. Pharmpy emits
@@ -572,7 +579,7 @@ create_model <- function(
   ## internal state). NB: subsequent pharmpy operations on this model will
   ## drop this attribute; re-run create_model() if the model is modified.
   if(tool == "nlmixr") {
-    nlmixr_code <- inline_nlmixr_residual_aliases(mod$code)
+    nlmixr_code <- make_nlmixr_saem_safe(mod$code)
     if(!is.null(scale_observations)) {
       nlmixr_code <- inject_nlmixr_scaling(nlmixr_code, scale_observations)
     }

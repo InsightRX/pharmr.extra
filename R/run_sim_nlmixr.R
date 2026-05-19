@@ -68,7 +68,7 @@ run_sim_nlmixr <- function(
   ## the residual-alias cleanup, since the cached attribute can be lost across
   ## subsequent pharmpy ops (e.g. update_parameters returns a fresh object).
   model_code <- attr(model, "nlmixr_code") %||%
-    inline_nlmixr_residual_aliases(model$code)
+    make_nlmixr_saem_safe(model$code)
   nlmixr_fn <- extract_nlmixr_function(model_code)
   if(is.null(nlmixr_fn)) {
     cli::cli_abort("Could not extract an nlmixr2 model function from the model code.")
