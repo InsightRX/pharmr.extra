@@ -9,8 +9,8 @@ add_table_to_model(
   model,
   variables,
   firstonly = FALSE,
-  reload_dataset = TRUE,
-  file
+  file,
+  reload_dataset = TRUE
 )
 ```
 
@@ -28,15 +28,15 @@ add_table_to_model(
 
   add `FIRSTONLY` parameter to \$TABLE record
 
+- file:
+
+  path to file, e.g. `sdtab`
+
 - reload_dataset:
 
   should dataset be reloaded into the Pharmpy model object after
   updating the model. Default is TRUE, to ensure a proper Pharmpy model
   object, but can result in issues.
-
-- file:
-
-  path to file, e.g. `sdtab`
 
 ## Value
 

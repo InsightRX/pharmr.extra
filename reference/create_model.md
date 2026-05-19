@@ -126,7 +126,8 @@ create_model(
 
   scale observations by factor, e.g. due to unit differences between
   dose and concentration. E.g. `scale_observations = 1000` will add
-  `S1 = V/1000` (for a 1-compartment model) to NONMEM code.
+  `S1 = V/1000` (for a 1-compartment model) to NONMEM code, and the
+  analogous `S1 <- VC/1000; IPRED <- A_CENTRAL/S1` to nlmixr2 code.
 
 - data:
 

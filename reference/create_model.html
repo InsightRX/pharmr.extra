@@ -9,7 +9,7 @@ functionality in pharmr/Pharmpy."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9070</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9071</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -166,7 +166,8 @@ Values in list need to match one of the effects allowed by pharmpy.</p></dd>
 <dt id="arg-scale-observations">scale_observations<a class="anchor" aria-label="anchor" href="#arg-scale-observations"></a></dt>
 <dd><p>scale observations by factor, e.g. due to unit
 differences between dose and concentration. E.g. <code>scale_observations = 1000</code>
-will add <code>S1 = V/1000</code> (for a 1-compartment model) to NONMEM code.</p></dd>
+will add <code>S1 = V/1000</code> (for a 1-compartment model) to NONMEM code, and the
+analogous <code>S1 &lt;- VC/1000; IPRED &lt;- A_CENTRAL/S1</code> to nlmixr2 code.</p></dd>
 
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
