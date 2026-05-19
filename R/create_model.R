@@ -404,10 +404,15 @@ create_model <- function(
       add_sir(options = sir_options)
   }
 
-  ## MU referencing?
-  apply_mu <- (isTRUE(mu_reference) ||
-    (identical(mu_reference, "auto") && "saem" %in% tolower(estimation_method))) &&
-    tool == "nonmem"
+  ## MU referencing? Pharmpy supports MU-referencing for both NONMEM and
+  ## nlmixr2 backends. For nlmixr2 SAEM the rewrite is critical for stability
+  ## — pharmpy emits `mu_n <- log(POP_X); X <- exp(ETA_X + mu_n)` which keeps
+  ## the parameter on log scale during the MCMC E-step, preventing the M-step
+  ## from drifting positive THETAs through zero (the source of the lsoda
+  ## warning cascade and POP_* divergence we used to see on the admiral
+  ## SAEM run).
+  apply_mu <- isTRUE(mu_reference) ||
+    (identical(mu_reference, "auto") && "saem" %in% tolower(estimation_method))
   if(apply_mu && !pharmr::has_mu_reference(mod)) {
     mod <- pharmr::mu_reference_model(mod)
   }

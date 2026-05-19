@@ -25,6 +25,7 @@ run_nlme_nlmixr <- function(
   save_summary = TRUE,
   save_final = TRUE,
   clean = TRUE,
+  mu_reference = "auto",
   verbose = TRUE
 ) {
   if(!requireNamespace("nlmixr2", quietly = TRUE)) {
@@ -35,6 +36,29 @@ run_nlme_nlmixr <- function(
   }
 
   time_start <- Sys.time()
+
+  ## MU-referencing — critical for nlmixr2 SAEM stability. Pharmpy's
+  ## mu_reference_model() rewrites `CL <- POP_CL * exp(ETA_CL)` as
+  ## `mu_1 <- log(POP_CL); CL <- exp(ETA_CL + mu_1)`, putting the parameter
+  ## walk on log scale so the M-step can't drift positive THETAs negative.
+  ## Idempotent (the `!has_mu_reference` check guards re-application).
+  est_for_mu <- estimation_method %||% tryCatch(
+    model$execution_steps$to_dataframe()$method,
+    error = function(e) NULL
+  )
+  is_saem <- !is.null(est_for_mu) && "saem" %in% tolower(est_for_mu)
+  is_mu_ref <- isTRUE(pharmr::has_mu_reference(model))
+  if((isTRUE(mu_reference) || (identical(mu_reference, "auto") && is_saem)) && !is_mu_ref) {
+    if(verbose) cli::cli_alert_info("Applying mu-referencing to model.")
+    model <- pharmr::mu_reference_model(model)
+    ## The mu-ref rewrite changes model$code, so invalidate any cached
+    ## SAEM-safe code (it was computed against the un-mu-referenced form).
+    attr(model, "nlmixr_code") <- NULL
+  } else if(isFALSE(mu_reference) && is_saem && !is_mu_ref) {
+    cli::cli_warn(
+      "nlmixr2 SAEM benefits significantly from mu-referencing — without it the M-step can drift positive THETAs through zero. Consider {.code mu_reference = \"auto\"}."
+    )
+  }
 
   ## Resolve dataset: prefer explicit `data`, then `attr(model, 'original_data')`,
   ## then `model$dataset`. nlmixr2 wants a data.frame in memory.
@@ -82,22 +106,16 @@ run_nlme_nlmixr <- function(
     cli::cli_process_start(paste0("Starting nlmixr2 run in ", fit_folder))
   }
   log_path <- file.path(fit_folder, output_file)
-  fit_args <- list(object = nlmixr_fn, data = fit_data, est = est)
-  if(!is.null(control)) fit_args$control <- control
-  ## Send output to both a log file and the console:
-  log_con <- file(log_path, open = "wt")
-  sink(log_con, type = "output", split = TRUE)
-  sink(log_con, type = "message")
-  on.exit({
-    sink(type = "message")
-    sink(type = "output", split = TRUE)
-    close(log_con)
-  }, add = TRUE)
-  raw_fit <- do.call(nlmixr2est::nlmixr2, fit_args)
-  sink(type = "message")
-  sink(type = "output", split = TRUE)
-  close(log_con)
-  on.exit()
+  lsoda_log_path <- file.path(fit_folder, "run_lsoda.log")
+  raw_fit <- run_nlmixr2_in_subprocess(
+    fn = nlmixr_fn,
+    data = fit_data,
+    est = est,
+    control = control,
+    log_path = log_path,
+    lsoda_log_path = lsoda_log_path,
+    verbose = verbose
+  )
   if(verbose) cli::cli_process_done()
 
   ## Build a uniform fit object (pharmpy-shaped).
@@ -148,6 +166,73 @@ run_nlme_nlmixr <- function(
   }
 
   fit
+}
+
+#' Fit an nlmixr2 model in a child R process and capture all output
+#'
+#' `nlmixr2`/`rxode2` ODE warnings (notably the `EE:[lsoda] / intdy --`
+#' cascade) are emitted by C/Fortran code that writes directly to OS-level
+#' stdout/stderr, bypassing R's `sink()`. Running in-process with
+#' `sink(type = "message")` only catches R-level messages and warnings, so
+#' those lsoda lines stream to the user's terminal but never reach the
+#' run.log. We instead fit in a child R process via [callr::r()] with
+#' `stderr = "2>&1"`, which redirects the child's OS-level FDs into the
+#' parent so we can route each line ourselves.
+#'
+#' Output routing: each captured line is sorted in real time:
+#'   * lsoda/intdy/`@(lsoda.c:` lines → `run_lsoda.log` (these can run into
+#'     the thousands during SAEM exploration and would otherwise swamp the
+#'     main log)
+#'   * everything else (iteration trace, status messages, R warnings) →
+#'     `run.log`
+#'   * if `verbose = TRUE`, non-lsoda lines are also echoed to the parent
+#'     console (preserves the split-to-console feel of the old sink path)
+#'
+#' @noRd
+run_nlmixr2_in_subprocess <- function(fn, data, est, control, log_path,
+                                      lsoda_log_path, verbose) {
+  if(!requireNamespace("callr", quietly = TRUE)) {
+    cli::cli_abort(
+      c("Package {.pkg callr} is required to run nlmixr2 with full output capture.",
+        i = "Install with {.code install.packages(\"callr\")}.")
+    )
+  }
+
+  ## Open both log files for the lifetime of the fit. They are closed on
+  ## exit even if the child errors.
+  main_con  <- file(log_path,       open = "wt")
+  lsoda_con <- file(lsoda_log_path, open = "wt")
+  on.exit({ close(main_con); close(lsoda_con) }, add = TRUE)
+
+  ## Pattern matching anything that should go to the lsoda log instead of
+  ## the main log. Covers all three forms we've observed:
+  ##   "unhandled error message: EE:[lsoda] ..."
+  ##   "intdy -- t = ... illegal ..."
+  ##   " @(lsoda.c:<lineno>"  (the trailing source-location line)
+  lsoda_re <- "EE:\\[?lsoda|^\\s*intdy --|^\\s*@\\(lsoda\\.c"
+  route_line <- function(line) {
+    if(grepl(lsoda_re, line, perl = TRUE)) {
+      writeLines(line, lsoda_con)
+    } else {
+      writeLines(line, main_con)
+      if(isTRUE(verbose)) cat(line, "\n", sep = "")
+    }
+  }
+
+  callr::r(
+    func = function(fn, data, est, control) {
+      ## Bring nlmixr2's DSL helpers (ini/model) into the child's search
+      ## path so the parsed model function evaluates the same as in-process.
+      suppressPackageStartupMessages(library(nlmixr2est))
+      fit_args <- list(object = fn, data = data, est = est)
+      if(!is.null(control)) fit_args$control <- control
+      do.call(nlmixr2est::nlmixr2, fit_args)
+    },
+    args = list(fn = fn, data = data, est = est, control = control),
+    stderr = "2>&1",
+    callback = route_line,
+    spinner = FALSE
+  )
 }
 
 #' Resolve dataset for an nlmixr fit
@@ -378,20 +463,29 @@ find_observation_rows <- function(data) {
 
 #' Rewrite pharmpy-emitted nlmixr code into a SAEM-safe form
 #'
-#' Composes the two SAEM-safety transforms applied to pharmpy's nlmixr
-#' output:
+#' Composes the SAEM-safety transforms applied to pharmpy's nlmixr output:
 #'   1. [inline_nlmixr_residual_aliases()] — collapse `add_error`/`prop_error`
 #'      indirection so the residual terms in `~` reference `ini()` params
 #'      directly.
 #'   2. [enforce_residual_bounds()] — stamp `c(0, init, Inf)` on the
 #'      residual-error params so SAEM can't drift them negative.
+#'   3. [enforce_theta_bounds()] — stamp `c(0, init, Inf)` on unbounded
+#'      positive-init THETAs so SAEM's M-step can't push them through zero.
+#'   4. [apply_ipred_guard()] — wire pharmpy's `IPREDADJ` floor-guard into
+#'      `Y` so proportional/combined residuals don't collapse at IPRED == 0.
 #'
-#' Both are no-ops when the expected pattern isn't present, so this is safe
-#' to apply unconditionally on any pharmpy-emitted nlmixr code.
+#' Each transform is a no-op when its expected pattern isn't present, so this
+#' is safe to apply unconditionally on any pharmpy-emitted nlmixr code.
 #'
 #' @noRd
 make_nlmixr_saem_safe <- function(code) {
-  enforce_residual_bounds(inline_nlmixr_residual_aliases(code))
+  apply_ipred_guard(
+    enforce_theta_bounds(
+      enforce_residual_bounds(
+        inline_nlmixr_residual_aliases(code)
+      )
+    )
+  )
 }
 
 #' Inline pharmpy's residual-error aliases for SAEM compatibility
@@ -537,6 +631,86 @@ enforce_residual_bounds <- function(code) {
     }
   }
   if(!changed) return(code)
+  paste(lines, collapse = "\n")
+}
+
+#' Stamp `c(0, init, Inf)` bounds on unbounded positive-init THETAs
+#'
+#' Pharmpy's NONMEM backend emits `$THETA (0, init)` for population
+#' parameters, but its nlmixr2 backend emits the bare `POP_CL <- init` form —
+#' nlmixr2 SAEM treats unbounded params as truly unbounded, so the M-step can
+#' push `POP_CL` (or any other PK theta) through zero into negative values.
+#' Once that happens the structural model produces non-physical predictions
+#' (e.g. negative CL means concentrations grow without bound), lsoda fails to
+#' integrate, and the fit diverges (admiral SAEM on this codebase: POP_CL
+#' crosses zero at iteration ~25 and reaches -7.7M by iteration 100).
+#'
+#' Scan the `ini({...})` block for any `name <- <strictly-positive numeric>`
+#' line whose `name` is NOT already handled as a residual param by
+#' [enforce_residual_bounds()], and rewrite as `name <- c(0, init, Inf)`.
+#' Skips lines that already have bounds (`c(...)`, `fixed(...)`) and skips
+#' negative inits to preserve intentional sign conventions.
+#'
+#' @noRd
+enforce_theta_bounds <- function(code) {
+  lines <- strsplit(code, "\n", fixed = TRUE)[[1]]
+  ini_start <- grep("^\\s*ini\\(", lines)
+  if(length(ini_start) == 0) return(code)
+  ini_close <- grep("^\\s*\\}\\)\\s*$", lines)
+  ini_close <- ini_close[ini_close > ini_start[1]]
+  if(length(ini_close) == 0) return(code)
+  ini_end <- ini_close[1]
+
+  bound_re <- "^(\\s*)([A-Za-z_][A-Za-z0-9_]*)\\s*<-\\s*(-?[0-9.eE+-]+)\\s*$"
+  changed <- FALSE
+  for(i in seq(ini_start[1], ini_end)) {
+    m <- regmatches(lines[i], regexec(bound_re, lines[i]))[[1]]
+    if(length(m) != 4) next
+    val <- suppressWarnings(as.numeric(m[[4]]))
+    if(is.na(val) || val <= 0) next  # leave negative/zero inits alone
+    lines[i] <- paste0(m[[2]], m[[3]], " <- c(0, ", m[[4]], ", Inf)")
+    changed <- TRUE
+  }
+  if(!changed) return(code)
+  paste(lines, collapse = "\n")
+}
+
+#' Wire pharmpy's `IPREDADJ` floor-guard into `Y`
+#'
+#' For proportional and combined residual error, pharmpy emits a floor-guard
+#' block of the form
+#' \preformatted{
+#'   IPRED <- A_CENTRAL/VC
+#'   if (0 == IPRED) {
+#'       IPREDADJ <- 2.225e-16
+#'   } else {
+#'       IPREDADJ <- IPRED
+#'   }
+#'   Y <- IPRED        # <-- bug: should be IPREDADJ
+#'   Y ~ prop(sigma)
+#' }
+#' followed by `Y <- IPRED` — so `IPREDADJ` is declared but never used. With
+#' `Y ~ prop(sigma)` against `Y = IPRED`, the residual variance collapses to
+#' 0 wherever IPRED is 0 (e.g. before absorption, or for extreme ETAs during
+#' SAEM's E-step). The likelihood inverts, ETAs blow up, lsoda gets driven
+#' into unphysical states, and the `EE:[lsoda] / intdy --` warning cascade
+#' floods stderr — what 0.0.0.9078's subprocess capture now lands in run.log.
+#'
+#' Rewrite `Y <- IPRED` to `Y <- IPREDADJ` when the guard block is present
+#' (detected by `IPREDADJ <- IPRED` in the else branch). No-op when no guard
+#' block exists (additive RUV — pharmpy correctly omits the block there).
+#'
+#' @noRd
+apply_ipred_guard <- function(code) {
+  lines <- strsplit(code, "\n", fixed = TRUE)[[1]]
+  if(!any(grepl("^\\s*IPREDADJ\\s*<-\\s*IPRED\\s*$", lines))) return(code)
+  y_re <- "^(\\s*)Y\\s*<-\\s*IPRED\\s*$"
+  y_idx <- grep(y_re, lines)
+  if(length(y_idx) == 0) return(code)
+  for(i in y_idx) {
+    indent <- sub("\\S.*$", "", lines[i])
+    lines[i] <- paste0(indent, "Y <- IPREDADJ")
+  }
   paste(lines, collapse = "\n")
 }
 

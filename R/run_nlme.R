@@ -167,6 +167,7 @@ run_nlme <- function(
       save_summary = save_summary,
       save_final = save_final,
       clean = clean,
+      mu_reference = mu_reference,
       verbose = verbose
     ))
   }

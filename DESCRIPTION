@@ -1,6 +1,6 @@
 Package: pharmr.extra
 Title: Extension of pharmr (Pharmpy) functionality
-Version: 0.0.0.9077
+Version: 0.0.0.9081
 Authors@R: c(
     person("Ron", "Keizer", email = "ron@insight-rx.com", role = c("cre", "aut")),
     person("Michael", "McCarthy", email = "michael.mccarthy@insight-rx.com", role = "ctb"),
@@ -35,6 +35,7 @@ Imports:
     tidyr,
     tidyselect
 Suggests:
+    callr,
     mockery,
     nlmixr2,
     nlmixr2data,
