@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9069</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9070</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -37,7 +37,8 @@
 
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="development version" id="pharmrextra-development-version">pharmr.extra (development version)<a class="anchor" aria-label="anchor" href="#pharmrextra-development-version"></a></h2>
-<ul><li><p><code><a href="../reference/run_nlme.html">run_nlme()</a></code>, <code><a href="../reference/run_sim.html">run_sim()</a></code>, and <code><a href="../reference/create_vpc_data.html">create_vpc_data()</a></code> now dispatch on the model engine. Pharmpy nlmixr-format models are routed through nlmixr2 / rxode2 directly (no pharmpy <code>pyreadr</code> dependency). NONMEM models still use the existing nmfe / PsN / pharmpy paths unchanged.</p></li>
+<ul><li><p><code><a href="../reference/update_parameters.html">update_parameters()</a></code> now also accepts a raw <code>nlmixr2FitCore</code> / <code>nlmixr2FitData</code> object — useful when fitting outside <code><a href="../reference/run_nlme.html">run_nlme()</a></code>. Both diagonal and off-diagonal omega elements are extracted and named per pharmpy’s <code>IIV_X</code> / <code>IIV_X_IIV_Y</code> convention, so block-omega covariances are now updated alongside variance terms (previously dropped).</p></li>
+<li><p><code><a href="../reference/run_nlme.html">run_nlme()</a></code>, <code><a href="../reference/run_sim.html">run_sim()</a></code>, and <code><a href="../reference/create_vpc_data.html">create_vpc_data()</a></code> now dispatch on the model engine. Pharmpy nlmixr-format models are routed through nlmixr2 / rxode2 directly (no pharmpy <code>pyreadr</code> dependency). NONMEM models still use the existing nmfe / PsN / pharmpy paths unchanged.</p></li>
 <li><p>New <code>control</code> argument on <code><a href="../reference/run_nlme.html">run_nlme()</a></code> is forwarded to <code>nlmixr2::nlmixr2()</code> (e.g. <code>foceiControl()</code>); ignored for NONMEM.</p></li>
 <li><p><code><a href="../reference/validate_model.html">validate_model()</a></code> now accepts nlmixr-format pharmpy models.</p></li>
 <li><p><code><a href="../reference/get_advan.html">get_advan()</a></code> / <code><a href="../reference/get_obs_compartment.html">get_obs_compartment()</a></code> return gracefully for non-NONMEM models instead of erroring on the missing control stream.</p></li>

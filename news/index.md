@@ -2,6 +2,15 @@
 
 ## pharmr.extra (development version)
 
+- [`update_parameters()`](https://insightrx.github.io/pharmr.extra/reference/update_parameters.md)
+  now also accepts a raw `nlmixr2FitCore` / `nlmixr2FitData` object —
+  useful when fitting outside
+  [`run_nlme()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme.md).
+  Both diagonal and off-diagonal omega elements are extracted and named
+  per pharmpy’s `IIV_X` / `IIV_X_IIV_Y` convention, so block-omega
+  covariances are now updated alongside variance terms (previously
+  dropped).
+
 - [`run_nlme()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme.md),
   [`run_sim()`](https://insightrx.github.io/pharmr.extra/reference/run_sim.md),
   and
