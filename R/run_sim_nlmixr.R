@@ -64,9 +64,11 @@ run_sim_nlmixr <- function(
 
   ## Extract the rxode2/nlmixr2 function from the pharmpy model code. Prefer
   ## the cached, post-processed code (set by create_model() — accounts for
-  ## SAEM-safe residual aliases and scale_observations) over pharmpy's
-  ## regenerated mod$code.
-  model_code <- attr(model, "nlmixr_code") %||% model$code
+  ## SAEM-safe residual aliases and scale_observations); otherwise re-apply
+  ## the residual-alias cleanup, since the cached attribute can be lost across
+  ## subsequent pharmpy ops (e.g. update_parameters returns a fresh object).
+  model_code <- attr(model, "nlmixr_code") %||%
+    inline_nlmixr_residual_aliases(model$code)
   nlmixr_fn <- extract_nlmixr_function(model_code)
   if(is.null(nlmixr_fn)) {
     cli::cli_abort("Could not extract an nlmixr2 model function from the model code.")
