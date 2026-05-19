@@ -1,5 +1,10 @@
 # pharmr.extra (development version)
 
+* `update_parameters()` now also accepts a raw `nlmixr2FitCore` / `nlmixr2FitData`
+  object — useful when fitting outside `run_nlme()`. Both diagonal and
+  off-diagonal omega elements are extracted and named per pharmpy's
+  `IIV_X` / `IIV_X_IIV_Y` convention, so block-omega covariances are now
+  updated alongside variance terms (previously dropped).
 * `run_nlme()`, `run_sim()`, and `create_vpc_data()` now dispatch on the model
   engine. Pharmpy nlmixr-format models are routed through nlmixr2 / rxode2
   directly (no pharmpy `pyreadr` dependency). NONMEM models still use the

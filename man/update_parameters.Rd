@@ -17,8 +17,23 @@ to NONMEM model file.}
 \item{verbose}{verbose output?}
 }
 \value{
-TODO
+the input pharmpy model with parameter estimates updated, or
+\code{invisible(NULL)} if no estimates were available
 }
 \description{
 For example for using model in simulations.
+}
+\details{
+Supports both NONMEM-backend and nlmixr-backend pharmpy models. The \code{fit}
+argument may be:
+\itemize{
+\item a pharmpy \code{ModelfitResults} object (NONMEM path)
+\item the pharmpy-shaped wrapper returned by \code{\link[=run_nlme]{run_nlme()}} on an nlmixr model
+\item a raw \code{nlmixr2FitCore} object (output of \code{\link[nlmixr2:nlmixr2]{nlmixr2::nlmixr2()}} called
+directly, without going through \code{\link[=run_nlme]{run_nlme()}})
+}
+
+For nlmixr2 fits, both diagonal and off-diagonal omega elements are
+extracted so that block-omega parameters (named \code{IIV_X_IIV_Y} in pharmpy)
+are updated alongside the variance terms.
 }

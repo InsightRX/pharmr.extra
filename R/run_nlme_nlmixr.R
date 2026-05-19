@@ -201,30 +201,13 @@ extract_nlmixr_function <- function(code) {
 #' @noRd
 as_pharmpy_shaped_fit <- function(raw_fit, model, input_data = NULL) {
   pf <- raw_fit$parFixedDf
-  ## Population fixed-effect names + estimates
-  est_fixed <- stats::setNames(pf$Estimate, rownames(pf))
   se_fixed  <- stats::setNames(pf$SE, rownames(pf))
 
-  ## Random-effect (omega) variances on the diagonal — pharmpy names these
-  ## IIV_<param>, while nlmixr2 names the omega rows ETA_<param>. Strip the
-  ## ETA_ prefix and re-prefix with IIV_ so update_parameters() can match.
-  om <- raw_fit$omega
-  iiv_estimates <- if(!is.null(om) && nrow(om) > 0) {
-    iiv_names <- paste0("IIV_", sub("^ETA_", "", rownames(om)))
-    stats::setNames(diag(as.matrix(om)), iiv_names)
-  } else {
-    numeric(0)
-  }
-
-  parameter_estimates <- c(est_fixed, iiv_estimates)
-
-  ## Filter to names the pharmpy model recognises so set_initial_estimates()
-  ## doesn't reject unknown keys (e.g. residual error parameters whose
-  ## scale conventions differ between nlmixr2 and pharmpy).
-  known <- tryCatch(model$parameters$names, error = function(e) NULL)
-  if(!is.null(known)) {
-    parameter_estimates <- parameter_estimates[names(parameter_estimates) %in% known]
-  }
+  ## Use the shared extraction helper so block-omega off-diagonals
+  ## (pharmpy parameter name IIV_X_IIV_Y) are also picked up. The helper
+  ## handles ETA_X NaN-row filtering and pharmpy-name mapping for us.
+  parameter_estimates <- nlmixr_parameter_estimates(raw_fit, model = model)
+  if(is.null(parameter_estimates)) parameter_estimates <- numeric(0)
 
   ## Build standard_errors and relative_standard_errors aligned with
   ## parameter_estimates by name. nlmixr2 reports SEs only for fixed effects;
