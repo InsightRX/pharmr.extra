@@ -94,7 +94,8 @@ Values in list need to match one of the effects allowed by pharmpy.}
 
 \item{scale_observations}{scale observations by factor, e.g. due to unit
 differences between dose and concentration. E.g. \code{scale_observations = 1000}
-will add \code{S1 = V/1000} (for a 1-compartment model) to NONMEM code.}
+will add \code{S1 = V/1000} (for a 1-compartment model) to NONMEM code, and the
+analogous \verb{S1 <- VC/1000; IPRED <- A_CENTRAL/S1} to nlmixr2 code.}
 
 \item{data}{filename of dataset or data.frame as input to NONMEM / nlmixr.}
 

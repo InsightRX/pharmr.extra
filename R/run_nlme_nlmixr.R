@@ -80,23 +80,20 @@ run_nlme_nlmixr <- function(
   log_path <- file.path(fit_folder, output_file)
   fit_args <- list(object = nlmixr_fn, data = fit_data, est = est)
   if(!is.null(control)) fit_args$control <- control
-  if(verbose) {
-    raw_fit <- do.call(nlmixr2::nlmixr2, fit_args)
-  } else {
-    log_con <- file(log_path, open = "wt")
-    sink(log_con, type = "output")
-    sink(log_con, type = "message")
-    on.exit({
-      sink(type = "message")
-      sink(type = "output")
-      close(log_con)
-    }, add = TRUE)
-    raw_fit <- do.call(nlmixr2::nlmixr2, fit_args)
+  ## Send output to both a log file and the console:
+  log_con <- file(log_path, open = "wt")
+  sink(log_con, type = "output", split = TRUE)
+  sink(log_con, type = "message")
+  on.exit({
     sink(type = "message")
-    sink(type = "output")
+    sink(type = "output", split = TRUE)
     close(log_con)
-    on.exit()
-  }
+  }, add = TRUE)
+  raw_fit <- do.call(nlmixr2::nlmixr2, fit_args)
+  sink(type = "message")
+  sink(type = "output", split = TRUE)
+  close(log_con)
+  on.exit()
   if(verbose) cli::cli_process_done()
 
   ## Build a uniform fit object (pharmpy-shaped).
@@ -410,4 +407,46 @@ inline_nlmixr_residual_aliases <- function(code) {
   lines[formula_idx] <- paste0(indent, "Y ~ ", paste(parts, collapse = " + "))
   lines <- lines[-c(add_idx, prop_idx)]
   paste(lines, collapse = "\n")
+}
+
+#' Inject `scale_observations` into pharmpy-generated nlmixr code
+#'
+#' Pharmpy emits the observation prediction as
+#' \preformatted{
+#'   IPRED <- A_CENTRAL/<vol>     # in model({})
+#' }
+#' To apply a unit-scaling factor (e.g. `scale = 1000` when DV is in ng/mL
+#' but dose × volume gives mg/L), rewrite this as
+#' \preformatted{
+#'   S<n> <- <vol>/<scale>
+#'   IPRED <- A_CENTRAL/S<n>
+#' }
+#' mirroring the NONMEM `S<n> = V/scale` convention written by
+#' [set_compartment_scale()]. The compartment number is inferred from the
+#' presence of `A_DEPOT` (oral → S2; otherwise → S1).
+#'
+#' Returns the original code unchanged if the expected `IPRED <- A_*/<vol>`
+#' pattern is not present (e.g. hand-written models, ltbs).
+#'
+#' @noRd
+inject_nlmixr_scaling <- function(code, scale) {
+  lines <- strsplit(code, "\n", fixed = TRUE)[[1]]
+  ipred_re <- "^(\\s*)IPRED\\s*<-\\s*(A_[A-Za-z0-9_]+)\\s*/\\s*([A-Za-z][A-Za-z0-9_]*)\\s*$"
+  ipred_idx <- grep(ipred_re, lines)
+  if(length(ipred_idx) != 1) return(code)
+  m <- regmatches(lines[ipred_idx], regexec(ipred_re, lines[ipred_idx]))[[1]]
+  indent <- m[2]
+  amount <- m[3]
+  vol    <- m[4]
+  cn <- if(any(grepl("A_DEPOT", lines, fixed = TRUE))) 2L else 1L
+  sx <- paste0("S", cn)
+  s_line <- paste0(indent, sx, " <- ", vol, "/", scale)
+  new_ipred <- paste0(indent, "IPRED <- ", amount, "/", sx)
+  c(
+    lines[seq_len(ipred_idx - 1L)],
+    s_line,
+    new_ipred,
+    if(ipred_idx < length(lines)) lines[seq.int(ipred_idx + 1L, length(lines))]
+  ) |>
+    paste(collapse = "\n")
 }

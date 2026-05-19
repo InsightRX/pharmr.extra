@@ -43,7 +43,8 @@
 #' models). In the latter case, options are either `6`, `9`, or `13`.
 #' @param scale_observations scale observations by factor, e.g. due to unit
 #' differences between dose and concentration. E.g. `scale_observations = 1000`
-#' will add `S1 = V/1000` (for a 1-compartment model) to NONMEM code.
+#' will add `S1 = V/1000` (for a 1-compartment model) to NONMEM code, and the
+#' analogous `S1 <- VC/1000; IPRED <- A_CENTRAL/S1` to nlmixr2 code.
 #' @param estimation_method character vector of one or more estimation methods.
 #' A single method (e.g. `"foce"`) sets one estimation step; a vector (e.g.
 #' `c("saem", "imp")`) creates sequential estimation steps. Available methods:
@@ -287,16 +288,26 @@ create_model <- function(
 
   ## Set scaling
   if(!is.null(scale_observations)) {
-    obs_compartment <- get_obs_compartment(mod)
-    volume_par <- pharmr::get_central_volume_and_clearance(mod)[[1]]
-    mod <- mod |>
-      set_compartment_scale(
-        compartment = obs_compartment,
-        expression = list(
-          variable = volume_par,
-          scale = scale_observations
+    if(tool == "nlmixr") {
+      ## set_compartment_scale operates on NONMEM control-stream syntax and
+      ## pharmpy's NONMEM->nlmixr conversion is unreliable when S<n> scaling
+      ## is combined with additive/combined error models ("No resulting term
+      ## found"). For nlmixr we scale the initial estimates here and inject
+      ## the `S<n> <- V/scale; IPRED <- A/S<n>` rewrite directly on the
+      ## generated nlmixr code below (see attr(mod, "nlmixr_code") block).
+      mod <- scale_initial_estimates_pk(mod, scale = scale_observations)
+    } else {
+      obs_compartment <- get_obs_compartment(mod)
+      volume_par <- pharmr::get_central_volume_and_clearance(mod)[[1]]
+      mod <- mod |>
+        set_compartment_scale(
+          compartment = obs_compartment,
+          expression = list(
+            variable = volume_par,
+            scale = scale_observations
+          )
         )
-      )
+    }
   }
 
   ## set parameter estimates to reasonable values based on data
@@ -561,7 +572,11 @@ create_model <- function(
   ## internal state). NB: subsequent pharmpy operations on this model will
   ## drop this attribute; re-run create_model() if the model is modified.
   if(tool == "nlmixr") {
-    attr(mod, "nlmixr_code") <- inline_nlmixr_residual_aliases(mod$code)
+    nlmixr_code <- inline_nlmixr_residual_aliases(mod$code)
+    if(!is.null(scale_observations)) {
+      nlmixr_code <- inject_nlmixr_scaling(nlmixr_code, scale_observations)
+    }
+    attr(mod, "nlmixr_code") <- nlmixr_code
   }
 
   if(verbose) cli::cli_alert_success("Done")
