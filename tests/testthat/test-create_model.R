@@ -469,14 +469,18 @@ test_that("RUV settings work as expected", {
   # Test combined error
   mod <- create_model(ruv = "combined")
   expect_equal(
-    "EPS_1*IPREDADJ + EPS_2 + IPRED",
+    "EPS_1*IPRED + EPS_2 + IPRED",
     as.character(mod$statements$find_assignment("Y")$expression)
   )
 
-  # Test log-transformed both sides
+  # Test log-transformed both sides. The LTBS workaround in
+  # set_residual_error() calls set_additive_error_model() before
+  # set_proportional_error_model(data_trans = "log(Y)"), so pharmpy emits a
+  # safe-divide variable named IPREDADJ1 (IPREDADJ is taken by the additive
+  # step).
   mod <- create_model(ruv = "ltbs")
   expect_equal(
-    "EPS_1 + log(IPREDADJ)",
+    "EPS_1 + log(IPREDADJ1)",
     as.character(mod$statements$find_assignment("Y")$expression)
   )
 })
