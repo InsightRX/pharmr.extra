@@ -34,7 +34,9 @@ get_initial_estimates_from_data <- function(
         TIME = as.numeric(.data$TIME)
       ) |>
       dplyr::group_by(.data$ID) |>
-      dplyr::mutate(dosenr = cumsum(.data$EVID)) |>
+      ## Count only actual dose events. Using cumsum(EVID) inflates the
+      ## counter on EVID=2/3/4 rows and breaks the dose-to-observation join.
+      dplyr::mutate(dosenr = cumsum(.data$EVID == 1)) |>
       dplyr::ungroup()
   )
   if(ltbs) {
@@ -72,9 +74,12 @@ get_initial_estimates_from_data <- function(
     weighted.mean(x, w = w)
   }
 
-  est <- as.list(apply(tmp[,1:2], 2, function(x) {
-    signif(safe_weighted_mean(x, w = tmp$weight), 3)
-  }))
+  ## Pool V and CL across subjects by name (not position) so an out-of-order
+  ## per-subject vector can't shift columns into the wrong slot.
+  est <- list(
+    V  = signif(safe_weighted_mean(tmp$V,  w = tmp$weight), 3),
+    CL = signif(safe_weighted_mean(tmp$CL, w = tmp$weight), 3)
+  )
   if(n_cmt >= 2) {
     est$QP1 <- est$CL
     est$VP1 <- est$V * 2
@@ -108,7 +113,7 @@ get_initial_estimates_from_individual_data <- function(
   ## calls, but handle here too so the function works when called directly)
   if(!is.numeric(dat$DV))   dat$DV   <- suppressWarnings(as.numeric(dat$DV))
   if(!is.numeric(dat$TIME)) dat$TIME <- suppressWarnings(as.numeric(dat$TIME))
-  if(is.null(dat$dosenr))   dat$dosenr <- cumsum(dat$EVID)
+  if(is.null(dat$dosenr))   dat$dosenr <- cumsum(dat$EVID == 1)
 
   if(ltbs) {
     dat$DV <- ifelse(dat$EVID == 0, exp(dat$DV), dat$DV)
@@ -135,14 +140,22 @@ get_initial_estimates_from_individual_data <- function(
   obs <- dat[obs_mask, ]
   tmp <- tail(obs, 3)
   dose <- dat$AMT[dat$dosenr == dose_nr & dat$EVID == 1]
-  est <- c()
+  ## If no dose can be matched to this observation set (e.g. observations
+  ## before any dose was administered, or a malformed AMT/EVID pairing) we
+  ## cannot ballpark V or CL. Return an explicit V/CL/weight triple so the
+  ## caller never receives a partial vector — unlist() silently drops
+  ## length-0 slots, which would otherwise misalign downstream columns.
+  if (length(dose) == 0 || all(is.na(dose))) {
+    return(c(V = NA_real_, CL = NA_real_, weight = 0))
+  }
+  est <- list(V = NA_real_, CL = NA_real_, weight = 0)
   n_points <- length(unique(tmp$TIME))
   if(inherits(tmp$TIME, "numeric") && n_points > 1) { # two datapoints at least
     fit <- stats::lm(log(DV) ~ TIME, tmp)
     KEL <- -as.numeric(coef(fit)[2])
     if(is.null(KEL) || is.na(KEL)) {
-      est$V <- NA
-      est$CL <- NA
+      est$V <- NA_real_
+      est$CL <- NA_real_
     } else {
       if (KEL <= 0) { # fallback for absorption-phase or flat data
         KEL <- (log(max(obs$DV, na.rm=TRUE)) - log(min(obs$DV[obs$DV > 0], na.rm=TRUE))) / diff(range(obs$TIME))
@@ -157,8 +170,8 @@ get_initial_estimates_from_individual_data <- function(
       est$CL <- est$V / 20
       est$weight <- 0.001 # downweigh this, since very crude estimate. Only use if no subjects with >2 samples available
     } else { # for placebo patients, DV may all be zero or NA so we should not attempt to ballpark V or CL
-      est$V <- NA
-      est$CL <- NA
+      est$V <- NA_real_
+      est$CL <- NA_real_
       est$weight <- 0
     }
   }
