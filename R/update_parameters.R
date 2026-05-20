@@ -97,6 +97,20 @@ nlmixr_parameter_estimates <- function(raw_fit, model = NULL) {
     numeric(0)
   }
 
+  ## Back-transform log-in-ini parameters (lpop_X → POP_X = exp(lpop_X))
+  ## when run_nlme_nlmixr() rewrote the model into the nlmixr2-idiomatic
+  ## form for SAEM. See apply_nlmixr2_log_param().
+  log_param_map <- attr(model, "log_param_map") %||% character(0)
+  if(length(log_param_map) > 0 && length(est_fixed) > 0) {
+    for(lpop_name in names(log_param_map)) {
+      if(lpop_name %in% names(est_fixed)) {
+        pop_name <- unname(log_param_map[[lpop_name]])
+        names(est_fixed)[names(est_fixed) == lpop_name] <- pop_name
+        est_fixed[pop_name] <- exp(est_fixed[pop_name])
+      }
+    }
+  }
+
   om <- raw_fit$omega
   iiv_estimates <- numeric(0)
   if(!is.null(om) && nrow(om) > 0) {
