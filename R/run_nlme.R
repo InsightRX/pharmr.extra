@@ -66,6 +66,12 @@
 #' This feature is useful e.g. for crossover trials when data on the same
 #' individual ispresent but is included in the dataset as time-after-dose and
 #' not actual time since first overall dose.
+#' @param copy_dataset copy the dataset into the run folder? If `TRUE`, the
+#' dataset is copied into the run folder as `data.csv` and the model's `$DATA`
+#' record points to that copy. If `FALSE` (default), the dataset is left in its
+#' existing location and the model's `$DATA` record points to that absolute
+#' path. Only applies when `data` is supplied as (or resolves to) a file on
+#' disk; in-memory data frames are always written into the run folder.
 #' @param clean clean up run folder after NONMEM execution?
 #' @param as_job run as RStudio job?
 #' @param save_final after running the model, should a file `final.mod` be created
@@ -114,6 +120,7 @@ run_nlme <- function(
   estimation_options = NULL,
   sir_options = NULL,
   auto_stack_encounters = TRUE,
+  copy_dataset = FALSE,
   clean = TRUE,
   as_job = FALSE,
   save_final = TRUE,
@@ -238,6 +245,7 @@ run_nlme <- function(
     data = data,
     force = force,
     auto_stack_encounters = auto_stack_encounters,
+    copy_dataset = copy_dataset,
     verbose = verbose
   )
 

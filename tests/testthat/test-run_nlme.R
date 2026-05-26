@@ -269,6 +269,40 @@ test_that("run_nlme / prepare_run_folder strip surrounding quotes from column na
   )
 })
 
+test_that("prepare_run_folder respects copy_dataset", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  mod <- create_model(route = "iv", verbose = FALSE)
+
+  src_dir <- withr::local_tempdir()
+  src_csv <- file.path(src_dir, "mydata.csv")
+  writeLines(c("ID,TIME,DV", "1,0,0", "1,1,10"), src_csv)
+
+  ## copy_dataset = FALSE: leave dataset in place, point $DATA at its abs path
+  obj_no_copy <- prepare_run_folder(
+    id = "run1", model = mod, path = withr::local_tempdir(), data = src_csv,
+    copy_dataset = FALSE, verbose = FALSE
+  )
+  expect_false(file.exists(file.path(obj_no_copy$fit_folder, "data.csv")))
+  expect_equal(obj_no_copy$dataset_path, normalizePath(src_csv))
+  data_line <- grep("^\\$DATA", readLines(
+    file.path(obj_no_copy$fit_folder, obj_no_copy$model_file)
+  ), value = TRUE)
+  expect_match(data_line, normalizePath(src_csv), fixed = TRUE)
+
+  ## copy_dataset = TRUE: dataset copied into run folder, $DATA points to copy
+  obj_copy <- prepare_run_folder(
+    id = "run1", model = mod, path = withr::local_tempdir(), data = src_csv,
+    copy_dataset = TRUE, verbose = FALSE
+  )
+  expect_true(file.exists(file.path(obj_copy$fit_folder, "data.csv")))
+  expect_equal(
+    obj_copy$dataset_path,
+    file.path(obj_copy$fit_folder, "data.csv")
+  )
+})
+
 test_that("unquote_column_names strips a single pair of surrounding quotes", {
   df <- data.frame(a = 1, b = 2, c = 3)
   names(df) <- c('"a"', "'b'", "c")

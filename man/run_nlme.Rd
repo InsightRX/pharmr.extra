@@ -21,6 +21,7 @@ run_nlme(
   estimation_options = NULL,
   sir_options = NULL,
   auto_stack_encounters = TRUE,
+  copy_dataset = FALSE,
   clean = TRUE,
   as_job = FALSE,
   save_final = TRUE,
@@ -105,6 +106,13 @@ If no decreasing TIME is detected, nothing will be done (most common case).
 This feature is useful e.g. for crossover trials when data on the same
 individual ispresent but is included in the dataset as time-after-dose and
 not actual time since first overall dose.}
+
+\item{copy_dataset}{copy the dataset into the run folder? If \code{TRUE}, the
+dataset is copied into the run folder as \code{data.csv} and the model's \verb{$DATA}
+record points to that copy. If \code{FALSE} (default), the dataset is left in its
+existing location and the model's \verb{$DATA} record points to that absolute
+path. Only applies when \code{data} is supplied as (or resolves to) a file on
+disk; in-memory data frames are always written into the run folder.}
 
 \item{clean}{clean up run folder after NONMEM execution?}
 

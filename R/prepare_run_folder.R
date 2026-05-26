@@ -7,6 +7,7 @@ prepare_run_folder <- function(
   force = FALSE,
   data = NULL,
   auto_stack_encounters = FALSE,
+  copy_dataset = TRUE,
   verbose = TRUE
 ) {
 
@@ -31,23 +32,31 @@ prepare_run_folder <- function(
 
   if(!is.null(data)) {
     if(inherits(data, "character")) {
-      if(verbose) cli::cli_process_start("Copying dataset")
       if(!file.exists(data)) {
         cli::cli_abort("`data` file does not exist.")
       }
       if(isTRUE(auto_stack_encounters)) {
         cli::cli_warn("`auto_stack_encounters` can only be used when `data` is specified as data.frame, not when it is a CSV filename.")
       }
-      file.copy(from = data, to = dataset_path)
-      ## If the source CSV has quoted headers (e.g. `"ID","TIME",...`), NONMEM
-      ## will try to parse the header row as data. Detect this and rewrite the
-      ## dataset with unquoted headers.
-      first_line <- tryCatch(readLines(dataset_path, n = 1), error = function(e) character(0))
-      if (length(first_line) && grepl('^["\']', first_line)) {
-        if (verbose) cli::cli_alert_info("Stripping quoted column names from dataset header")
-        df <- read.csv(dataset_path, check.names = FALSE)
-        df <- unquote_column_names(df)
-        write.csv(df, file = dataset_path, quote = FALSE, row.names = FALSE)
+      if(!copy_dataset) {
+        ## Leave the dataset in its existing location and point $DATA at its
+        ## absolute path. The file is not modified (so no quoted-header
+        ## rewrite); the user is responsible for the dataset being NONMEM-ready.
+        if(verbose) cli::cli_process_start("Using dataset in existing location (not copying into run folder)")
+        dataset_path <- normalizePath(data, mustWork = TRUE)
+      } else {
+        if(verbose) cli::cli_process_start("Copying dataset")
+        file.copy(from = data, to = dataset_path)
+        ## If the source CSV has quoted headers (e.g. `"ID","TIME",...`), NONMEM
+        ## will try to parse the header row as data. Detect this and rewrite the
+        ## dataset with unquoted headers.
+        first_line <- tryCatch(readLines(dataset_path, n = 1), error = function(e) character(0))
+        if (length(first_line) && grepl('^["\']', first_line)) {
+          if (verbose) cli::cli_alert_info("Stripping quoted column names from dataset header")
+          df <- read.csv(dataset_path, check.names = FALSE)
+          df <- unquote_column_names(df)
+          write.csv(df, file = dataset_path, quote = FALSE, row.names = FALSE)
+        }
       }
     } else {
       if(verbose) cli::cli_process_start("Checking, cleaning, and copying dataset")
