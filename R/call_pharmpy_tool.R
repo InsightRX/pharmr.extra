@@ -185,18 +185,19 @@ call_pharmpy_tool <- function(
   ## uppercases all identifiers in `search_space`, then validates them
   ## case-sensitively against `datainfo.names`. To make lowercase column
   ## conventions work, warn on lowercase identifiers in the search_space and
-  ## uppercase both the search_space string and the model's columns.
-  if(uppercase_mfl) {
-    if(!is.null(options$search_space)) {
-      lowercase_ids <- detect_lowercase_identifiers(options$search_space)
-      if(length(lowercase_ids) > 0 && verbose) {
-        cli::cli_alert_warning(c(
-          "{.code search_space} contains lowercase identifier{?s}: {.val {lowercase_ids}}.",
-          i = "Pharmpy's MFL parser uppercases all identifiers (see {.url https://github.com/pharmpy/pharmpy/issues/4576}); uppercasing now."
-        ))
-      }
-      options$search_space <- toupper(options$search_space)
+  ## uppercase both the search_space string and the model's columns. Only
+  ## applied when an MFL `search_space` is actually being passed, to avoid
+  ## mutating column names for tools that don't consume MFL (bootstrap,
+  ## simulation, etc.).
+  if(uppercase_mfl && !is.null(options$search_space)) {
+    lowercase_ids <- detect_lowercase_identifiers(options$search_space)
+    if(length(lowercase_ids) > 0 && verbose) {
+      cli::cli_alert_warning(c(
+        "{.code search_space} contains lowercase identifier{?s}: {.val {lowercase_ids}}.",
+        i = "Pharmpy's MFL parser uppercases all identifiers (see {.url https://github.com/pharmpy/pharmpy/issues/4576}); uppercasing now."
+      ))
     }
+    options$search_space <- toupper(options$search_space)
     renamed <- uppercase_model_columns(model)
     if(length(renamed$renamed) > 0) {
       if(verbose) {

@@ -21,9 +21,24 @@ detect_lowercase_identifiers <- function(search_space) {
 ## written uppercase) and the in-memory dataset. Returns a list with the new
 ## model and a named character vector of `old = new` renames that were applied.
 ##
+## Aborts if uppercasing would produce duplicate column names (e.g. the model
+## already contains both `wt` and `WT`), since the rename would silently
+## clobber one of them.
+##
 ## Performed entirely on the Python side via py_run_string to avoid R↔Python
 ## auto-conversion stripping the ColumnInfo type from list elements.
 uppercase_model_columns <- function(model) {
+  names <- model$datainfo$names
+  final_names <- ifelse(names == toupper(names), names, toupper(names))
+  collisions <- unique(final_names[duplicated(final_names)])
+  if(length(collisions) > 0) {
+    offenders <- names[toupper(names) %in% collisions]
+    cli::cli_abort(c(
+      "Uppercasing model columns would create duplicate name{?s}: {.val {collisions}}.",
+      i = "The model already contains columns that differ only by case: {.val {offenders}}.",
+      i = "Resolve manually, or set {.code uppercase_mfl = FALSE} in {.fn call_pharmpy_tool}."
+    ))
+  }
   reticulate::py_run_string("
 def _pharmr_extra_uppercase_model(m):
     rm = {c.name: c.name.upper()
