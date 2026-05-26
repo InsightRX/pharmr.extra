@@ -16,6 +16,12 @@
 #' https://pharmpy.github.io/latest/mfl.html.
 #' @param remove_tables if `TRUE` (default), removes all `$TABLE` records from the model
 #' before passing it to the Pharmpy tool.
+#' @param uppercase_mfl if `TRUE` (default), uppercases the model's `$INPUT` /
+#' datainfo / dataset column names and the `options$search_space` string before
+#' calling the Pharmpy tool. Works around Pharmpy's MFL parser, which
+#' unconditionally uppercases every identifier in a search_space and then fails
+#' the case-sensitive lookup against datainfo (see
+#' <https://github.com/pharmpy/pharmpy/issues/4576>). Set to `FALSE` to disable.
 #'
 #' @return fit object
 #'
@@ -50,7 +56,8 @@ call_pharmpy_tool <- function(
   verbose = TRUE,
   force = FALSE,
   options = list(),
-  remove_tables = TRUE
+  remove_tables = TRUE,
+  uppercase_mfl = TRUE
 ) {
 
   if(is.null(tool)) {
@@ -172,6 +179,33 @@ call_pharmpy_tool <- function(
       cli::cli_alert_info(
         "No `search_space` provided; defaulting to {.val IIV(@PK,EXP)}"
       )
+  }
+
+  ## MFL case-sensitivity workaround (pharmpy/pharmpy#4576): the MFL parser
+  ## uppercases all identifiers in `search_space`, then validates them
+  ## case-sensitively against `datainfo.names`. To make lowercase column
+  ## conventions work, warn on lowercase identifiers in the search_space and
+  ## uppercase both the search_space string and the model's columns.
+  if(uppercase_mfl) {
+    if(!is.null(options$search_space)) {
+      lowercase_ids <- detect_lowercase_identifiers(options$search_space)
+      if(length(lowercase_ids) > 0 && verbose) {
+        cli::cli_alert_warning(c(
+          "{.code search_space} contains lowercase identifier{?s}: {.val {lowercase_ids}}.",
+          i = "Pharmpy's MFL parser uppercases all identifiers (see {.url https://github.com/pharmpy/pharmpy/issues/4576}); uppercasing now."
+        ))
+      }
+      options$search_space <- toupper(options$search_space)
+    }
+    renamed <- uppercase_model_columns(model)
+    if(length(renamed$renamed) > 0) {
+      if(verbose) {
+        cli::cli_alert_info(c(
+          "Uppercased {length(renamed$renamed)} model column{?s} to match MFL parser: {.val {paste0(names(renamed$renamed), ' -> ', unname(renamed$renamed))}}"
+        ))
+      }
+      model <- renamed$model
+    }
   }
 
   ## prepare arguments for call
