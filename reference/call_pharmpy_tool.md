@@ -16,7 +16,8 @@ call_pharmpy_tool(
   verbose = TRUE,
   force = FALSE,
   options = list(),
-  remove_tables = TRUE
+  remove_tables = TRUE,
+  uppercase_mfl = TRUE
 )
 ```
 
@@ -67,6 +68,16 @@ call_pharmpy_tool(
 
   if `TRUE` (default), removes all `$TABLE` records from the model
   before passing it to the Pharmpy tool.
+
+- uppercase_mfl:
+
+  if `TRUE` (default), uppercases the model's `$INPUT` / datainfo /
+  dataset column names and the `options$search_space` string before
+  calling the Pharmpy tool. Works around Pharmpy's MFL parser, which
+  unconditionally uppercases every identifier in a search_space and then
+  fails the case-sensitive lookup against datainfo (see
+  <https://github.com/pharmpy/pharmpy/issues/4576>). Set to `FALSE` to
+  disable.
 
 ## Value
 

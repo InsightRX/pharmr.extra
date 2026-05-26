@@ -9,7 +9,7 @@ or modelsearch. A separate function is available for fit()"></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9072</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9075</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -55,7 +55,8 @@ or modelsearch. A separate function is available for <code>fit()</code></p>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  force <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  options <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
-<span>  remove_tables <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  remove_tables <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  uppercase_mfl <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -106,6 +107,15 @@ https://pharmpy.github.io/latest/mfl.html.</p></dd>
 <dt id="arg-remove-tables">remove_tables<a class="anchor" aria-label="anchor" href="#arg-remove-tables"></a></dt>
 <dd><p>if <code>TRUE</code> (default), removes all <code>$TABLE</code> records from the model
 before passing it to the Pharmpy tool.</p></dd>
+
+
+<dt id="arg-uppercase-mfl">uppercase_mfl<a class="anchor" aria-label="anchor" href="#arg-uppercase-mfl"></a></dt>
+<dd><p>if <code>TRUE</code> (default), uppercases the model's <code>$INPUT</code> /
+datainfo / dataset column names and the <code>options$search_space</code> string before
+calling the Pharmpy tool. Works around Pharmpy's MFL parser, which
+unconditionally uppercases every identifier in a search_space and then fails
+the case-sensitive lookup against datainfo (see
+<a href="https://github.com/pharmpy/pharmpy/issues/4576" class="external-link">https://github.com/pharmpy/pharmpy/issues/4576</a>). Set to <code>FALSE</code> to disable.</p></dd>
 
 </dl></div>
     <div class="section level2">
