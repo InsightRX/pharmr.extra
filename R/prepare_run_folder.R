@@ -46,7 +46,9 @@ prepare_run_folder <- function(
         dataset_path <- normalizePath(data, mustWork = TRUE)
       } else {
         if(verbose) cli::cli_process_start("Copying dataset")
-        file.copy(from = data, to = dataset_path)
+        if(!isTRUE(file.copy(from = data, to = dataset_path))) {
+          cli::cli_abort("Failed to copy dataset from {.path {data}} to {.path {dataset_path}}.")
+        }
         ## If the source CSV has quoted headers (e.g. `"ID","TIME",...`), NONMEM
         ## will try to parse the header row as data. Detect this and rewrite the
         ## dataset with unquoted headers.
@@ -92,7 +94,17 @@ prepare_run_folder <- function(
         }
       }
       if (!is.null(dataset_file)) {
-        file.copy(from = dataset_file, to = dataset_path)
+        if (!copy_dataset) {
+          ## Dataset resolved from the model's $DATA record is already on disk;
+          ## leave it in place and point $DATA at its absolute path.
+          if (verbose) cli::cli_process_start("Using dataset from model's $DATA record (not copying into run folder)")
+          dataset_path <- normalizePath(dataset_file, mustWork = TRUE)
+        } else {
+          if (verbose) cli::cli_process_start("Copying dataset from model's $DATA record")
+          if (!isTRUE(file.copy(from = dataset_file, to = dataset_path))) {
+            cli::cli_abort("Failed to copy dataset from {.path {dataset_file}} to {.path {dataset_path}}.")
+          }
+        }
       } else {
         cli::cli_abort("No dataset could be resolved: `model$dataset` is NULL and no existing file was found from the model's $DATA record.")
       }

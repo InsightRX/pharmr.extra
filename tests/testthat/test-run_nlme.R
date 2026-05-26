@@ -349,6 +349,33 @@ test_that("run_nlme converts data.frame input to a CSV file path", {
   expect_equal(written, dat, ignore_attr = TRUE)
 })
 
+test_that("run_nlme forces copy_dataset for in-memory data.frame input", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  mod <- create_model(route = "iv", verbose = FALSE)
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 1, 2), DV = c(0, 10, 5),
+    AMT = c(100, 0, 0), CMT = 1, EVID = c(1, 0, 0), MDV = c(1, 0, 0)
+  )
+
+  ## A data.frame has no on-disk location to reference, so even with
+  ## copy_dataset = FALSE it must be written into the run folder (otherwise
+  ## $DATA would point at an ephemeral tempfile).
+  captured_copy <- "<not captured>"
+  stub(run_nlme, "prepare_run_folder", function(id, model, path, data, ...) {
+    captured_copy <<- list(...)$copy_dataset
+    stop("abort before NONMEM")
+  })
+
+  tryCatch(
+    run_nlme(mod, data = dat, id = "run1", path = withr::local_tempdir(),
+             copy_dataset = FALSE, verbose = FALSE),
+    error = function(e) NULL
+  )
+
+  expect_true(captured_copy)
+})
+
 test_that("run_nlme passes through a CSV file path unchanged", {
   local_pharmr.extra_options()
   mod <- create_model(route = "iv", verbose = FALSE)

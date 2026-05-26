@@ -134,6 +134,12 @@ run_nlme <- function(
 
   time_start <- Sys.time()
   
+  ## An in-memory data.frame has no on-disk "existing location" to reference,
+  ## so it must always be written into the run folder regardless of
+  ## `copy_dataset` (otherwise $DATA would point at the ephemeral tempfile
+  ## created just below).
+  data_in_memory <- inherits(data, "data.frame")
+
   ## Make sure `data` is pointing to a file. This is to avoid issue with
   ## Pharmpy trying to parse the data.frame. `data` may also be NULL, in
   ## which case `prepare_run_folder()` falls back to `model$dataset` or the
@@ -245,7 +251,7 @@ run_nlme <- function(
     data = data,
     force = force,
     auto_stack_encounters = auto_stack_encounters,
-    copy_dataset = copy_dataset,
+    copy_dataset = copy_dataset || data_in_memory,
     verbose = verbose
   )
 
