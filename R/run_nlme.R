@@ -11,8 +11,8 @@
 #'
 #' @param model pharmpy model object or NONMEM model code (character) or path
 #' to NONMEM model file.
-#' @param data filename of dataset or data.frame as input to NONMEM / nlmixr. 
-#' Optional, can also be included in `model` object (if specified as pharmpy 
+#' @param data filename of dataset or data.frame as input to NONMEM / nlmixr.
+#' Optional, can also be included in `model` object (if specified as pharmpy
 #' model object).
 #' @param tables acharacter vector of which default tables
 #' to add, options are `fit` and `parameters`. Default is NULL,
@@ -54,7 +54,7 @@
 #' between 300 and 10000 (suggested to use 1000 by default). `niter` should be
 #' 1 or higher (suggest to use 1 by default).
 #' @param auto_stack_encounters only invoked if `data` argument supplied as
-#' a data.frame, not if a pharmpy model object is supplied without `data` or 
+#' a data.frame, not if a pharmpy model object is supplied without `data` or
 #' when `data` is a filename.
 #' Detects if TIME within an individual is
 #' decreasing from one record to another, which NONMEM cannot handle.
@@ -119,7 +119,7 @@ run_nlme <- function(
   estimation_method = NULL,
   estimation_options = NULL,
   sir_options = NULL,
-  auto_stack_encounters = TRUE,
+  auto_stack_encounters = FALSE,
   copy_dataset = FALSE,
   clean = TRUE,
   as_job = FALSE,
@@ -157,7 +157,7 @@ run_nlme <- function(
     datafile <- tempfile(pattern = "data_", fileext = ".csv")
     write.csv(data, datafile, quote = FALSE, row.names = FALSE)
   }
-  
+
   ## Preserve R attributes across pharmpy calls (which create new Python objects)
   original_data <- attr(model, "original_data")
   model <- validate_model(model, data = data)
