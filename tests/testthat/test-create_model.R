@@ -3,6 +3,22 @@ test_that("create_model call without arguments works", {
   expect_s3_class(mod, "pharmpy.model.external.nonmem.model.Model")
 })
 
+test_that("create_model points $DATA at an on-disk temp CSV for data.frame input", {
+  test_data <- data.frame(
+    ID = 1, TIME = c(0, 1, 2), DV = c(0, 10, 5),
+    AMT = c(100, 0, 0), CMT = 1, EVID = c(1, 0, 0), MDV = c(1, 0, 0)
+  )
+  mod <- create_model(route = "iv", data = test_data, verbose = FALSE, auto_init = FALSE)
+
+  data_line <- grep("^\\$DATA", strsplit(mod$code, "\n")[[1]], value = TRUE)
+  ## $DATA must point to a real file, not pharmpy's DUMMYPATH placeholder
+  expect_no_match(data_line, "DUMMYPATH", fixed = TRUE)
+  data_path <- sub("^\\$DATA\\s+(\\S+).*", "\\1", data_line)
+  expect_true(file.exists(data_path))
+  ## the on-disk dataset round-trips to the model's dataset
+  expect_equal(nrow(read.csv(data_path)), nrow(mod$dataset))
+})
+
 test_that("create_model basic functionality works", {
   # Create minimal test dataset
   test_data <- data.frame(

@@ -279,7 +279,8 @@ test_that("prepare_run_folder respects copy_dataset", {
   src_csv <- file.path(src_dir, "mydata.csv")
   writeLines(c("ID,TIME,DV", "1,0,0", "1,1,10"), src_csv)
 
-  ## copy_dataset = FALSE: leave dataset in place, point $DATA at its abs path
+  ## copy_dataset = FALSE: leave dataset in place AND leave $DATA untouched
+  orig_data_line <- grep("^\\$DATA", strsplit(mod$code, "\n")[[1]], value = TRUE)
   obj_no_copy <- prepare_run_folder(
     id = "run1", model = mod, path = withr::local_tempdir(), data = src_csv,
     copy_dataset = FALSE, verbose = FALSE
@@ -289,7 +290,9 @@ test_that("prepare_run_folder respects copy_dataset", {
   data_line <- grep("^\\$DATA", readLines(
     file.path(obj_no_copy$fit_folder, obj_no_copy$model_file)
   ), value = TRUE)
-  expect_match(data_line, normalizePath(src_csv), fixed = TRUE)
+  ## $DATA is preserved verbatim from the model, not rewritten to src_csv
+  expect_equal(data_line, orig_data_line)
+  expect_no_match(data_line, normalizePath(src_csv), fixed = TRUE)
 
   ## copy_dataset = TRUE: dataset copied into run folder, $DATA points to copy
   obj_copy <- prepare_run_folder(
@@ -301,6 +304,67 @@ test_that("prepare_run_folder respects copy_dataset", {
     obj_copy$dataset_path,
     file.path(obj_copy$fit_folder, "data.csv")
   )
+})
+
+test_that("prepare_run_folder respects copy_dataset when data=NULL and $DATA points to a real file", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  ## Build a real on-disk CSV and a model file whose $DATA points to it.
+  src_dir <- withr::local_tempdir()
+  src_csv <- file.path(src_dir, "mydata.csv")
+  writeLines(c("ID,TIME,DV,AMT,EVID,MDV,CMT", "1,0,0,100,1,1,1", "1,1,10,0,0,0,1"), src_csv)
+
+  mod0 <- create_model(route = "iv", verbose = FALSE)
+  mod_code <- change_nonmem_dataset(mod0$code, normalizePath(src_csv))
+  mod_file <- file.path(src_dir, "run.mod")
+  writeLines(mod_code, mod_file)
+  mod <- create_model_from_file(mod_file)
+  ## Drop the in-memory attribute set by create_model_from_file so the only
+  ## resolvable source is the file referenced by $DATA.
+  attr(mod, "original_data") <- NULL
+
+  ## copy_dataset = FALSE: $DATA should point to the existing CSV path,
+  ## and no copy should land in the run folder.
+  obj_no_copy <- prepare_run_folder(
+    id = "run1", model = mod, path = withr::local_tempdir(), data = NULL,
+    copy_dataset = FALSE, verbose = FALSE
+  )
+  expect_false(file.exists(file.path(obj_no_copy$fit_folder, "data.csv")))
+  expect_equal(obj_no_copy$dataset_path, normalizePath(src_csv))
+  data_line <- grep("^\\$DATA", readLines(
+    file.path(obj_no_copy$fit_folder, obj_no_copy$model_file)
+  ), value = TRUE)
+  expect_match(data_line, normalizePath(src_csv), fixed = TRUE)
+})
+
+test_that("prepare_run_folder warns and falls back to copying when copy_dataset=FALSE but only an in-memory dataset is available", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  mod <- create_model(route = "iv", verbose = FALSE)
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 1), DV = c(0, 10),
+    AMT = c(100, 0), CMT = 1, EVID = c(1, 0), MDV = c(1, 0)
+  )
+
+  ## data is an in-memory data.frame with no on-disk location: copy_dataset
+  ## = FALSE cannot be honored, so it should warn and copy into the run folder.
+  fit_path <- withr::local_tempdir()
+  expect_warning(
+    obj <- prepare_run_folder(
+      id = "run1", model = mod, path = fit_path, data = dat,
+      copy_dataset = FALSE, verbose = FALSE
+    ),
+    "copy_dataset = FALSE"
+  )
+  ## Fallback: dataset copied into run folder and $DATA points to that copy.
+  expect_true(file.exists(file.path(obj$fit_folder, "data.csv")))
+  expect_equal(obj$dataset_path, file.path(obj$fit_folder, "data.csv"))
+  data_line <- grep("^\\$DATA", readLines(
+    file.path(obj$fit_folder, obj$model_file)
+  ), value = TRUE)
+  expect_match(data_line, "data.csv", fixed = TRUE)
 })
 
 test_that("unquote_column_names strips a single pair of surrounding quotes", {
