@@ -346,11 +346,15 @@ run_nlme <- function(
       ## just return empty list for now
     )
   } else {
+    ## If $EST has FILE= (e.g. PsN's psn.ext), copy it to <stem>.ext so
+    ## pharmpy's reader (which derives the path from the model stem) can find it.
+    ensure_default_ext_file(obj$fit_folder, obj$model_file, verbose = verbose)
     ## Read results using Pharmpy and return
     if(verbose) cli::cli_process_start("Parsing results from run")
     fit <- pharmr.extra::read_modelfit_results( ## pharmr.extra drop-in replacement. Original has bug with reading SIR results
       file.path(obj$fit_folder, obj$model_file)
     )
+    
     if(verbose) cli::cli_process_done()
     if(is.null(fit)) {
       if(verbose) {
