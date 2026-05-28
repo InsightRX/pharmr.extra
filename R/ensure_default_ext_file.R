@@ -44,7 +44,14 @@ ensure_default_ext_file <- function(fit_folder, model_file, verbose = TRUE) {
     return(invisible(FALSE))
   }
 
-  file.copy(candidates, default_ext, overwrite = TRUE)
+  copied <- suppressWarnings(
+    file.copy(candidates, default_ext, overwrite = TRUE)
+  )
+  if (!isTRUE(copied)) {
+    cli::cli_abort(
+      "Failed to copy {.path {basename(candidates)}} to {.path {basename(default_ext)}} in {.path {fit_folder}}."
+    )
+  }
   if (verbose) {
     cli::cli_alert_info(
       "Copied {.path {basename(candidates)}} to {.path {basename(default_ext)}} so pharmpy can read the fit."

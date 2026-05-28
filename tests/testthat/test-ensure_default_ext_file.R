@@ -54,6 +54,20 @@ test_that("warns and does nothing when multiple non-default .ext files exist", {
   expect_false(file.exists(file.path(d, "run.ext")))
 })
 
+test_that("aborts if the underlying file.copy fails", {
+  skip_on_os("windows")  # chmod semantics differ on Windows
+  d <- withr::local_tempdir()
+  writeLines("psn-content", file.path(d, "psn.ext"))
+  ## Make the destination unwritable by removing write perms on the folder
+  Sys.chmod(d, mode = "0500")
+  withr::defer(Sys.chmod(d, mode = "0700"))  # restore so tempdir can be cleaned
+
+  expect_error(
+    ensure_default_ext_file(d, "run.mod", verbose = FALSE),
+    "Failed to copy"
+  )
+})
+
 test_that("derives default name from the model stem", {
   d <- withr::local_tempdir()
   writeLines("psn-content", file.path(d, "psn.ext"))
