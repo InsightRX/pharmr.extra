@@ -97,6 +97,45 @@ test_that("FOCE-only model: parameter estimates are unaffected by SIR patches", 
   expect_true(all(pe[theta_names] > 0))
 })
 
+## ensure_default_ext_file integration -----------------------------------------
+##
+## When `$EST FILE=psn.ext` redirects iteration output, the default `<stem>.ext`
+## is empty and pharmpy returns nothing. The wrapper must normalize the .ext
+## file BEFORE delegating to pharmpy, otherwise direct callers (and the eval /
+## sim branch of run_nlme that bypasses this wrapper differently) get a silent
+## failure. We mock pharmr::read_modelfit_results to keep this hermetic.
+
+test_that("normalizes a missing/empty <stem>.ext before delegating to pharmpy", {
+  d <- withr::local_tempdir()
+  writeLines("$PROBLEM", file.path(d, "run.mod"))
+  file.create(file.path(d, "run.ext"))  # 0 bytes, simulating FILE= override
+  writeLines("psn-content", file.path(d, "psn.ext"))
+
+  ## Make the mocked pharmpy reader trivial — we only care that the wrapper
+  ## copied psn.ext → run.ext BEFORE delegating.
+  local_mocked_bindings(
+    read_modelfit_results = function(path, ...) {
+      list(path = path, ext_lines = readLines(paste0(tools::file_path_sans_ext(path), ".ext")))
+    },
+    .package = "pharmr"
+  )
+  ## Skip the python patch (it imports pharmpy which may not be installed).
+  local_mocked_bindings(
+    .patch_pharmpy_sir_bugs = function() invisible(NULL),
+    .package = "pharmr.extra"
+  )
+
+  ## Qualify the wrapper explicitly: testthat::local_mocked_bindings() also
+  ## rebinds in `the$testing_env`, so a bare `read_modelfit_results(...)` here
+  ## resolves to pharmr's mock and bypasses our wrapper (and so
+  ## ensure_default_ext_file). The qualified call goes through the pharmr.extra
+  ## wrapper, which then delegates to the mocked pharmr function.
+  res <- pharmr.extra::read_modelfit_results(file.path(d, "run.mod"))
+
+  expect_equal(res$ext_lines, "psn-content")
+  expect_equal(readLines(file.path(d, "run.ext")), "psn-content")
+})
+
 test_that("FOCE-only model: covstep_successful is not NULL after reading", {
   skip_if_nonmem_not_available()
   local_pharmr.extra_options()
