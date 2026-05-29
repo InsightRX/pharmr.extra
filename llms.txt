@@ -180,6 +180,11 @@ MIT © InsightRX
 - [`drop_input_columns()`](https://insightrx.github.io/pharmr.extra/reference/drop_input_columns.md)
   : Drop columns from the \$INPUT record in a NONMEM model
 
+- [`ensure_default_ext_file()`](https://insightrx.github.io/pharmr.extra/reference/ensure_default_ext_file.md)
+  :
+
+  Ensure the default `.ext` file exists in a NONMEM run folder
+
 - [`estimation_options_defaults`](https://insightrx.github.io/pharmr.extra/reference/estimation_options_defaults.md)
   : List of default options for estimation method.
 
