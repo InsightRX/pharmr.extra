@@ -125,7 +125,12 @@ test_that("normalizes a missing/empty <stem>.ext before delegating to pharmpy", 
     .package = "pharmr.extra"
   )
 
-  res <- read_modelfit_results(file.path(d, "run.mod"))
+  ## Qualify the wrapper explicitly: testthat::local_mocked_bindings() also
+  ## rebinds in `the$testing_env`, so a bare `read_modelfit_results(...)` here
+  ## resolves to pharmr's mock and bypasses our wrapper (and so
+  ## ensure_default_ext_file). The qualified call goes through the pharmr.extra
+  ## wrapper, which then delegates to the mocked pharmr function.
+  res <- pharmr.extra::read_modelfit_results(file.path(d, "run.mod"))
 
   expect_equal(res$ext_lines, "psn-content")
   expect_equal(readLines(file.path(d, "run.ext")), "psn-content")
