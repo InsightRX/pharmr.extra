@@ -20,7 +20,7 @@ run_nlme(
   estimation_method = NULL,
   estimation_options = NULL,
   sir_options = NULL,
-  auto_stack_encounters = TRUE,
+  auto_stack_encounters = FALSE,
   clean = TRUE,
   as_job = FALSE,
   save_final = TRUE,

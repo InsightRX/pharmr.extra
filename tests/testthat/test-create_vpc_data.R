@@ -158,7 +158,7 @@ test_that("fix_input_after_set_dataset() swaps TIME and TAFD when both present",
     "$ERROR\nY = F + EPS(1)",
     sep = "\n"
   )
-  out <- pharmr.extra:::fix_input_after_set_dataset(code, csv_path = NULL)
+  out <- pharmr.extra:::fix_input_after_set_dataset(code)
   tokens <- pharmr.extra:::get_input_tokens(out)
   expect_equal(tokens, c("ID", "CLOCK=DROP", "PERD", "TIME", "DV"))
 })
@@ -171,7 +171,7 @@ test_that("fix_input_after_set_dataset() swaps DV and LNDV only for LTBS models"
     "$ERROR\nIPRE = LOG(F)\nY = IPRE + EPS(1)",
     sep = "\n"
   )
-  out <- pharmr.extra:::fix_input_after_set_dataset(ltbs_code, csv_path = NULL)
+  out <- pharmr.extra:::fix_input_after_set_dataset(ltbs_code)
   expect_equal(
     pharmr.extra:::get_input_tokens(out),
     c("ID", "TIME", "CONC=DROP", "DV")
@@ -184,7 +184,7 @@ test_that("fix_input_after_set_dataset() swaps DV and LNDV only for LTBS models"
     "$ERROR\nY = F + EPS(1)",
     sep = "\n"
   )
-  out2 <- pharmr.extra:::fix_input_after_set_dataset(non_ltbs_code, csv_path = NULL)
+  out2 <- pharmr.extra:::fix_input_after_set_dataset(non_ltbs_code)
   expect_equal(
     pharmr.extra:::get_input_tokens(out2),
     c("ID", "TIME", "DV", "LNDV")
@@ -194,9 +194,40 @@ test_that("fix_input_after_set_dataset() swaps DV and LNDV only for LTBS models"
 test_that("fix_input_after_set_dataset() is a no-op when no swap conditions hit", {
   code <- "$PROBLEM t\n$INPUT ID TIME DV\n$PK\n$ERROR\nY = F + EPS(1)"
   expect_identical(
-    pharmr.extra:::fix_input_after_set_dataset(code, csv_path = NULL),
+    pharmr.extra:::fix_input_after_set_dataset(code),
     code
   )
+})
+
+test_that("LTBS detection ignores LOG() in $PK covariate transforms", {
+  ## A log-transformed covariate in $PK plus an IPRED-naming `IPRE` in $ERROR
+  ## must NOT be flagged as LTBS, or DV <-> LNDV will silently swap on
+  ## non-LTBS models.
+  code <- paste(
+    "$PROBLEM t",
+    "$INPUT ID TIME DV LNDV",
+    "$PK\nLCOV = LOG(WT/70)",
+    "$ERROR\nIPRED = F\nY = F + EPS(1)",
+    sep = "\n"
+  )
+  expect_false(pharmr.extra:::detect_ltbs_in_error(code))
+  ## And the swap must not fire.
+  expect_equal(
+    pharmr.extra:::get_input_tokens(
+      pharmr.extra:::fix_input_after_set_dataset(code)
+    ),
+    c("ID", "TIME", "DV", "LNDV")
+  )
+})
+
+test_that("LTBS detection fires when LOG() appears in $ERROR", {
+  code <- paste(
+    "$ERROR",
+    "IPRE = LOG(F)",
+    "Y = IPRE + EPS(1)",
+    sep = "\n"
+  )
+  expect_true(pharmr.extra:::detect_ltbs_in_error(code))
 })
 
 
@@ -223,6 +254,22 @@ test_that("remove_record() removes every occurrence", {
   out <- pharmr.extra:::remove_record(code, "TABLE")
   expect_false(grepl("\\$TABLE", out))
   expect_true(grepl("\\$THETA", out))
+})
+
+test_that("remove_record() matches NONMEM abbreviations of the keyword", {
+  ## NONMEM accepts $EST, $ESTI, $ESTIM, ..., $ESTIMATION interchangeably.
+  ## A single call with the shortest prefix should strip every spelling.
+  code <- paste(
+    "$ESTIMATION METHOD=COND",
+    "$ESTIM PRINT=10",
+    "$ESTI MAXEVAL=0",
+    "$EST METHOD=SAEM",
+    "$THETA 1",
+    sep = "\n"
+  )
+  out <- pharmr.extra:::remove_record(code, "EST")
+  expect_false(grepl("\\$EST", out))
+  expect_true(grepl("\\$THETA 1", out))
 })
 
 test_that("add_table_record() appends a single $TABLE record", {
@@ -259,6 +306,22 @@ test_that("convert_estimation_to_simulation() replaces $EST with $SIMULATION", {
   out <- pharmr.extra:::convert_estimation_to_simulation(code, n = 50)
   expect_false(grepl("\\$EST(IMATION)?\\b", out))
   expect_match(out, "\\$SIMULATION \\([0-9]+\\) ONLYSIM NSUB=50")
+})
+
+test_that("convert_estimation_to_simulation() honours an explicit seed", {
+  code <- "$PROBLEM t\n$EST METHOD=COND\n$THETA 1"
+  out <- pharmr.extra:::convert_estimation_to_simulation(code, n = 10, seed = 42L)
+  expect_match(out, "\\$SIMULATION \\(42\\) ONLYSIM NSUB=10")
+})
+
+test_that("convert_estimation_to_simulation() draws different seeds across calls when seed=NULL", {
+  code <- "$PROBLEM t\n$EST METHOD=COND\n$THETA 1"
+  set.seed(NULL)
+  seeds <- replicate(5, {
+    out <- pharmr.extra:::convert_estimation_to_simulation(code, n = 1)
+    as.integer(sub(".*\\$SIMULATION \\(([0-9]+)\\).*", "\\1", out))
+  })
+  expect_gt(length(unique(seeds)), 1)
 })
 
 

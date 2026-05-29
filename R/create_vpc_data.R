@@ -29,7 +29,13 @@
 #' @param fix_input_heuristic If TRUE (default), detect the common
 #'   `pharmr::set_dataset()` side-effect that rewrites `$INPUT` to the CSV
 #'   headers, and rebind `TIME` -> `TAFD` and (for log-transform-both-sides
-#'   models) `DV` -> `LNDV`. Set to FALSE to leave `$INPUT` untouched.
+#'   models) `DV` -> `LNDV`. Set to FALSE to leave `$INPUT` untouched. The
+#'   LTBS detection only scans the `$ERROR` record (not the whole model) so
+#'   a `LOG()` call in a covariate transform doesn't trigger a false swap.
+#' @param seed integer seed passed to the simulation step. Default `NULL`
+#'   draws a random seed per call (so repeated `create_vpc_data()` calls
+#'   in one session aren't pinned to identical draws); supply a value for
+#'   bit-reproducible runs.
 #'
 #' @returns list with `obs` and `sim` data frames.
 #'
@@ -44,7 +50,8 @@ create_vpc_data <- function(
   verbose = FALSE,
   id = NULL,
   use_pharmpy = TRUE,
-  fix_input_heuristic = TRUE
+  fix_input_heuristic = TRUE,
+  seed = NULL
 ) {
 
   ## ---- Resolve model & dispatch nlmixr branch via the original code path ----
@@ -99,7 +106,7 @@ create_vpc_data <- function(
 
   ## ---- Optional: undo the $INPUT rewrite that pharmr::set_dataset does ----
   if(isTRUE(fix_input_heuristic)) {
-    model_code <- fix_input_after_set_dataset(model_code, clean_csv, verbose = verbose)
+    model_code <- fix_input_after_set_dataset(model_code, verbose = verbose)
   }
 
   ## ---- Apply parameter values to $THETA/$OMEGA/$SIGMA inits ----
@@ -111,8 +118,7 @@ create_vpc_data <- function(
   ## ---- Strip $COVARIANCE and existing $TABLE, then add the VPC sdtab ----
   vpc_vars <- c("ID", "TIME", "PRED", "DV", "EVID", "MDV", keep_columns)
   vpc_vars <- unique(vpc_vars)
-  model_code <- remove_record(model_code, "COVARIANCE")
-  model_code <- remove_record(model_code, "COV")  ## abbreviated form
+  model_code <- remove_record(model_code, "COV")     ## matches $COV / $COVA ... / $COVARIANCE
   model_code <- remove_record(model_code, "TABLE")
   model_code <- add_table_record(model_code, vpc_vars, file = "sdtab")
 
@@ -122,7 +128,7 @@ create_vpc_data <- function(
 
   ## ---- Build eval and sim variants ----
   eval_code <- set_estimation_maxeval_zero(model_code)
-  sim_code  <- convert_estimation_to_simulation(model_code, n = n)
+  sim_code  <- convert_estimation_to_simulation(model_code, n = n, seed = seed)
 
   ## ---- Run via run_nlme ----
   tmp_path <- file.path(
@@ -312,7 +318,7 @@ count_input_columns <- function(code) {
 #'      reference picks up the log-transformed values.
 #'
 #' @noRd
-fix_input_after_set_dataset <- function(code, csv_path, verbose = FALSE) {
+fix_input_after_set_dataset <- function(code, verbose = FALSE) {
   tokens <- get_input_tokens(code)
   if(!length(tokens)) return(code)
   names_no_drop <- sub("=.*$", "", tokens)
@@ -321,9 +327,7 @@ fix_input_after_set_dataset <- function(code, csv_path, verbose = FALSE) {
   if("TIME" %in% names_no_drop && "TAFD" %in% names_no_drop) {
     rename <- c(rename, "TIME" = "CLOCK=DROP", "TAFD" = "TIME")
   }
-  is_ltbs <- grepl("=\\s*LOG\\s*\\(", code, ignore.case = TRUE) &&
-             grepl("\\bIPRE", code, ignore.case = TRUE)
-  if(is_ltbs && "DV" %in% names_no_drop && "LNDV" %in% names_no_drop) {
+  if(detect_ltbs_in_error(code) && "DV" %in% names_no_drop && "LNDV" %in% names_no_drop) {
     rename <- c(rename, "DV" = "CONC=DROP", "LNDV" = "DV")
   }
 
@@ -342,6 +346,30 @@ fix_input_after_set_dataset <- function(code, csv_path, verbose = FALSE) {
     }
     toks
   })
+}
+
+#' TRUE iff the model's $ERROR record contains a `LOG(...)` call.
+#'
+#' Scoped to $ERROR to avoid false positives from log-transformed covariates
+#' (e.g. `LCOV = LOG(WT/70)` in $PK) — only LTBS error models should trigger
+#' the DV <-> LNDV swap in fix_input_after_set_dataset().
+#' @noRd
+detect_ltbs_in_error <- function(code) {
+  lines <- strsplit(code, "\n", fixed = TRUE)[[1]]
+  in_err <- FALSE
+  for(line in lines) {
+    body <- sub(";.*$", "", line)
+    if(grepl("^\\s*\\$ERROR\\b", body, ignore.case = TRUE)) {
+      in_err <- TRUE
+      body <- sub("^\\s*\\$ERROR\\b", "", body, ignore.case = TRUE)
+    } else if(in_err && grepl("^\\s*\\$[A-Za-z]", body)) {
+      return(FALSE)
+    }
+    if(in_err && grepl("\\bLOG\\s*\\(", body, ignore.case = TRUE)) {
+      return(TRUE)
+    }
+  }
+  FALSE
 }
 
 #' Pull $INPUT tokens out of code as a character vector (handles multi-line).
@@ -406,7 +434,11 @@ remove_record <- function(code, record_name) {
   lines <- strsplit(code, "\n", fixed = TRUE)[[1]]
   keep <- rep(TRUE, length(lines))
   in_record <- FALSE
-  pat <- paste0("^\\s*\\$", record_name, "\\b")
+  ## `[A-Za-z]*\\b` lets a short keyword match the NONMEM abbreviation chain:
+  ## e.g. record_name = "EST" matches `$EST`, `$ESTI`, `$ESTIM`, ... `$ESTIMATION`.
+  ## `\\b` between two word chars never matches, so the bare `\\b` form misses
+  ## the intermediate spellings.
+  pat <- paste0("^\\s*\\$", record_name, "[A-Za-z]*\\b")
   for(i in seq_along(lines)) {
     body <- sub(";.*$", "", lines[i])
     starts <- grepl(pat, body, ignore.case = TRUE)
@@ -441,7 +473,8 @@ add_table_record <- function(code, variables, file = "sdtab") {
 #' @noRd
 set_estimation_maxeval_zero <- function(code) {
   lines <- strsplit(code, "\n", fixed = TRUE)[[1]]
-  pat <- "^\\s*\\$EST(IMATION)?\\b"
+  ## Match $EST, $ESTI, ..., $ESTIMATION (any NONMEM-legal abbreviation).
+  pat <- "^\\s*\\$EST[A-Za-z]*\\b"
   est_idx <- grep(pat, lines, ignore.case = TRUE)
   if(!length(est_idx)) {
     return(paste0(sub("\\s+$", "", code), "\n$ESTIMATION METHOD=COND INTER MAXEVAL=0\n"))
@@ -451,7 +484,7 @@ set_estimation_maxeval_zero <- function(code) {
     if(grepl("\\bMAXEVAL\\s*=\\s*[0-9]+", body, ignore.case = TRUE)) {
       body <- sub("\\bMAXEVAL\\s*=\\s*[0-9]+", "MAXEVAL=0", body, ignore.case = TRUE)
     } else {
-      body <- sub("(\\$EST(IMATION)?\\b)", "\\1 MAXEVAL=0", body, ignore.case = TRUE)
+      body <- sub("(\\$EST[A-Za-z]*\\b)", "\\1 MAXEVAL=0", body, ignore.case = TRUE)
     }
     lines[i] <- body
   }
@@ -459,12 +492,15 @@ set_estimation_maxeval_zero <- function(code) {
 }
 
 #' Replace $ESTIMATION with $SIMULATION ONLYSIM NSUB=n.
+#' If `seed` is NULL, draws a random integer per call so VPCs aren't pinned
+#' to a single realisation across invocations.
 #' @noRd
-convert_estimation_to_simulation <- function(code, n) {
-  code <- remove_record(code, "ESTIMATION")
-  code <- remove_record(code, "EST")
-  seed <- 20260528
-  sim_line <- sprintf("$SIMULATION (%d) ONLYSIM NSUB=%d", seed, n)
+convert_estimation_to_simulation <- function(code, n, seed = NULL) {
+  code <- remove_record(code, "EST")  ## covers $EST, $ESTIM, ..., $ESTIMATION
+  if(is.null(seed)) {
+    seed <- sample.int(.Machine$integer.max, 1)
+  }
+  sim_line <- sprintf("$SIMULATION (%d) ONLYSIM NSUB=%d", as.integer(seed), n)
   paste0(sub("\\s+$", "", code), "\n", sim_line, "\n")
 }
 
