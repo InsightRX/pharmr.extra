@@ -556,7 +556,23 @@ create_model <- function(
     )
   }
 
-  ## Store the original data so prepare_run_folder() writes an exact copy
+  ## Persist an in-memory dataset to a temp CSV and point $DATA at it.
+  ## When `data` is supplied as a data.frame, pharmpy keeps the dataset in
+  ## memory and renders `$DATA DUMMYPATH` in the control stream. Writing the
+  ## (final) dataset to a CSV in the session tempdir and rewriting $DATA to that
+  ## path gives the model an on-disk dataset, which is what makes the
+  ## `run_nlme(copy_dataset = FALSE)` workflow (leave dataset in place) usable.
+  ## `original_data` is non-NULL exactly when `data` was supplied as a
+  ## data.frame; a filename input already has an on-disk dataset to point at.
+  if(tool == "nonmem" && !is.null(original_data) && !is.null(mod$dataset)) {
+    dataset_file <- tempfile(pattern = "data", fileext = ".csv")
+    write.csv(mod$dataset, dataset_file, quote = FALSE, row.names = FALSE)
+    mod <- pharmr::read_model_from_string(
+      change_nonmem_dataset(mod$code, dataset_file)
+    )
+  }
+
+  ## Store the original data so prepare_run_folder() can write an exact copy
   ## to the run folder (NONMEM reads by position, not by header name).
   ## Must be set last — pharmpy calls like set_name() create new objects
   ## that lose R attributes.
