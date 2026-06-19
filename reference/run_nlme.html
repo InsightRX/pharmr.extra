@@ -13,7 +13,7 @@ inspection of intermediate model fit."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9075</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9084</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -68,6 +68,7 @@ inspection of intermediate model fit.</p>
 <span>  estimation_options <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  sir_options <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  auto_stack_encounters <span class="op">=</span> <span class="cn">FALSE</span>,</span>
+<span>  copy_dataset <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  clean <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  as_job <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  save_final <span class="op">=</span> <span class="cn">TRUE</span>,</span>
@@ -187,6 +188,20 @@ If no decreasing TIME is detected, nothing will be done (most common case).
 This feature is useful e.g. for crossover trials when data on the same
 individual ispresent but is included in the dataset as time-after-dose and
 not actual time since first overall dose.</p></dd>
+
+
+<dt id="arg-copy-dataset">copy_dataset<a class="anchor" aria-label="anchor" href="#arg-copy-dataset"></a></dt>
+<dd><p>copy the dataset into the run folder? If <code>TRUE</code>, the
+dataset is copied into the run folder as <code>data.csv</code> and the model's <code>$DATA</code>
+record is rewritten to point to that copy. If <code>FALSE</code> (default), the dataset
+is left in its existing location and the model's <code>$DATA</code> record is left
+untouched (the caller is responsible for <code>$DATA</code> already pointing at the
+dataset correctly). <code>copy_dataset = FALSE</code> can only be honored when the
+dataset is a file on disk — i.e. <code>data</code> is supplied as a file path, or the
+model's <code>$DATA</code> record points to an existing file. If neither is the case
+(only an in-memory data frame, <code>model$dataset</code>, or original dataset is
+available), a warning is issued and the dataset is copied into the run
+folder (with <code>$DATA</code> rewritten) anyway.</p></dd>
 
 
 <dt id="arg-clean">clean<a class="anchor" aria-label="anchor" href="#arg-clean"></a></dt>

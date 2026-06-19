@@ -25,6 +25,7 @@ run_nlme(
   estimation_options = NULL,
   sir_options = NULL,
   auto_stack_encounters = FALSE,
+  copy_dataset = FALSE,
   clean = TRUE,
   as_job = FALSE,
   save_final = TRUE,
@@ -141,6 +142,20 @@ run_nlme(
   This feature is useful e.g. for crossover trials when data on the same
   individual ispresent but is included in the dataset as time-after-dose
   and not actual time since first overall dose.
+
+- copy_dataset:
+
+  copy the dataset into the run folder? If `TRUE`, the dataset is copied
+  into the run folder as `data.csv` and the model's `$DATA` record is
+  rewritten to point to that copy. If `FALSE` (default), the dataset is
+  left in its existing location and the model's `$DATA` record is left
+  untouched (the caller is responsible for `$DATA` already pointing at
+  the dataset correctly). `copy_dataset = FALSE` can only be honored
+  when the dataset is a file on disk — i.e. `data` is supplied as a file
+  path, or the model's `$DATA` record points to an existing file. If
+  neither is the case (only an in-memory data frame, `model$dataset`, or
+  original dataset is available), a warning is issued and the dataset is
+  copied into the run folder (with `$DATA` rewritten) anyway.
 
 - clean:
 

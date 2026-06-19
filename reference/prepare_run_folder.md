@@ -12,6 +12,7 @@ prepare_run_folder(
   force = FALSE,
   data = NULL,
   auto_stack_encounters = FALSE,
+  copy_dataset = TRUE,
   verbose = TRUE
 )
 ```
