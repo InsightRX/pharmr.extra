@@ -92,6 +92,14 @@ call_pharmpy_tool <- function(
     "modelsearch", "covsearch", "iivsearch", "ruvsearch",
     "amd", "bootstrap"
   )
+  req_results <- c("modelsearch", "covsearch", "iivsearch", "ruvsearch", "amd")
+  if(tool == "ruvsearch" && engine != "nonmem") {
+    cli::cli_abort(c(
+      "Pharmpy {.val ruvsearch} does not currently support nlmixr-format models.",
+      i = "Use NONMEM for {.val ruvsearch}, or run an nlmixr residual-error model comparison outside Pharmpy's {.val ruvsearch} tool."
+    ))
+  }
+  needs_native_nlmixr_results <- tool %in% req_results && engine != "nonmem"
   if(tool %in% search_tools && engine != "nonmem") {
     if(verbose) {
       cli::cli_alert_info(c(
@@ -116,8 +124,8 @@ call_pharmpy_tool <- function(
       add_default_output_tables("fit")
   }
   ## Check results, if needed rerun model
-  req_results <- c("modelsearch", "covsearch", "iivsearch", "ruvsearch", "amd")
-  if((is.null(results) && tool %in% req_results) || tool == "ruvsearch") {
+  if(((is.null(results) && tool %in% req_results) || tool == "ruvsearch") &&
+     !needs_native_nlmixr_results) {
     if(verbose)
       cli::cli_alert_info("No `results` provided, running the model first to generate `results` object.")
     results <- run_nlme(
@@ -209,6 +217,45 @@ call_pharmpy_tool <- function(
     }
   }
 
+  if(needs_native_nlmixr_results &&
+     !inherits(results, "pharmpy.workflows.results.ModelfitResults")) {
+    if(verbose) {
+      cli::cli_alert_info(c(
+        "Converting nlmixr modelfit results to Pharmpy-native results for {.val {tool}}.",
+        i = "This avoids refitting the input model before running the Pharmpy search tool."
+      ))
+    }
+    native_results <- tryCatch(
+      as_native_pharmpy_modelfit_results(results),
+      error = function(e) {
+        attr(e, "pharmr_extra_native_conversion_failed") <- TRUE
+        e
+      }
+    )
+    if(inherits(native_results, "error")) {
+      if(verbose) {
+        cli::cli_alert_warning(c(
+          "Could not convert nlmixr results to Pharmpy-native results; refitting input model.",
+          i = conditionMessage(native_results)
+        ))
+      }
+      native_results <- NULL
+    }
+    if(!is.null(native_results)) {
+      results <- native_results
+    } else {
+      if(verbose) {
+        cli::cli_alert_info(c(
+          "Generating Pharmpy-native nlmixr modelfit results for {.val {tool}}.",
+          i = "The R-shaped {.fn run_nlme} result cannot be passed to Pharmpy search tools directly."
+        ))
+      }
+      results <- withr::with_dir(run_folder, {
+        pharmr::fit(model, esttool = "nlmixr", name = "input", ncores = 1)
+      })
+    }
+  }
+
   ## prepare arguments for call
   args <- c(
     list(model = model),
@@ -232,6 +279,12 @@ call_pharmpy_tool <- function(
   }
   
   ## make the call to the Pharmpy tool
+  restore_report_available <- NULL
+  if(tool %in% search_tools && engine != "nonmem") {
+    restore_report_available <- suppress_pharmpy_reports()
+    on.exit(restore_report_available(), add = TRUE)
+  }
+
   tryCatch({
     withr::with_dir(run_folder, {
       res <- do.call(
@@ -281,4 +334,21 @@ call_pharmpy_tool <- function(
 
   res
 
+}
+
+suppress_pharmpy_reports <- function() {
+  reticulate::py_run_string("
+import pharmpy.tools.reporting as _pharmr_extra_reporting
+if not hasattr(_pharmr_extra_reporting, '_pharmr_extra_report_available'):
+    _pharmr_extra_reporting._pharmr_extra_report_available = _pharmr_extra_reporting.report_available
+_pharmr_extra_reporting.report_available = lambda results: False
+")
+  function() {
+    reticulate::py_run_string("
+import pharmpy.tools.reporting as _pharmr_extra_reporting
+if hasattr(_pharmr_extra_reporting, '_pharmr_extra_report_available'):
+    _pharmr_extra_reporting.report_available = _pharmr_extra_reporting._pharmr_extra_report_available
+    delattr(_pharmr_extra_reporting, '_pharmr_extra_report_available')
+")
+  }
 }
