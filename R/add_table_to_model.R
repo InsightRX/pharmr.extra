@@ -44,6 +44,8 @@ add_table_to_model <- function(
     )
     if(reload_dataset && !is.null(data)) {
       model <- pharmr::set_dataset(model, data)
+    } else if(!reload_dataset) {
+      model <- model$replace(dataset = reticulate::py_none())
     }
   } else {
     ## Adding tables can only be done for NONMEM datasets

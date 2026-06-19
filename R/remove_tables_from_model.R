@@ -42,6 +42,8 @@ remove_tables_from_model <- function(
       model <- pharmr::set_dataset(
         model, path_or_df = temp_csv, datatype = "nonmem"
       )
+    } else if(!reload_dataset) {
+      model <- model$replace(dataset = reticulate::py_none())
     }
   } else {
     ## Removing tables can only be done for NONMEM datasets
