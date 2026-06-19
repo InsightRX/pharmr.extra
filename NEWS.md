@@ -1,5 +1,18 @@
 # pharmr.extra (development version)
 
+* `run_nlme()` SAEM fits of nlmixr2 models no longer fail when the model was
+  modified by a pharmpy operation after `create_model()` (e.g.
+  `create_model(...) |> set_initial_estimates(...)`). Such operations return a
+  new pharmpy object that drops the SAEM-safe `nlmixr_code` attribute cached by
+  `create_model()`; `run_nlme_nlmixr()` now reapplies the residual-alias rewrite
+  to the fallback `model$code` so SAEM accepts the residual error formula.
+
+* `create_model(tool = "nlmixr2")` no longer aborts with
+  `ValueError: datainfo.path is None` when `data` is supplied as a data.frame.
+  `clean_modelfit_data()` was calling `pharmr::load_dataset()` after
+  `set_dataset()`; the reload was redundant (the dataset is already attached)
+  and failed for nlmixr2 models, whose datainfo has no on-disk path.
+
 * `create_model()` now writes a data.frame `data` argument to a CSV in the
   session tempdir and points the model's `$DATA` record at that file, instead
   of leaving pharmpy's `DUMMYPATH` placeholder. This gives the model an on-disk

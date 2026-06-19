@@ -71,13 +71,21 @@ clean_modelfit_data <- function(
     dataset_file <- tempfile(pattern = "data", fileext = ".csv")
     write.csv(data, dataset_file, quote = F, row.names = F)
 
-    ## Update dataset in model
+    ## Update dataset in model. `set_dataset()` already reads the CSV and stores
+    ## both the dataset and a properly typed (nonmem) datainfo on the model, so an
+    ## explicit `load_dataset()` is redundant. It is also unsafe for nlmixr2
+    ## models: their datainfo carries no on-disk path (the dataset is held in
+    ## memory), so `load_dataset()` re-reading from `datainfo.path` aborts with
+    ## "datainfo.path is None". Only fall back to `load_dataset()` if, for some
+    ## reason, the dataset did not get attached.
     model <- pharmr::set_dataset(
       model,
       path_or_df = dataset_file,
       datatype = "nonmem"
-    ) |>
-      pharmr::load_dataset()
+    )
+    if(is.null(model$dataset)) {
+      model <- pharmr::load_dataset(model)
+    }
 
     ## Check if model is using log-transform-both-sides
     ## Must happen AFTER set_dataset(), which resets $INPUT and datainfo.
