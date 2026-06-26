@@ -1,9 +1,10 @@
 # $TABLE: https://pkpd-info.com/NONMEM/NM_guides/$table.htm
 nonmem_reserved_variables <- c(
-  # The independent variable is always available in $TABLE, regardless of
-  # whether a literal `TIME` column appears in $INPUT (e.g. `$INPUT TAFD=TIME`
-  # renames the data column but `TIME` remains a valid $TABLE label).
-  "TIME",
+  # Reserved $INPUT labels that NONMEM always accepts in $TABLE by their
+  # canonical name, even when the data column was renamed via a typed $INPUT
+  # synonym (e.g. `$INPUT TAFD=TIME` stores the column as `TAFD` but `TIME`
+  # remains a valid $TABLE label; likewise `ID` and `DV`).
+  "ID", "TIME", "DV",
   # NONMEM system/input variables (always available in $TABLE)
   "EVID", "MDV", "CMT", "AMT", "RATE", "SS", "II", "ADDL",
   # Residual/output variables
@@ -23,20 +24,4 @@ nonmem_reserved_variables <- c(
   "NPDE",
   "NPD",
   "OBJI"
-)
-
-# Map of pharmpy `datainfo` column types to their canonical NONMEM reserved
-# $INPUT label. NONMEM lets a renamed data column be referenced in $TABLE by
-# this reserved synonym (e.g. `$INPUT TAFD=TIME` is stored by pharmpy as a
-# column named `TAFD` of type `idv`, but `TIME` is still a valid $TABLE label).
-# Used by `check_nm_table_variables()` to resolve such synonyms.
-nonmem_type_synonyms <- c(
-  "id" = "ID",
-  "idv" = "TIME",
-  "dv" = "DV",
-  "dose" = "AMT",
-  "rate" = "RATE",
-  "mdv" = "MDV",
-  "event" = "EVID",
-  "compartment" = "CMT"
 )

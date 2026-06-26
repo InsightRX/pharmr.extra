@@ -64,14 +64,12 @@ add_table_to_model <- function(
 #' 
 check_nm_table_variables <- function(model, variables, throw_error = TRUE) {
   is_data_variable <- variables %in% model$datainfo$names
-  is_data_synonym <- variables %in% get_datainfo_synonyms(model)
   is_lhs_variable <- variables %in% get_lhs_variables(model)
   is_defined_pk_parameter <- variables %in% get_defined_pk_parameters(model)
   is_eta <- variables %in% get_nm_table_etas(model)
   is_nm_reserved_variable <- variables %in% nonmem_reserved_variables
 
   is_valid <- is_data_variable |
-    is_data_synonym |
     is_lhs_variable |
     is_defined_pk_parameter |
     is_eta |
@@ -93,25 +91,6 @@ check_nm_table_variables <- function(model, variables, throw_error = TRUE) {
   invalid_variables
 }
 
-#' Reserved NONMEM $TABLE labels available via $INPUT synonyms
-#'
-#' When a data column is renamed to a non-reserved label but typed (e.g.
-#' `$INPUT TAFD=TIME` makes pharmpy store a column `TAFD` of type `idv`),
-#' NONMEM still accepts the reserved synonym (`TIME`) in $TABLE. This resolves
-#' each typed `datainfo` column to its canonical reserved label so the
-#' validator does not reject the legal synonym.
-#'
-#' @inheritParams add_table_to_model
-#' @returns character vector of reserved labels available as data synonyms.
-get_datainfo_synonyms <- function(model) {
-  types <- vapply(
-    reticulate::iterate(model$datainfo),
-    function(col) reticulate::py_to_r(col$type),
-    character(1)
-  )
-  unname(nonmem_type_synonyms[intersect(types, names(nonmem_type_synonyms))])
-}
-
 get_lhs_variables <- function(model) {
   vapply(
     reticulate::iterate(model$statements$lhs_symbols),
@@ -123,7 +102,9 @@ get_lhs_variables <- function(model) {
 get_nm_table_etas <- function(model) {
   eta_names <- model$random_variables$iiv$names
   n_etas <- length(eta_names)
-  eta_numeric_labels <- c(paste0("ETA", 1:n_etas), paste0("ETA(", 1:n_etas, ")"))
+  eta_numeric_labels <- c(
+    paste0("ETA", seq_len(n_etas)), paste0("ETA(", seq_len(n_etas), ")")
+  )
   # Requires NONMEM 7.4:
   eta_abbr_labels <- paste0(
     "ETA(", stringr::str_extract(model$random_variables$iiv$names, "(?<=_).+"), ")"
