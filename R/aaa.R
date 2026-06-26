@@ -1,5 +1,10 @@
 # $TABLE: https://pkpd-info.com/NONMEM/NM_guides/$table.htm
 nonmem_reserved_variables <- c(
+  # Reserved $INPUT labels that NONMEM always accepts in $TABLE by their
+  # canonical name, even when the data column was renamed via a typed $INPUT
+  # synonym (e.g. `$INPUT TAFD=TIME` stores the column as `TAFD` but `TIME`
+  # remains a valid $TABLE label; likewise `ID` and `DV`).
+  "ID", "TIME", "DV",
   # NONMEM system/input variables (always available in $TABLE)
   "EVID", "MDV", "CMT", "AMT", "RATE", "SS", "II", "ADDL",
   # Residual/output variables

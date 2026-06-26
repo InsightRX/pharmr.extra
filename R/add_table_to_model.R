@@ -68,11 +68,11 @@ check_nm_table_variables <- function(model, variables, throw_error = TRUE) {
   is_defined_pk_parameter <- variables %in% get_defined_pk_parameters(model)
   is_eta <- variables %in% get_nm_table_etas(model)
   is_nm_reserved_variable <- variables %in% nonmem_reserved_variables
-  
-  is_valid <- is_data_variable | 
-    is_lhs_variable | 
-    is_defined_pk_parameter | 
-    is_eta | 
+
+  is_valid <- is_data_variable |
+    is_lhs_variable |
+    is_defined_pk_parameter |
+    is_eta |
     is_nm_reserved_variable
   if (all(is_valid)) return()
   
@@ -102,7 +102,9 @@ get_lhs_variables <- function(model) {
 get_nm_table_etas <- function(model) {
   eta_names <- model$random_variables$iiv$names
   n_etas <- length(eta_names)
-  eta_numeric_labels <- c(paste0("ETA", 1:n_etas), paste0("ETA(", 1:n_etas, ")"))
+  eta_numeric_labels <- c(
+    paste0("ETA", seq_len(n_etas)), paste0("ETA(", seq_len(n_etas), ")")
+  )
   # Requires NONMEM 7.4:
   eta_abbr_labels <- paste0(
     "ETA(", stringr::str_extract(model$random_variables$iiv$names, "(?<=_).+"), ")"
