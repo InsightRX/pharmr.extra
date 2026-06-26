@@ -116,6 +116,45 @@ test_that("reload_dataset controls whether dataset is reattached", {
   expect_true(grepl("FILE=patab", out_false$code))
 })
 
+test_that("accepts reserved $INPUT synonyms (e.g. TAFD=TIME)", {
+  skip_if_nonmem_not_available()
+  dat <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0)
+  )
+  mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
+
+  # Mimic `$INPUT TAFD=TIME`: rename the idv data column TIME -> TAFD while
+  # keeping its `idv` type. Pharmpy then stores the column as TAFD, so a
+  # literal "TIME" %in% datainfo$names is FALSE.
+  reticulate::py_run_string("
+def _pharmr_extra_rename_idv(m):
+    cols = tuple(c.replace(name='TAFD') if c.type == 'idv' else c for c in m.datainfo)
+    new_di = m.datainfo.replace(columns=cols)
+    return m.replace(datainfo=new_di)
+")
+  mod2 <- reticulate::py$`_pharmr_extra_rename_idv`(mod)
+  expect_false("TIME" %in% mod2$datainfo$names)
+  expect_true("TAFD" %in% mod2$datainfo$names)
+
+  # The reserved synonym must still validate, both via the renamed column
+  # (get_datainfo_synonyms) and the reserved list.
+  expect_true("TIME" %in% get_datainfo_synonyms(mod2))
+  expect_null(
+    check_nm_table_variables(mod2, c("ID", "TIME", "DV"), throw_error = FALSE)
+  )
+  # ...and an unrelated bad variable is still rejected.
+  expect_equal(
+    check_nm_table_variables(mod2, c("TIME", "NOPE"), throw_error = FALSE),
+    "NOPE"
+  )
+})
+
 test_that("errors on invalid variables", {
   dat <- data.frame(
     ID = 1,
