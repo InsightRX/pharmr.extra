@@ -854,12 +854,16 @@ drop_input_columns <- function(model, columns) {
     if (!in_input) next
 
     for (col in columns) {
-      # Replace standalone column name (not part of an alias like DV=COL)
-      # with bare DROP. Using DROP=<col> or <col>=DROP causes NONMEM warnings
-      # for reserved names like DATE.
+      # Replace a standalone column name (not part of an alias like DV=COL)
+      # with `<col>=DROP`. The named form keeps the original column name in
+      # pharmpy's `model$dataset` (bare `DROP` makes pharmpy relabel the column
+      # `_DROP1`, `_DROP2`, ...), while the DROP flag still tells NONMEM to skip
+      # it so non-numeric columns are never float-converted. Reserved labels
+      # such as DATE may emit an NM-TRAN warning in this form, which is
+      # harmless.
       line <- gsub(
         paste0("(?<![=A-Za-z0-9_])\\b", col, "\\b(?!=)"),
-        "DROP",
+        paste0(col, "=DROP"),
         line, perl = TRUE
       )
     }
