@@ -24,25 +24,26 @@ remove_tables_from_model <- function(
       return(model)
     }
 
-    ## Reread model without tables. We deliberately don't pass `data` to
-    ## avoid Pharmpy re-parsing it; instead, reattach the original dataset
-    ## afterwards so downstream callers see the same `$dataset`.
+    ## Reread model without tables. Rather than reattaching the dataset with
+    ## pharmr::set_dataset(datatype = "nonmem") afterwards, point $DATA at a
+    ## CSV of the current dataset and let Pharmpy read it through the model's
+    ## own (table-free) $INPUT record. set_dataset(datatype = "nonmem")
+    ## rewrites $INPUT from the dataframe's columns, which drops the DROP
+    ## flags declared in $INPUT; Pharmpy then treats non-numeric DROP columns
+    ## (e.g. date/time strings) as numeric and float-converts them, raising a
+    ## DatasetError. Reading through the preserved $INPUT keeps DROP flags and
+    ## column types intact. See issue #99.
     original_dataset <- model$dataset
     code_without_tables <- remove_table_sections(model$code, file = file)
+    if(reload_dataset && !is.null(original_dataset)) {
+      temp_csv <- tempfile(pattern = "data_", fileext = ".csv")
+      write.csv(original_dataset, temp_csv, quote = FALSE, row.names = FALSE)
+      code_without_tables <- change_nonmem_dataset(code_without_tables, temp_csv)
+    }
     temp_mod <- tempfile(pattern = "tmp_mod_", fileext = '.mod')
     writeLines(code_without_tables, temp_mod)
     model <- create_model_from_file(model_file = temp_mod)
-    if(reload_dataset && !is.null(original_dataset)) {
-      ## `datatype = "nonmem"` keeps datainfo column types (id, dv, etc.)
-      ## inferred from $INPUT — without it they get reset to "unknown".
-      ## Write the dataset to a temp CSV so pharmr::set_dataset() takes the
-      ## path-based code path (mirrors create_model_from_file()).
-      temp_csv <- tempfile(pattern = "data_", fileext = ".csv")
-      write.csv(original_dataset, temp_csv, quote = FALSE, row.names = FALSE)
-      model <- pharmr::set_dataset(
-        model, path_or_df = temp_csv, datatype = "nonmem"
-      )
-    } else if(!reload_dataset) {
+    if(!reload_dataset) {
       model <- model$replace(dataset = reticulate::py_none())
     }
   } else {
