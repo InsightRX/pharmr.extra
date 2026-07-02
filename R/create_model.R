@@ -4,7 +4,13 @@
 #' functionality in pharmr/Pharmpy.
 #'
 #' @param data filename of dataset or data.frame as input to NONMEM / nlmixr.
-#' @param route route of administration, either `oral` or `iv`
+#' @param route route of administration. One of `"auto"` (default), `"oral"`,
+#' `"sc"`, `"im"`, `"extravascular"`, or `"iv"`. When `"auto"`, the route is
+#' inferred from `data` by comparing the `CMT` of dose events (`EVID=1`) to the
+#' `CMT` of observation events (`EVID=0`): if any dose compartment is not also
+#' an observation compartment (e.g. doses in `CMT=1`, observations in `CMT=2`),
+#' the route is set to `"oral"`; otherwise `"iv"`. Falls back to `"iv"` if `data`
+#' is `NULL` or the dataset lacks the required `CMT`/`EVID` columns.
 #' @param lag_time add a lag time, default is `FALSE`
 #' @param n_transit_compartments number of transit-compartments for absorption
 #' model. Default is `0`.
@@ -200,6 +206,7 @@ create_model <- function(
   ## Pick route
   if(route == "auto") {
     route <- get_route_from_data(data)
+    if(verbose) cli::cli_alert_info("Auto-detected route from data: {route}")
   }
 
   ## Read base model
@@ -561,7 +568,23 @@ create_model <- function(
     )
   }
 
-  ## Store the original data so prepare_run_folder() writes an exact copy
+  ## Persist an in-memory dataset to a temp CSV and point $DATA at it.
+  ## When `data` is supplied as a data.frame, pharmpy keeps the dataset in
+  ## memory and renders `$DATA DUMMYPATH` in the control stream. Writing the
+  ## (final) dataset to a CSV in the session tempdir and rewriting $DATA to that
+  ## path gives the model an on-disk dataset, which is what makes the
+  ## `run_nlme(copy_dataset = FALSE)` workflow (leave dataset in place) usable.
+  ## `original_data` is non-NULL exactly when `data` was supplied as a
+  ## data.frame; a filename input already has an on-disk dataset to point at.
+  if(tool == "nonmem" && !is.null(original_data) && !is.null(mod$dataset)) {
+    dataset_file <- tempfile(pattern = "data", fileext = ".csv")
+    write.csv(mod$dataset, dataset_file, quote = FALSE, row.names = FALSE)
+    mod <- pharmr::read_model_from_string(
+      change_nonmem_dataset(mod$code, dataset_file)
+    )
+  }
+
+  ## Store the original data so prepare_run_folder() can write an exact copy
   ## to the run folder (NONMEM reads by position, not by header name).
   ## Must be set last — pharmpy calls like set_name() create new objects
   ## that lose R attributes.
@@ -766,6 +789,9 @@ get_route_from_data <- function(data, default = "iv") {
     return(default)
   }
   dataset <- load_data_wrapper(data)
+  if(!all(c("EVID", "CMT") %in% names(dataset))) {
+    return(default)
+  }
   dose_cmt <- dataset |>
     dplyr::filter(.data$EVID == 1) |>
     dplyr::pull("CMT") |>
@@ -774,6 +800,9 @@ get_route_from_data <- function(data, default = "iv") {
     dplyr::filter(.data$EVID == 0) |>
     dplyr::pull("CMT") |>
     unique()
+  if(length(dose_cmt) == 0 || length(obs_cmt) == 0) {
+    return(default)
+  }
   if(length(setdiff(dose_cmt, obs_cmt)) > 0) {
     route <- "oral"
   } else {
@@ -850,12 +879,16 @@ drop_input_columns <- function(model, columns) {
     if (!in_input) next
 
     for (col in columns) {
-      # Replace standalone column name (not part of an alias like DV=COL)
-      # with bare DROP. Using DROP=<col> or <col>=DROP causes NONMEM warnings
-      # for reserved names like DATE.
+      # Replace a standalone column name (not part of an alias like DV=COL)
+      # with `<col>=DROP`. The named form keeps the original column name in
+      # pharmpy's `model$dataset` (bare `DROP` makes pharmpy relabel the column
+      # `_DROP1`, `_DROP2`, ...), while the DROP flag still tells NONMEM to skip
+      # it so non-numeric columns are never float-converted. Reserved labels
+      # such as DATE may emit an NM-TRAN warning in this form, which is
+      # harmless.
       line <- gsub(
         paste0("(?<![=A-Za-z0-9_])\\b", col, "\\b(?!=)"),
-        "DROP",
+        paste0(col, "=DROP"),
         line, perl = TRUE
       )
     }

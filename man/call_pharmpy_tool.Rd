@@ -15,7 +15,8 @@ call_pharmpy_tool(
   verbose = TRUE,
   force = FALSE,
   options = list(),
-  remove_tables = TRUE
+  remove_tables = TRUE,
+  uppercase_mfl = TRUE
 )
 }
 \arguments{
@@ -43,6 +44,13 @@ https://pharmpy.github.io/latest/mfl.html.}
 
 \item{remove_tables}{if \code{TRUE} (default), removes all \verb{$TABLE} records from the model
 before passing it to the Pharmpy tool.}
+
+\item{uppercase_mfl}{if \code{TRUE} (default), uppercases the model's \verb{$INPUT} /
+datainfo / dataset column names and the \code{options$search_space} string before
+calling the Pharmpy tool. Works around Pharmpy's MFL parser, which
+unconditionally uppercases every identifier in a search_space and then fails
+the case-sensitive lookup against datainfo (see
+\url{https://github.com/pharmpy/pharmpy/issues/4576}). Set to \code{FALSE} to disable.}
 }
 \value{
 fit object

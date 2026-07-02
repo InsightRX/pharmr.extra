@@ -11,13 +11,19 @@ create_pharmpy_model_from_list <- function(model_obj) {
   ## Strip trailing blank lines/whitespace that cause pharmpy DatasetError
   code <- sub("[\\s\\n]+$", "", code, perl = TRUE)
   if(!is.null(model_obj$dataset) && nrow(model_obj$dataset) > 0) {
-    tmpfile <- tempfile()
+    tmpfile <- tempfile(fileext = ".csv")
     write.csv(model_obj$dataset, tmpfile, quote=F, row.names=F)
     code <- stringr::str_replace(
       code,
-      "\\$DATA ([\\/a-zA-Z0-9\\.]*)",
+      "\\$DATA\\s+\\S+",
       paste0("$DATA ", tmpfile)
     )
   }
   model <- pharmr::read_model_from_string(code)
+  if(!is.null(model_obj$dataset) && is.null(model$dataset)) {
+    model <- pharmr::set_dataset(
+      model, path_or_df = tmpfile, datatype = "nonmem"
+    )
+  }
+  model
 }

@@ -8,39 +8,65 @@ and combine into proper format for VPC}
 create_vpc_data(
   fit = NULL,
   model = NULL,
+  data = NULL,
   parameters = NULL,
   keep_columns = c(),
   n = 100,
   verbose = FALSE,
   id = NULL,
-  use_pharmpy = TRUE
+  use_pharmpy = TRUE,
+  fix_input_heuristic = TRUE,
+  seed = NULL
 )
 }
 \arguments{
-\item{fit}{fit object from \code{pharmr::run_modelfit()}. Optional, can supply a
-\code{model} and \code{parameters} argument}
+\item{fit}{fit object from \code{pharmr::run_modelfit()}. Optional; alternative
+to \code{model} + \code{parameters}.}
 
-\item{model}{pharmpy model object. Optional, can also only supply just a
-\code{fit} object}
+\item{model}{Either a Pharmpy model object (its \verb{$code} is read), a
+character vector of NONMEM model code, or a path to a \code{.mod} file.}
 
-\item{parameters}{list of parameter estimates, e.g. \code{list(CL = 5, V = 50)}.
-Optional, can also supply a \code{fit} object.}
+\item{data}{Path to the NONMEM-ready CSV. Optional; if missing, the
+function reads \verb{$DATA} from the model code.}
 
-\item{keep_columns}{character vector of column names in original dataset
-to keep in the output dataset}
+\item{parameters}{Named list of parameter inits, e.g.
+\code{list(THETA_1 = 0.23, OMEGA_1_1 = 0.097, SIGMA_1_1 = 1)}. Optional.}
 
-\item{n}{number of simulation iterations to generate}
+\item{keep_columns}{character vector of column names in the original
+dataset to keep in the output.}
+
+\item{n}{number of simulation iterations.}
 
 \item{verbose}{verbose output?}
 
-\item{id}{TODO}
+\item{id}{run id used as folder name. Defaults to a random name.}
 
-\item{use_pharmpy}{TODO}
+\item{use_pharmpy}{retained for backward compatibility; controls whether
+\code{PRED}/\code{TAD} are transferred from obs to sim during post-processing.}
+
+\item{fix_input_heuristic}{If TRUE (default), detect the common
+\code{pharmr::set_dataset()} side-effect that rewrites \verb{$INPUT} to the CSV
+headers, and rebind \code{TIME} -> \code{TAFD} and (for log-transform-both-sides
+models) \code{DV} -> \code{LNDV}. Set to FALSE to leave \verb{$INPUT} untouched. The
+LTBS detection only scans the \verb{$ERROR} record (not the whole model) so
+a \code{LOG()} call in a covariate transform doesn't trigger a false swap.}
+
+\item{seed}{integer seed passed to the simulation step. Default \code{NULL}
+draws a random seed per call (so repeated \code{create_vpc_data()} calls
+in one session aren't pinned to identical draws); supply a value for
+bit-reproducible runs.}
 }
 \value{
-TODO
+list with \code{obs} and \code{sim} data frames.
 }
 \description{
-Run a simulation based on supplied parameters estimates,
-and combine into proper format for VPC
+This rewrite of \code{create_vpc_data()} removes the Pharmpy/pharmr dependency
+from every step that runs before \code{run_nlme()}. The only Pharmpy touch is
+reading \code{model$code} as a string when a Pharmpy model is supplied. All
+subsequent manipulation of the NONMEM code (parameter updates, record
+removal/insertion, $EST -> $SIM conversion) and the input dataset
+(sanitisation of string-typed columns) is done in pure R, so the
+Python/R <-> reticulate serialisation cannot reject a value that NONMEM
+itself would accept. \code{run_nlme()} is still used to actually invoke nmfe,
+and post-processing of \code{obs}/\code{sim} is identical to the original.
 }

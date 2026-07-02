@@ -42,7 +42,13 @@ create_model(
 )
 }
 \arguments{
-\item{route}{route of administration, either \code{oral} or \code{iv}}
+\item{route}{route of administration. One of \code{"auto"} (default), \code{"oral"},
+\code{"sc"}, \code{"im"}, \code{"extravascular"}, or \code{"iv"}. When \code{"auto"}, the route is
+inferred from \code{data} by comparing the \code{CMT} of dose events (\code{EVID=1}) to the
+\code{CMT} of observation events (\code{EVID=0}): if any dose compartment is not also
+an observation compartment (e.g. doses in \code{CMT=1}, observations in \code{CMT=2}),
+the route is set to \code{"oral"}; otherwise \code{"iv"}. Falls back to \code{"iv"} if \code{data}
+is \code{NULL} or the dataset lacks the required \code{CMT}/\code{EVID} columns.}
 
 \item{lag_time}{add a lag time, default is \code{FALSE}}
 

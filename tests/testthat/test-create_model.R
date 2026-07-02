@@ -3,6 +3,22 @@ test_that("create_model call without arguments works", {
   expect_s3_class(mod, "pharmpy.model.external.nonmem.model.Model")
 })
 
+test_that("create_model points $DATA at an on-disk temp CSV for data.frame input", {
+  test_data <- data.frame(
+    ID = 1, TIME = c(0, 1, 2), DV = c(0, 10, 5),
+    AMT = c(100, 0, 0), CMT = 1, EVID = c(1, 0, 0), MDV = c(1, 0, 0)
+  )
+  mod <- create_model(route = "iv", data = test_data, verbose = FALSE, auto_init = FALSE)
+
+  data_line <- grep("^\\$DATA", strsplit(mod$code, "\n")[[1]], value = TRUE)
+  ## $DATA must point to a real file, not pharmpy's DUMMYPATH placeholder
+  expect_no_match(data_line, "DUMMYPATH", fixed = TRUE)
+  data_path <- sub("^\\$DATA\\s+(\\S+).*", "\\1", data_line)
+  expect_true(file.exists(data_path))
+  ## the on-disk dataset round-trips to the model's dataset
+  expect_equal(nrow(read.csv(data_path)), nrow(mod$dataset))
+})
+
 test_that("create_model basic functionality works", {
   # Create minimal test dataset
   test_data <- data.frame(
@@ -36,6 +52,33 @@ test_that("create_model basic functionality works", {
   expect_true(grepl("POP_CL", mod_iv$code))
   expect_true(!grepl("POP_MAT", mod_iv$code))
   expect_true(!grepl("POP_KA", mod_iv$code))
+})
+
+test_that("route = 'auto' infers route from CMT/EVID in data", {
+  iv_data <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0)
+  )
+  oral_data <- iv_data
+  oral_data$CMT <- c(1, 2, 2)
+
+  expect_equal(get_route_from_data(iv_data), "iv")
+  expect_equal(get_route_from_data(oral_data), "oral")
+  expect_equal(get_route_from_data(NULL), "iv")
+  expect_equal(get_route_from_data(iv_data[, c("ID", "TIME", "DV")]), "iv")
+
+  mod_iv <- create_model(data = iv_data, verbose = FALSE)
+  expect_s3_class(mod_iv, "pharmpy.model.external.nonmem.model.Model")
+  expect_true(!grepl("POP_MAT", mod_iv$code))
+
+  mod_oral <- create_model(data = oral_data, verbose = FALSE)
+  expect_s3_class(mod_oral, "pharmpy.model.external.nonmem.model.Model")
+  expect_true(grepl("POP_MAT", mod_oral$code))
 })
 
 test_that("model features are correctly added", {

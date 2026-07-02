@@ -386,3 +386,89 @@ test_that("get_initial_estimates_from_data gives same result regardless of AMT c
   expect_equal(result_numeric$V,  result_factor$V,     tolerance = 1e-6)
   expect_equal(result_numeric$CL, result_factor$CL,    tolerance = 1e-6)
 })
+
+test_that("get_initial_estimates_from_data is robust to EVID=2 rows (other-event/reset rows)", {
+  # NONMEM datasets often contain EVID=2 rows (other-event, e.g. covariate
+  # changes). They are not dose events and must not increment the per-subject
+  # dose counter. Previously, cumsum(EVID) inflated the counter on EVID=2 rows
+  # so the observation lookup couldn't find a matching AMT, the resulting V/CL
+  # were length-0, and unlist() silently dropped them — producing a degenerate
+  # `c(weight = ...)` vector. The pooled result then carried a `weight`
+  # parameter, which downstream pharmpy rejected as `POP_weight`.
+  with_evid2 <- data.frame(
+    ID   = c(1, 1, 1, 1, 1),
+    TIME = c(0, 0.5, 1, 4, 8),
+    DV   = c(0, 0,   100, 50, 25),
+    EVID = c(1, 2,   0,   0,  0),  # EVID=2 row sits between dose and obs
+    MDV  = c(1, 1,   0,   0,  0),
+    AMT  = c(1000, 0, 0,  0,  0)
+  )
+  without_evid2 <- data.frame(
+    ID   = c(1, 1, 1, 1),
+    TIME = c(0, 1, 4, 8),
+    DV   = c(0, 100, 50, 25),
+    EVID = c(1, 0, 0, 0),
+    MDV  = c(1, 0, 0, 0),
+    AMT  = c(1000, 0, 0, 0)
+  )
+
+  result_with    <- get_initial_estimates_from_data(with_evid2,    n_cmt = 1)
+  result_without <- get_initial_estimates_from_data(without_evid2, n_cmt = 1)
+
+  expect_named(result_with, c("V", "CL"))
+  expect_false("weight" %in% names(result_with))
+  expect_equal(result_with$V,  result_without$V,  tolerance = 1e-6)
+  expect_equal(result_with$CL, result_without$CL, tolerance = 1e-6)
+})
+
+test_that("get_initial_estimates_from_individual_data returns V/CL/weight even when no dose precedes observations", {
+  # Subject has observations before any EVID=1 dose record (e.g. baseline /
+  # pre-dose samples in a screening period). With cumsum(EVID==1), those obs
+  # are bucketed under dose_nr = 0, for which no AMT row exists. The function
+  # must return a full V/CL/weight vector (with NA V/CL) rather than a
+  # partial one that unlist() would collapse to just `weight`.
+  test_data <- data.frame(
+    ID   = 1,
+    TIME = c(0, 1, 4),
+    DV   = c(5, 7, 6),
+    EVID = c(0, 0, 0),
+    MDV  = c(0, 0, 0),
+    AMT  = c(0, 0, 0)
+  )
+
+  estimates <- get_initial_estimates_from_individual_data(test_data)
+
+  expect_named(estimates, c("V", "CL", "weight"))
+  expect_true(is.na(estimates[["V"]]))
+  expect_true(is.na(estimates[["CL"]]))
+  expect_equal(estimates[["weight"]], 0)
+})
+
+test_that("get_initial_estimates_from_data never returns a 'weight' parameter, even with degenerate subjects", {
+  # Mix of a richly sampled subject and a subject whose observations sit
+  # before any dose (no AMT match). The pooled result must contain only V and
+  # CL — any spurious 'weight' entry here breaks set_initial_estimates with
+  # ValueError: Parameters not found in model: ['POP_weight'].
+  rich <- data.frame(
+    ID   = 1,
+    TIME = c(0, 1, 4, 8),
+    DV   = c(0, 100, 50, 25),
+    EVID = c(1, 0, 0, 0),
+    MDV  = c(1, 0, 0, 0),
+    AMT  = c(1000, 0, 0, 0)
+  )
+  pre_dose_only <- data.frame(
+    ID   = 2,
+    TIME = c(0, 1, 4),
+    DV   = c(5, 7, 6),
+    EVID = c(0, 0, 0),
+    MDV  = c(0, 0, 0),
+    AMT  = c(0, 0, 0)
+  )
+
+  result <- get_initial_estimates_from_data(rbind(rich, pre_dose_only), n_cmt = 1)
+
+  expect_named(result, c("V", "CL"))
+  expect_false("weight" %in% names(result))
+  expect_true(all(unlist(result) > 0))
+})
