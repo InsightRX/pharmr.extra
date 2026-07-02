@@ -88,7 +88,13 @@ functionality in pharmr/Pharmpy.</p>
 
 
 <dl><dt id="arg-route">route<a class="anchor" aria-label="anchor" href="#arg-route"></a></dt>
-<dd><p>route of administration, either <code>oral</code> or <code>iv</code></p></dd>
+<dd><p>route of administration. One of <code>"auto"</code> (default), <code>"oral"</code>,
+<code>"sc"</code>, <code>"im"</code>, <code>"extravascular"</code>, or <code>"iv"</code>. When <code>"auto"</code>, the route is
+inferred from <code>data</code> by comparing the <code>CMT</code> of dose events (<code>EVID=1</code>) to the
+<code>CMT</code> of observation events (<code>EVID=0</code>): if any dose compartment is not also
+an observation compartment (e.g. doses in <code>CMT=1</code>, observations in <code>CMT=2</code>),
+the route is set to <code>"oral"</code>; otherwise <code>"iv"</code>. Falls back to <code>"iv"</code> if <code>data</code>
+is <code>NULL</code> or the dataset lacks the required <code>CMT</code>/<code>EVID</code> columns.</p></dd>
 
 
 <dt id="arg-lag-time">lag_time<a class="anchor" aria-label="anchor" href="#arg-lag-time"></a></dt>
