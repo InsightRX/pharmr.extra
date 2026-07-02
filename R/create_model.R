@@ -4,7 +4,13 @@
 #' functionality in pharmr/Pharmpy.
 #'
 #' @param data filename of dataset or data.frame as input to NONMEM / nlmixr.
-#' @param route route of administration, either `oral` or `iv`
+#' @param route route of administration. One of `"auto"` (default), `"oral"`,
+#' `"sc"`, `"im"`, `"extravascular"`, or `"iv"`. When `"auto"`, the route is
+#' inferred from `data` by comparing the `CMT` of dose events (`EVID=1`) to the
+#' `CMT` of observation events (`EVID=0`): if any dose compartment is not also
+#' an observation compartment (e.g. doses in `CMT=1`, observations in `CMT=2`),
+#' the route is set to `"oral"`; otherwise `"iv"`. Falls back to `"iv"` if `data`
+#' is `NULL` or the dataset lacks the required `CMT`/`EVID` columns.
 #' @param lag_time add a lag time, default is `FALSE`
 #' @param n_transit_compartments number of transit-compartments for absorption
 #' model. Default is `0`.
@@ -200,6 +206,7 @@ create_model <- function(
   ## Pick route
   if(route == "auto") {
     route <- get_route_from_data(data)
+    if(verbose) cli::cli_alert_info("Auto-detected route from data: {route}")
   }
 
   ## Read base model
@@ -770,6 +777,9 @@ get_route_from_data <- function(data, default = "iv") {
     return(default)
   }
   dataset <- load_data_wrapper(data)
+  if(!all(c("EVID", "CMT") %in% names(dataset))) {
+    return(default)
+  }
   dose_cmt <- dataset |>
     dplyr::filter(.data$EVID == 1) |>
     dplyr::pull("CMT") |>
@@ -778,6 +788,9 @@ get_route_from_data <- function(data, default = "iv") {
     dplyr::filter(.data$EVID == 0) |>
     dplyr::pull("CMT") |>
     unique()
+  if(length(dose_cmt) == 0 || length(obs_cmt) == 0) {
+    return(default)
+  }
   if(length(setdiff(dose_cmt, obs_cmt)) > 0) {
     route <- "oral"
   } else {
