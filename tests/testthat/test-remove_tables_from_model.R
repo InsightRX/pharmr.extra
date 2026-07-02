@@ -256,6 +256,37 @@ test_that("preserves dataset when removing tables", {
   expect_equal(out$dataset, mod$dataset, ignore_attr = TRUE)
 })
 
+test_that("preserves non-numeric DROP columns when removing tables (#99)", {
+  local_pharmr.extra_options()
+  dat <- data.frame(
+    ID = c(1, 1, 1, 2, 2, 2),
+    TIME = c(0, 1, 2, 0, 1, 2),
+    DV = c(0, 10, 5, 0, 12, 6),
+    AMT = c(100, 0, 0, 100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0, 1, 0, 0),
+    MDV = c(1, 0, 0, 1, 0, 0),
+    # Non-numeric date/time-of-day columns NONMEM ignores via $INPUT DROP.
+    # These crash if the dataset round-trip loses the DROP flag and pharmpy
+    # tries to float-convert them.
+    VISITDATE = c("08/12/2011", "08/13/2011", "08/14/2011",
+                  "09/01/2011", "09/02/2011", "09/03/2011"),
+    CLOCK = c("9:00", "10:00", "11:00", "9:00", "10:00", "11:00")
+  )
+  mod <- create_model(
+    route = "iv", data = dat, tables = c("fit", "parameters"),
+    drop_input = c("VISITDATE", "CLOCK"), verbose = FALSE
+  )
+
+  # Removing tables must not raise a DatasetError on the non-numeric columns:
+  out <- expect_no_error(remove_tables_from_model(model = mod, file = NULL))
+
+  expect_length(get_tables_in_model_code(out$code), 0)
+  # Dataset is still materializable and keeps the non-numeric columns intact:
+  expect_false(is.null(out$dataset))
+  expect_true(all(c("VISITDATE", "CLOCK") %in% names(out$dataset)))
+})
+
 test_that("reload_dataset = FALSE skips reattaching dataset", {
   local_pharmr.extra_options()
   dat <- data.frame(

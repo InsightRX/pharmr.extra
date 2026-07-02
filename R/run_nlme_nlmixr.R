@@ -46,11 +46,19 @@ run_nlme_nlmixr <- function(
   ## create_vpc_data_nlmixr() pick it up when the saved fit is re-used.
   if(!is.null(data)) attr(model, "original_data") <- fit_data
 
-  ## Use the SAEM-safe code cached by create_model(); fall back to the
-  ## pharmpy-generated $code verbatim for models built outside create_model().
-  ## Note: pharmpy's default residual-alias pattern is not SAEM-compatible,
-  ## so SAEM fits on a BYO model will hit the upstream nlmixr2 error.
-  model_code <- attr(model, "nlmixr_code") %||% model$code
+  ## Use the SAEM-safe code cached by create_model(). That attribute is dropped
+  ## whenever a pharmpy operation is applied to the model after create_model()
+  ## (e.g. `create_model(...) |> set_initial_estimates(...)`), and is absent for
+  ## models built outside create_model(). In those cases fall back to the
+  ## pharmpy-generated $code, but apply the same residual-alias rewrite so SAEM
+  ## fits still work: pharmpy's default `Y ~ add(add_error) + prop(prop_error)`
+  ## pattern (with `add_error`/`prop_error` assigned in model({})) is rejected by
+  ## nlmixr2's SAEM. inline_nlmixr_residual_aliases() is a no-op when the pattern
+  ## is absent (ltbs, hand-written models). Note: a `scale_observations` rewrite
+  ## cached by create_model() cannot be recovered here; re-run create_model()
+  ## rather than mutating the model if scaling is in play.
+  model_code <- attr(model, "nlmixr_code") %||%
+    inline_nlmixr_residual_aliases(model$code)
 
   ## Build a fresh run folder (mirrors NONMEM layout — dataset.csv +
   ## run.R holding the nlmixr2 function).
@@ -89,7 +97,7 @@ run_nlme_nlmixr <- function(
     sink(type = "output", split = TRUE)
     close(log_con)
   }, add = TRUE)
-  raw_fit <- do.call(nlmixr2::nlmixr2, fit_args)
+  raw_fit <- do.call(nlmixr2est::nlmixr2, fit_args)
   sink(type = "message")
   sink(type = "output", split = TRUE)
   close(log_con)

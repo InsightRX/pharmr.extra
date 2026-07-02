@@ -38,6 +38,12 @@
 #' @export
 read_modelfit_results <- function(path, ...) {
   .patch_pharmpy_sir_bugs()
+  ## When `$ESTIMATION FILE=...` (e.g. PsN's `psn.ext`) redirects iteration
+  ## output, pharmpy still derives the path it reads from the model stem and
+  ## returns nothing on the empty default. Normalize here so every caller
+  ## (run_nlme, direct user calls, downstream tools) benefits — not just the
+  ## ones that go through the non-eval branch of run_nlme.
+  ensure_default_ext_file(dirname(path), basename(path), verbose = FALSE)
   pharmr::read_modelfit_results(path, ...)
 }
 

@@ -11,8 +11,8 @@
 #'
 #' @param model pharmpy model object or NONMEM model code (character) or path
 #' to NONMEM model file.
-#' @param data filename of dataset or data.frame as input to NONMEM / nlmixr. 
-#' Optional, can also be included in `model` object (if specified as pharmpy 
+#' @param data filename of dataset or data.frame as input to NONMEM / nlmixr.
+#' Optional, can also be included in `model` object (if specified as pharmpy
 #' model object).
 #' @param tables acharacter vector of which default tables
 #' to add, options are `fit` and `parameters`. Default is NULL,
@@ -54,7 +54,7 @@
 #' between 300 and 10000 (suggested to use 1000 by default). `niter` should be
 #' 1 or higher (suggest to use 1 by default).
 #' @param auto_stack_encounters only invoked if `data` argument supplied as
-#' a data.frame, not if a pharmpy model object is supplied without `data` or 
+#' a data.frame, not if a pharmpy model object is supplied without `data` or
 #' when `data` is a filename.
 #' Detects if TIME within an individual is
 #' decreasing from one record to another, which NONMEM cannot handle.
@@ -66,6 +66,17 @@
 #' This feature is useful e.g. for crossover trials when data on the same
 #' individual ispresent but is included in the dataset as time-after-dose and
 #' not actual time since first overall dose.
+#' @param copy_dataset copy the dataset into the run folder? If `TRUE`, the
+#' dataset is copied into the run folder as `data.csv` and the model's `$DATA`
+#' record is rewritten to point to that copy. If `FALSE` (default), the dataset
+#' is left in its existing location and the model's `$DATA` record is left
+#' untouched (the caller is responsible for `$DATA` already pointing at the
+#' dataset correctly). `copy_dataset = FALSE` can only be honored when the
+#' dataset is a file on disk — i.e. `data` is supplied as a file path, or the
+#' model's `$DATA` record points to an existing file. If neither is the case
+#' (only an in-memory data frame, `model$dataset`, or original dataset is
+#' available), a warning is issued and the dataset is copied into the run
+#' folder (with `$DATA` rewritten) anyway.
 #' @param clean clean up run folder after NONMEM execution?
 #' @param as_job run as RStudio job?
 #' @param save_final after running the model, should a file `final.mod` be created
@@ -113,7 +124,8 @@ run_nlme <- function(
   estimation_method = NULL,
   estimation_options = NULL,
   sir_options = NULL,
-  auto_stack_encounters = TRUE,
+  auto_stack_encounters = FALSE,
+  copy_dataset = FALSE,
   clean = TRUE,
   as_job = FALSE,
   save_final = TRUE,
@@ -127,10 +139,16 @@ run_nlme <- function(
 
   time_start <- Sys.time()
   
+  ## An in-memory data.frame has no on-disk "existing location" to reference,
+  ## so it must always be written into the run folder regardless of
+  ## `copy_dataset` (otherwise $DATA would point at the ephemeral tempfile
+  ## created just below).
+  data_in_memory <- inherits(data, "data.frame")
+
   ## Make sure `data` is pointing to a file. This is to avoid issue with
   ## Pharmpy trying to parse the data.frame. `data` may also be NULL, in
-  ## which case `prepare_run_folder()` falls back to `model$dataset` or the
-  ## $DATA section of the model code.
+  ## which case `prepare_run_folder()` resolves the dataset from the model's
+  ## $DATA record or `model$dataset`.
   if(!is.null(data)) {
     if(inherits(data, "data.frame")) {
       datafile <- tempfile(pattern = "data_", fileext = ".csv")
@@ -139,12 +157,8 @@ run_nlme <- function(
     } else if(!inherits(data, "character")) {
       cli::cli_abort("`data` is of unknown type.")
     }
-  } else if (!is.null(model$dataset)) {
-    data <- model$dataset
-    datafile <- tempfile(pattern = "data_", fileext = ".csv")
-    write.csv(data, datafile, quote = FALSE, row.names = FALSE)
   }
-  
+
   ## Preserve R attributes across pharmpy calls (which create new Python objects)
   original_data <- attr(model, "original_data")
   model <- validate_model(model, data = data)
@@ -238,6 +252,7 @@ run_nlme <- function(
     data = data,
     force = force,
     auto_stack_encounters = auto_stack_encounters,
+    copy_dataset = copy_dataset || data_in_memory,
     verbose = verbose
   )
 

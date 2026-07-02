@@ -192,6 +192,7 @@ run_sim <- function(
       data = new_dataset_file,
       id = id,
       force = TRUE,
+      copy_dataset = TRUE,
       auto_stack_encounters = FALSE,
       verbose = FALSE
     )

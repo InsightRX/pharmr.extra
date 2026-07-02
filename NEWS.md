@@ -1,5 +1,40 @@
 # pharmr.extra (development version)
 
+* `run_nlme()` SAEM fits of nlmixr2 models no longer fail when the model was
+  modified by a pharmpy operation after `create_model()` (e.g.
+  `create_model(...) |> set_initial_estimates(...)`). Such operations return a
+  new pharmpy object that drops the SAEM-safe `nlmixr_code` attribute cached by
+  `create_model()`; `run_nlme_nlmixr()` now reapplies the residual-alias rewrite
+  to the fallback `model$code` so SAEM accepts the residual error formula.
+
+* `create_model(tool = "nlmixr2")` no longer aborts with
+  `ValueError: datainfo.path is None` when `data` is supplied as a data.frame.
+  `clean_modelfit_data()` was calling `pharmr::load_dataset()` after
+  `set_dataset()`; the reload was redundant (the dataset is already attached)
+  and failed for nlmixr2 models, whose datainfo has no on-disk path.
+
+* `create_model()` now writes a data.frame `data` argument to a CSV in the
+  session tempdir and points the model's `$DATA` record at that file, instead
+  of leaving pharmpy's `DUMMYPATH` placeholder. This gives the model an on-disk
+  dataset, which is required to use the `run_nlme(copy_dataset = FALSE)`
+  workflow (NONMEM models only; filename input already has an on-disk dataset).
+
+* `copy_dataset = FALSE` can only be honored when the dataset is a file on
+  disk (supplied via `data` or referenced by the model's `$DATA` record). When
+  only an in-memory dataset is available (a passed data frame, `model$dataset`,
+  or the original dataset), a warning is issued and the dataset is copied into
+  the run folder (with `$DATA` rewritten) as a fallback.
+* `copy_dataset = FALSE` now leaves the model's `$DATA` record untouched
+  instead of rewriting it to the dataset's absolute path. Combined with not
+  copying the dataset into the run folder, the model's original data reference
+  is preserved verbatim. (`$DATA` is still rewritten when `copy_dataset = TRUE`,
+  i.e. when the dataset is placed into the run folder as `data.csv`.)
+* `run_nlme(data = NULL, copy_dataset = FALSE)` now correctly leaves the
+  dataset in its existing location when the model's `$DATA` record points to a
+  real file. Previously the dataset was always copied into the run folder
+  because `run_nlme()` materialised `model$dataset` into a tempfile before
+  reaching `prepare_run_folder()`, and `prepare_run_folder()` preferred the
+  in-memory dataset over the on-disk $DATA path.
 * `update_parameters()` now also accepts a raw `nlmixr2FitCore` / `nlmixr2FitData`
   object — useful when fitting outside `run_nlme()`. Both diagonal and
   off-diagonal omega elements are extracted and named per pharmpy's
