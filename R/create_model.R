@@ -411,10 +411,15 @@ create_model <- function(
       add_sir(options = sir_options)
   }
 
-  ## MU referencing?
-  apply_mu <- (isTRUE(mu_reference) ||
-    (identical(mu_reference, "auto") && "saem" %in% tolower(estimation_method))) &&
-    tool == "nonmem"
+  ## MU referencing? Pharmpy supports MU-referencing for both NONMEM and
+  ## nlmixr2 backends. For nlmixr2 SAEM the rewrite is critical for stability
+  ## — pharmpy emits `mu_n <- log(POP_X); X <- exp(ETA_X + mu_n)` which keeps
+  ## the parameter on log scale during the MCMC E-step, preventing the M-step
+  ## from drifting positive THETAs through zero (the source of the lsoda
+  ## warning cascade and POP_* divergence we used to see on the admiral
+  ## SAEM run).
+  apply_mu <- isTRUE(mu_reference) ||
+    (identical(mu_reference, "auto") && "saem" %in% tolower(estimation_method))
   if(apply_mu && !pharmr::has_mu_reference(mod)) {
     mod <- pharmr::mu_reference_model(mod)
   }
@@ -586,6 +591,13 @@ create_model <- function(
   if(!is.null(original_data)) {
     attr(mod, "original_data") <- original_data
   }
+  ## For nlmixr, stash the stacked/standard-name dataset instead — rxode2
+  ## references columns by name and cannot auto-stack encounters, so the raw
+  ## pre-stacking input would conflate periods in a crossover trial and drive
+  ## SAEM into the lsoda step-limit cascade.
+  if(tool == "nlmixr" && inherits(data, "data.frame")) {
+    attr(mod, "original_data") <- data
+  }
 
   ## For nlmixr models, cache an SAEM-safe rewrite of the generated R code as
   ## an attribute so run_nlme() / run_sim() can use it verbatim. Pharmpy emits
@@ -595,7 +607,7 @@ create_model <- function(
   ## internal state). NB: subsequent pharmpy operations on this model will
   ## drop this attribute; re-run create_model() if the model is modified.
   if(tool == "nlmixr") {
-    nlmixr_code <- inline_nlmixr_residual_aliases(mod$code)
+    nlmixr_code <- make_nlmixr_saem_safe(mod$code)
     if(!is.null(scale_observations)) {
       nlmixr_code <- inject_nlmixr_scaling(nlmixr_code, scale_observations)
     }

@@ -116,9 +116,9 @@ set_iiv <- function(mod, iiv, iiv_type = "exp") {
     iiv_goal <- names(iiv)[!stringr::str_detect(names(iiv), "~")]
     iiv_corr <- names(iiv)[stringr::str_detect(names(iiv), "~")]
     has_corr <- unique(unlist(stringr::str_split(iiv_corr, "~")))
-    to_remove <- setdiff(current, iiv_goal)
     to_reset <- intersect(iiv_goal, current)
     to_add <- setdiff(iiv_goal, current)
+
     map <- data.frame( # build a map for each parameter, whether it needs to be reset or not
       name = c(to_add, to_reset),
       reset = c(rep(FALSE, length(to_add)), rep(TRUE, length(to_reset)))

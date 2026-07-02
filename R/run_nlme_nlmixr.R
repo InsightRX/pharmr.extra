@@ -25,6 +25,7 @@ run_nlme_nlmixr <- function(
   save_summary = TRUE,
   save_final = TRUE,
   clean = TRUE,
+  mu_reference = "auto",
   verbose = TRUE
 ) {
   if(!requireNamespace("nlmixr2", quietly = TRUE)) {
@@ -36,6 +37,29 @@ run_nlme_nlmixr <- function(
 
   time_start <- Sys.time()
 
+  ## MU-referencing — critical for nlmixr2 SAEM stability. Pharmpy's
+  ## mu_reference_model() rewrites `CL <- POP_CL * exp(ETA_CL)` as
+  ## `mu_1 <- log(POP_CL); CL <- exp(ETA_CL + mu_1)`, putting the parameter
+  ## walk on log scale so the M-step can't drift positive THETAs negative.
+  ## Idempotent (the `!has_mu_reference` check guards re-application).
+  est_for_mu <- estimation_method %||% tryCatch(
+    model$execution_steps$to_dataframe()$method,
+    error = function(e) NULL
+  )
+  is_saem <- !is.null(est_for_mu) && "saem" %in% tolower(est_for_mu)
+  is_mu_ref <- isTRUE(pharmr::has_mu_reference(model))
+  if((isTRUE(mu_reference) || (identical(mu_reference, "auto") && is_saem)) && !is_mu_ref) {
+    if(verbose) cli::cli_alert_info("Applying mu-referencing to model.")
+    model <- pharmr::mu_reference_model(model)
+    ## The mu-ref rewrite changes model$code, so invalidate any cached
+    ## SAEM-safe code (it was computed against the un-mu-referenced form).
+    attr(model, "nlmixr_code") <- NULL
+  } else if(isFALSE(mu_reference) && is_saem && !is_mu_ref) {
+    cli::cli_warn(
+      "nlmixr2 SAEM benefits significantly from mu-referencing — without it the M-step can drift positive THETAs through zero. Consider {.code mu_reference = \"auto\"}."
+    )
+  }
+
   ## Resolve dataset: prefer explicit `data`, then `attr(model, 'original_data')`,
   ## then `model$dataset`. nlmixr2 wants a data.frame in memory.
   fit_data <- resolve_nlmixr_data(model, data)
@@ -46,19 +70,47 @@ run_nlme_nlmixr <- function(
   ## create_vpc_data_nlmixr() pick it up when the saved fit is re-used.
   if(!is.null(data)) attr(model, "original_data") <- fit_data
 
-  ## Use the SAEM-safe code cached by create_model(). That attribute is dropped
-  ## whenever a pharmpy operation is applied to the model after create_model()
-  ## (e.g. `create_model(...) |> set_initial_estimates(...)`), and is absent for
-  ## models built outside create_model(). In those cases fall back to the
-  ## pharmpy-generated $code, but apply the same residual-alias rewrite so SAEM
-  ## fits still work: pharmpy's default `Y ~ add(add_error) + prop(prop_error)`
-  ## pattern (with `add_error`/`prop_error` assigned in model({})) is rejected by
-  ## nlmixr2's SAEM. inline_nlmixr_residual_aliases() is a no-op when the pattern
-  ## is absent (ltbs, hand-written models). Note: a `scale_observations` rewrite
-  ## cached by create_model() cannot be recovered here; re-run create_model()
-  ## rather than mutating the model if scaling is in play.
+  ## Use the SAEM-safe code cached by create_model() when present; otherwise
+  ## re-apply the residual-alias cleanup + residual-bound enforcement on
+  ## $code. The cached attribute can be lost across subsequent pharmpy ops
+  ## (e.g. update_parameters), and models built outside create_model() never
+  ## had it. Without this fallback SAEM hits `endpoint 'Y' for saem cannot
+  ## locate the residual error(s) correctly` (alias issue) or drifts the
+  ## residual σ negative (unbounded-init issue).
   model_code <- attr(model, "nlmixr_code") %||%
-    inline_nlmixr_residual_aliases(model$code)
+    make_nlmixr_saem_safe(model$code)
+
+  ## For SAEM only: rewrite the pharmpy MU-referenced form into the
+  ## nlmixr2-idiomatic log-in-ini idiom. Pharmpy's `mu_<n> <- log(POP_<X>)`
+  ## form keeps POP_X on natural scale in `ini()`, which nlmixr2 SAEM walks
+  ## directly — so POP_X drifts through zero and lsoda floods. The log-in-ini
+  ## form (`lpop_<X> <- log(<init>)`; `<x> <- exp(ETA_<X> + lpop_<X>)`) walks
+  ## the parameter on log scale, which is what nlmixr2 SAEM expects.
+  ## Skipped for FOCEi (where it isn't needed; pharmpy's MU-ref form fits
+  ## cleanly under deterministic gradient descent).
+  ##
+  ## Detect SAEM from either the explicit estimation_method arg or the
+  ## model's existing execution_steps (set by create_model).
+  est_resolved <- estimation_method %||% tryCatch(
+    model$execution_steps$to_dataframe()$method,
+    error = function(e) NULL
+  )
+  is_saem_run <- !is.null(est_resolved) &&
+    "saem" %in% tolower(as.character(est_resolved))
+  log_param_map <- character(0)
+  if(is_saem_run) {
+    res <- apply_nlmixr2_log_param(model_code)
+    model_code <- res$code
+    log_param_map <- res$name_map
+    if(length(log_param_map) > 0) {
+      attr(model, "log_param_map") <- log_param_map
+      if(verbose) {
+        cli::cli_alert_info(
+          "Applied log-in-ini rewrite for SAEM: {.val {paste(names(log_param_map), '->', log_param_map)}}"
+        )
+      }
+    }
+  }
 
   ## Build a fresh run folder (mirrors NONMEM layout — dataset.csv +
   ## run.R holding the nlmixr2 function).
@@ -86,22 +138,16 @@ run_nlme_nlmixr <- function(
     cli::cli_process_start(paste0("Starting nlmixr2 run in ", fit_folder))
   }
   log_path <- file.path(fit_folder, output_file)
-  fit_args <- list(object = nlmixr_fn, data = fit_data, est = est)
-  if(!is.null(control)) fit_args$control <- control
-  ## Send output to both a log file and the console:
-  log_con <- file(log_path, open = "wt")
-  sink(log_con, type = "output", split = TRUE)
-  sink(log_con, type = "message")
-  on.exit({
-    sink(type = "message")
-    sink(type = "output", split = TRUE)
-    close(log_con)
-  }, add = TRUE)
-  raw_fit <- do.call(nlmixr2est::nlmixr2, fit_args)
-  sink(type = "message")
-  sink(type = "output", split = TRUE)
-  close(log_con)
-  on.exit()
+  lsoda_log_path <- file.path(fit_folder, "run_lsoda.log")
+  raw_fit <- run_nlmixr2_in_subprocess(
+    fn = nlmixr_fn,
+    data = fit_data,
+    est = est,
+    control = control,
+    log_path = log_path,
+    lsoda_log_path = lsoda_log_path,
+    verbose = verbose
+  )
   if(verbose) cli::cli_process_done()
 
   ## Build a uniform fit object (pharmpy-shaped).
@@ -120,9 +166,13 @@ run_nlme_nlmixr <- function(
   final_model <- update_parameters(model, fit)
   if(!is.null(final_model)) {
     if(!is.null(data)) attr(final_model, "original_data") <- fit_data
+    ## update_parameters() returns a fresh pharmpy object — re-cache the
+    ## SAEM-safe code so any later run_nlme()/run_sim() on the final model
+    ## doesn't fall back to the raw alias pattern.
+    attr(final_model, "nlmixr_code") <- make_nlmixr_saem_safe(final_model$code)
     attr(fit, "final_model") <- final_model
     if(save_final) {
-      writeLines(final_model$code, file.path(fit_folder, "final.R"))
+      writeLines(attr(final_model, "nlmixr_code"), file.path(fit_folder, "final.R"))
     }
   }
 
@@ -148,6 +198,73 @@ run_nlme_nlmixr <- function(
   }
 
   fit
+}
+
+#' Fit an nlmixr2 model in a child R process and capture all output
+#'
+#' `nlmixr2`/`rxode2` ODE warnings (notably the `EE:[lsoda] / intdy --`
+#' cascade) are emitted by C/Fortran code that writes directly to OS-level
+#' stdout/stderr, bypassing R's `sink()`. Running in-process with
+#' `sink(type = "message")` only catches R-level messages and warnings, so
+#' those lsoda lines stream to the user's terminal but never reach the
+#' run.log. We instead fit in a child R process via [callr::r()] with
+#' `stderr = "2>&1"`, which redirects the child's OS-level FDs into the
+#' parent so we can route each line ourselves.
+#'
+#' Output routing: each captured line is sorted in real time:
+#'   * lsoda/intdy/`@(lsoda.c:` lines → `run_lsoda.log` (these can run into
+#'     the thousands during SAEM exploration and would otherwise swamp the
+#'     main log)
+#'   * everything else (iteration trace, status messages, R warnings) →
+#'     `run.log`
+#'   * if `verbose = TRUE`, non-lsoda lines are also echoed to the parent
+#'     console (preserves the split-to-console feel of the old sink path)
+#'
+#' @noRd
+run_nlmixr2_in_subprocess <- function(fn, data, est, control, log_path,
+                                      lsoda_log_path, verbose) {
+  if(!requireNamespace("callr", quietly = TRUE)) {
+    cli::cli_abort(
+      c("Package {.pkg callr} is required to run nlmixr2 with full output capture.",
+        i = "Install with {.code install.packages(\"callr\")}.")
+    )
+  }
+
+  ## Open both log files for the lifetime of the fit. They are closed on
+  ## exit even if the child errors.
+  main_con  <- file(log_path,       open = "wt")
+  lsoda_con <- file(lsoda_log_path, open = "wt")
+  on.exit({ close(main_con); close(lsoda_con) }, add = TRUE)
+
+  ## Pattern matching anything that should go to the lsoda log instead of
+  ## the main log. Covers all three forms we've observed:
+  ##   "unhandled error message: EE:[lsoda] ..."
+  ##   "intdy -- t = ... illegal ..."
+  ##   " @(lsoda.c:<lineno>"  (the trailing source-location line)
+  lsoda_re <- "EE:\\[?lsoda|^\\s*intdy --|^\\s*@\\(lsoda\\.c"
+  route_line <- function(line) {
+    if(grepl(lsoda_re, line, perl = TRUE)) {
+      writeLines(line, lsoda_con)
+    } else {
+      writeLines(line, main_con)
+      if(isTRUE(verbose)) cat(line, "\n", sep = "")
+    }
+  }
+
+  callr::r(
+    func = function(fn, data, est, control) {
+      ## Bring nlmixr2's DSL helpers (ini/model) into the child's search
+      ## path so the parsed model function evaluates the same as in-process.
+      suppressPackageStartupMessages(library(nlmixr2est))
+      fit_args <- list(object = fn, data = data, est = est)
+      if(!is.null(control)) fit_args$control <- control
+      do.call(nlmixr2est::nlmixr2, fit_args)
+    },
+    args = list(fn = fn, data = data, est = est, control = control),
+    stderr = "2>&1",
+    callback = route_line,
+    spinner = FALSE
+  )
 }
 
 #' Resolve dataset for an nlmixr fit
@@ -211,8 +328,27 @@ as_pharmpy_shaped_fit <- function(raw_fit, model, input_data = NULL) {
   ## Use the shared extraction helper so block-omega off-diagonals
   ## (pharmpy parameter name IIV_X_IIV_Y) are also picked up. The helper
   ## handles ETA_X NaN-row filtering and pharmpy-name mapping for us.
+  ## Also applies the lpop_X → POP_X = exp(lpop_X) back-transform when the
+  ## model was rewritten into the log-in-ini idiom for SAEM.
   parameter_estimates <- nlmixr_parameter_estimates(raw_fit, model = model)
   if(is.null(parameter_estimates)) parameter_estimates <- numeric(0)
+
+  ## Back-transform SEs when the log-in-ini rewrite was applied. nlmixr2
+  ## reports SE on the same scale as Estimate (i.e. log scale for lpop_X).
+  ## Apply delta method: SE(exp(X)) ≈ exp(X) · SE(X) = POP_value · SE_log.
+  log_param_map <- attr(model, "log_param_map") %||% character(0)
+  if(length(log_param_map) > 0 && length(se_fixed) > 0) {
+    for(lpop_name in names(log_param_map)) {
+      if(lpop_name %in% names(se_fixed)) {
+        pop_name <- unname(log_param_map[[lpop_name]])
+        se_lpop <- se_fixed[[lpop_name]]
+        names(se_fixed)[names(se_fixed) == lpop_name] <- pop_name
+        if(!is.na(se_lpop) && pop_name %in% names(parameter_estimates)) {
+          se_fixed[pop_name] <- parameter_estimates[[pop_name]] * se_lpop
+        }
+      }
+    }
+  }
 
   ## Build standard_errors and relative_standard_errors aligned with
   ## parameter_estimates by name. nlmixr2 reports SEs only for fixed effects;
@@ -376,6 +512,33 @@ find_observation_rows <- function(data) {
   NULL
 }
 
+#' Rewrite pharmpy-emitted nlmixr code into a SAEM-safe form
+#'
+#' Composes the SAEM-safety transforms applied to pharmpy's nlmixr output:
+#'   1. [inline_nlmixr_residual_aliases()] — collapse `add_error`/`prop_error`
+#'      indirection so the residual terms in `~` reference `ini()` params
+#'      directly.
+#'   2. [enforce_residual_bounds()] — stamp `c(0, init, Inf)` on the
+#'      residual-error params so SAEM can't drift them negative.
+#'   3. [enforce_theta_bounds()] — stamp `c(0, init, Inf)` on unbounded
+#'      positive-init THETAs so SAEM's M-step can't push them through zero.
+#'   4. [apply_ipred_guard()] — wire pharmpy's `IPREDADJ` floor-guard into
+#'      `Y` so proportional/combined residuals don't collapse at IPRED == 0.
+#'
+#' Each transform is a no-op when its expected pattern isn't present, so this
+#' is safe to apply unconditionally on any pharmpy-emitted nlmixr code.
+#'
+#' @noRd
+make_nlmixr_saem_safe <- function(code) {
+  apply_ipred_guard(
+    enforce_theta_bounds(
+      enforce_residual_bounds(
+        inline_nlmixr_residual_aliases(code)
+      )
+    )
+  )
+}
+
 #' Inline pharmpy's residual-error aliases for SAEM compatibility
 #'
 #' Pharmpy's nlmixr converter always emits the residual block as
@@ -407,6 +570,40 @@ inline_nlmixr_residual_aliases <- function(code) {
   }
   add_val  <- trimws(sub("^\\s*add_error\\s*<-\\s*",  "", lines[add_idx]))
   prop_val <- trimws(sub("^\\s*prop_error\\s*<-\\s*", "", lines[prop_idx]))
+
+  ## nlmixr2's SAEM parser rejects expressions inside add()/prop() — each must
+  ## be a bare `ini()` parameter. The `use_template = TRUE` path emits
+  ## `add_error <- RUV_ADD*W` with `W <- 1` defined inside model({}), which
+  ## stays a multiplication after the alias substitution. Simplify
+  ## `<param>*<var>` (or `<var>*<param>`) when `<var>` is assigned a numeric
+  ## constant in the same code (so RUV_ADD*W with W=1 collapses to RUV_ADD).
+  const_assigns <- regmatches(
+    lines,
+    regexec("^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*<-\\s*(-?[0-9.eE+-]+)\\s*$", lines)
+  )
+  const_map <- list()
+  for(m in const_assigns) {
+    if(length(m) == 3) {
+      val <- suppressWarnings(as.numeric(m[[3]]))
+      if(!is.na(val)) const_map[[m[[2]]]] <- val
+    }
+  }
+  simplify_alias <- function(expr) {
+    m <- regmatches(expr,
+                    regexec("^\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*\\*\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*$",
+                            expr))[[1]]
+    if(length(m) != 3) return(expr)
+    lhs_const <- const_map[[m[[2]]]]
+    rhs_const <- const_map[[m[[3]]]]
+    if(!is.null(lhs_const) && lhs_const == 1) return(m[[3]])
+    if(!is.null(rhs_const) && rhs_const == 1) return(m[[2]])
+    if(!is.null(lhs_const) && lhs_const == 0) return("0")
+    if(!is.null(rhs_const) && rhs_const == 0) return("0")
+    expr
+  }
+  add_val  <- simplify_alias(add_val)
+  prop_val <- simplify_alias(prop_val)
+
   parts <- character(0)
   if(add_val  != "0") parts <- c(parts, paste0("add(",  add_val,  ")"))
   if(prop_val != "0") parts <- c(parts, paste0("prop(", prop_val, ")"))
@@ -415,6 +612,335 @@ inline_nlmixr_residual_aliases <- function(code) {
   lines[formula_idx] <- paste0(indent, "Y ~ ", paste(parts, collapse = " + "))
   lines <- lines[-c(add_idx, prop_idx)]
   paste(lines, collapse = "\n")
+}
+
+#' Stamp `c(0, init, Inf)` bounds on residual-error params in nlmixr ini()
+#'
+#' Pharmpy emits THETAs with explicit `c(lower, init, upper)` bounds but
+#' typically leaves the residual-error params unbounded — e.g.
+#' \preformatted{
+#'   sigma1 <- 0.01     # additive
+#'   sigma  <- 0.09     # proportional
+#' }
+#' nlmixr2's SAEM is gradient-free and treats unbounded params as truly
+#' unbounded, so `sigma1` can drift to negative values during the E-step.
+#' Once σ goes negative the likelihood inverts sign, ETAs explode, and the
+#' ODE solver gets driven into unphysical states (the source of the
+#' `EE:[lsoda] / intdy --` warning cascade). pharmpy's downstream
+#' `update_parameters()` also refuses to ingest the resulting negative inits
+#' because every THETA has lower bound 0.
+#'
+#' This function scans the `ini({...})` block for any unbounded
+#' `name <- <numeric>` line whose `name` appears inside an `add(...)` or
+#' `prop(...)` call in the model formula (i.e. it's a residual-error param)
+#' and rewrites it as `name <- c(0, <numeric>, Inf)`.
+#'
+#' Run *after* [inline_nlmixr_residual_aliases()] so the residual params
+#' show up as bare identifiers inside `add()`/`prop()` (not as `add_error`
+#' aliases). Returns the input unchanged if no such params are found.
+#'
+#' @noRd
+enforce_residual_bounds <- function(code) {
+  lines <- strsplit(code, "\n", fixed = TRUE)[[1]]
+  ini_start <- grep("^\\s*ini\\(", lines)
+  if(length(ini_start) == 0) return(code)
+  ini_close <- grep("^\\s*\\}\\)\\s*$", lines)
+  ini_close <- ini_close[ini_close > ini_start[1]]
+  if(length(ini_close) == 0) return(code)
+  ini_end <- ini_close[1]
+
+  ## Collect identifiers used inside add(...) / prop(...) in the Y formula
+  y_idx <- grep("^\\s*Y\\s*~", lines)
+  if(length(y_idx) == 0) return(code)
+  residual_refs <- character(0)
+  call_re <- "(?:add|prop)\\(([^)]+)\\)"
+  for(idx in y_idx) {
+    calls <- regmatches(lines[idx], gregexpr(call_re, lines[idx], perl = TRUE))[[1]]
+    for(call in calls) {
+      inside <- sub("^[a-z]+\\(", "", call)
+      inside <- sub("\\)$", "", inside)
+      ## Split on operators / whitespace to grab identifier tokens
+      tokens <- strsplit(inside, "[*+\\-/\\s]+", perl = TRUE)[[1]]
+      idents <- tokens[grepl("^[A-Za-z_][A-Za-z0-9_]*$", tokens)]
+      residual_refs <- c(residual_refs, idents)
+    }
+  }
+  residual_refs <- unique(residual_refs)
+  if(length(residual_refs) == 0) return(code)
+
+  ## Wrap unbounded numeric assignments inside ini({...})
+  bound_re <- "^(\\s*)([A-Za-z_][A-Za-z0-9_]*)\\s*<-\\s*(-?[0-9.eE+-]+)\\s*$"
+  changed <- FALSE
+  for(i in seq(ini_start[1], ini_end)) {
+    m <- regmatches(lines[i], regexec(bound_re, lines[i]))[[1]]
+    if(length(m) == 4 && m[[3]] %in% residual_refs) {
+      ## guard: skip if init is already non-positive (would invert the bound)
+      val <- suppressWarnings(as.numeric(m[[4]]))
+      if(is.na(val) || val <= 0) next
+      lines[i] <- paste0(m[[2]], m[[3]], " <- c(0, ", m[[4]], ", Inf)")
+      changed <- TRUE
+    }
+  }
+  if(!changed) return(code)
+  paste(lines, collapse = "\n")
+}
+
+#' Stamp `c(0, init, Inf)` bounds on unbounded positive-init THETAs
+#'
+#' Pharmpy's NONMEM backend emits `$THETA (0, init)` for population
+#' parameters, but its nlmixr2 backend emits the bare `POP_CL <- init` form —
+#' nlmixr2 SAEM treats unbounded params as truly unbounded, so the M-step can
+#' push `POP_CL` (or any other PK theta) through zero into negative values.
+#' Once that happens the structural model produces non-physical predictions
+#' (e.g. negative CL means concentrations grow without bound), lsoda fails to
+#' integrate, and the fit diverges (admiral SAEM on this codebase: POP_CL
+#' crosses zero at iteration ~25 and reaches -7.7M by iteration 100).
+#'
+#' Scan the `ini({...})` block for any `name <- <strictly-positive numeric>`
+#' line whose `name` is NOT already handled as a residual param by
+#' [enforce_residual_bounds()], and rewrite as `name <- c(0, init, Inf)`.
+#' Skips lines that already have bounds (`c(...)`, `fixed(...)`) and skips
+#' negative inits to preserve intentional sign conventions.
+#'
+#' @noRd
+enforce_theta_bounds <- function(code) {
+  lines <- strsplit(code, "\n", fixed = TRUE)[[1]]
+  ini_start <- grep("^\\s*ini\\(", lines)
+  if(length(ini_start) == 0) return(code)
+  ini_close <- grep("^\\s*\\}\\)\\s*$", lines)
+  ini_close <- ini_close[ini_close > ini_start[1]]
+  if(length(ini_close) == 0) return(code)
+  ini_end <- ini_close[1]
+
+  bound_re <- "^(\\s*)([A-Za-z_][A-Za-z0-9_]*)\\s*<-\\s*(-?[0-9.eE+-]+)\\s*$"
+  changed <- FALSE
+  for(i in seq(ini_start[1], ini_end)) {
+    m <- regmatches(lines[i], regexec(bound_re, lines[i]))[[1]]
+    if(length(m) != 4) next
+    val <- suppressWarnings(as.numeric(m[[4]]))
+    if(is.na(val) || val <= 0) next  # leave negative/zero inits alone
+    lines[i] <- paste0(m[[2]], m[[3]], " <- c(0, ", m[[4]], ", Inf)")
+    changed <- TRUE
+  }
+  if(!changed) return(code)
+  paste(lines, collapse = "\n")
+}
+
+#' Wire pharmpy's `IPREDADJ` floor-guard into `Y`
+#'
+#' For proportional and combined residual error, pharmpy emits a floor-guard
+#' block of the form
+#' \preformatted{
+#'   IPRED <- A_CENTRAL/VC
+#'   if (0 == IPRED) {
+#'       IPREDADJ <- 2.225e-16
+#'   } else {
+#'       IPREDADJ <- IPRED
+#'   }
+#'   Y <- IPRED        # <-- bug: should be IPREDADJ
+#'   Y ~ prop(sigma)
+#' }
+#' followed by `Y <- IPRED` — so `IPREDADJ` is declared but never used. With
+#' `Y ~ prop(sigma)` against `Y = IPRED`, the residual variance collapses to
+#' 0 wherever IPRED is 0 (e.g. before absorption, or for extreme ETAs during
+#' SAEM's E-step). The likelihood inverts, ETAs blow up, lsoda gets driven
+#' into unphysical states, and the `EE:[lsoda] / intdy --` warning cascade
+#' floods stderr — what 0.0.0.9078's subprocess capture now lands in run.log.
+#'
+#' Rewrite `Y <- IPRED` to `Y <- IPREDADJ` when the guard block is present
+#' (detected by `IPREDADJ <- IPRED` in the else branch). No-op when no guard
+#' block exists (additive RUV — pharmpy correctly omits the block there).
+#'
+#' @noRd
+apply_ipred_guard <- function(code) {
+  lines <- strsplit(code, "\n", fixed = TRUE)[[1]]
+  if(!any(grepl("^\\s*IPREDADJ\\s*<-\\s*IPRED\\s*$", lines))) return(code)
+  y_re <- "^(\\s*)Y\\s*<-\\s*IPRED\\s*$"
+  y_idx <- grep(y_re, lines)
+  if(length(y_idx) == 0) return(code)
+  for(i in y_idx) {
+    indent <- sub("\\S.*$", "", lines[i])
+    lines[i] <- paste0(indent, "Y <- IPREDADJ")
+  }
+  paste(lines, collapse = "\n")
+}
+
+#' Rewrite pharmpy MU-referenced code into the nlmixr2-idiomatic log-in-ini form
+#'
+#' Pharmpy's `mu_reference_model()` emits the syntactic MU-reference form
+#' \preformatted{
+#'   ini({
+#'     POP_CL <- c(0, 5.41, Inf)        # natural scale
+#'   })
+#'   model({
+#'     mu_1 <- log(POP_CL)
+#'     CL <- exp(ETA_CL + mu_1)
+#'   })
+#' }
+#' which is what NONMEM's BAYES/IMP/SAEM methods require but is *not* what
+#' nlmixr2 SAEM needs: nlmixr2 SAEM walks whatever scale `ini()` declares,
+#' so `POP_CL` is proposed on natural scale and can drift through zero —
+#' producing the `EE:[lsoda] / intdy --` warning cascade and OFV = Inf.
+#'
+#' nlmixr2's own documentation (https://nlmixr2.org/articles/) recommends
+#' the "transform-then-exponentiate" idiom — log-scale parameter declared
+#' directly in `ini()`:
+#' \preformatted{
+#'   ini({
+#'     lpop_CL <- log(5.41)             # log scale
+#'   })
+#'   model({
+#'     CL <- exp(ETA_CL + lpop_CL)
+#'   })
+#' }
+#' On the admiral SAEM example this drops the lsoda count from ~9k to 0,
+#' SAEM converges in <10 iterations instead of oscillating for 100, and
+#' OFV improves from 207 to 64.
+#'
+#' Detects each `mu_<n> <- log(POP_<X>)` line in `model({})`, looks up
+#' `POP_<X>` in `ini({...})`, and rewrites both blocks. Returns a list with
+#' `code` (transformed source) and `name_map` (named character vector
+#' `c(lpop_CL = "POP_CL", lpop_VC = "POP_VC", ...)`) so the caller can stash
+#' the map on the model attribute and `nlmixr_parameter_estimates()` can
+#' reverse the rename + apply `exp()` to fit values when the user reads
+#' `fit$parameter_estimates`.
+#'
+#' No-op (returns input + empty map) when the expected pattern isn't
+#' present — e.g. on FOCEi-bound models that never get mu-referenced, or on
+#' hand-written models.
+#'
+#' @noRd
+apply_nlmixr2_log_param <- function(code) {
+  lines <- strsplit(code, "\n", fixed = TRUE)[[1]]
+  name_map <- character(0)
+
+  ## Locate ini({...}) bounds.
+  ini_start <- grep("^\\s*ini\\(", lines)
+  if(length(ini_start) == 0) return(list(code = code, name_map = name_map))
+  ini_close <- grep("^\\s*\\}\\)\\s*$", lines)
+  ini_close <- ini_close[ini_close > ini_start[1]]
+  if(length(ini_close) == 0) return(list(code = code, name_map = name_map))
+  ini_end <- ini_close[1]
+
+  ## Numeric init extractor: handles bare `<num>`, `c(<lower>, <init>)`,
+  ## `c(<lower>, <init>, <upper>)`, and `fixed(<val>)`. Returns a list with
+  ## `init` (numeric or NA) and `is_fixed` (logical).
+  extract_init <- function(rhs) {
+    rhs <- trimws(rhs)
+    if(grepl("^fixed\\(", rhs)) {
+      val <- suppressWarnings(as.numeric(sub("^fixed\\(\\s*(.+?)\\s*\\).*$", "\\1", rhs)))
+      return(list(init = val, is_fixed = TRUE))
+    }
+    m <- regmatches(rhs,
+                    regexec("^c\\(\\s*[^,]+\\s*,\\s*(-?[0-9.eE+-]+)(\\s*,\\s*[^)]+)?\\s*\\)$", rhs))[[1]]
+    if(length(m) >= 2 && nzchar(m[[2]])) {
+      return(list(init = suppressWarnings(as.numeric(m[[2]])), is_fixed = FALSE))
+    }
+    list(init = suppressWarnings(as.numeric(rhs)), is_fixed = FALSE)
+  }
+
+  ini_lines_to_drop <- integer(0)
+  model_lines_to_drop <- integer(0)
+
+  ## ============================================================
+  ## PASS 1: Mu-referenced THETAs.
+  ## Pattern: `mu_<n> <- log(POP_X)` in model({}) — typically paired with
+  ## `<var> <- exp(ETA_X + mu_n)`. Rewrite POP_X (in ini) to lpop_X and
+  ## substitute mu_n references in model.
+  ## ============================================================
+  mu_re <- "^(\\s*)mu_([A-Za-z0-9_]+)\\s*<-\\s*log\\(\\s*([A-Za-z_][A-Za-z0-9_]*)\\s*\\)\\s*$"
+  mu_idx <- grep(mu_re, lines)
+  for(i in mu_idx) {
+    m <- regmatches(lines[i], regexec(mu_re, lines[i]))[[1]]
+    suffix  <- m[[3]]
+    pop_var <- m[[4]]
+    mu_name <- paste0("mu_", suffix)
+    lpop_name <- paste0("lpop_", sub("^POP_", "", pop_var))
+
+    pop_re <- paste0("^(\\s*)", pop_var, "\\s*<-\\s*(.+?)\\s*$")
+    pop_idx <- grep(pop_re, lines[seq(ini_start[1], ini_end)])
+    if(length(pop_idx) != 1) next
+    pop_idx <- pop_idx + ini_start[1] - 1L
+    pm <- regmatches(lines[pop_idx], regexec(pop_re, lines[pop_idx]))[[1]]
+    info <- extract_init(pm[[3]])
+    if(is.na(info$init) || info$init <= 0) next
+
+    if(info$is_fixed) {
+      ## Fixed mu-referenced: collapse `exp(ETA + mu_n)` to a constant-ish
+      ## form. Easiest path: keep POP_X in ini as `fixed(<val>)` but also
+      ## inline mu_n into the exp(). Avoid mis-handling here — defer to
+      ## the safer "leave alone" branch.
+      next
+    }
+
+    lines[pop_idx] <- paste0(pm[[2]], lpop_name, " <- log(", info$init, ")")
+    ref_pattern <- paste0("\\b", mu_name, "\\b")
+    for(j in seq(ini_end + 1L, length(lines))) {
+      if(grepl(ref_pattern, lines[j])) {
+        lines[j] <- gsub(ref_pattern, lpop_name, lines[j])
+      }
+    }
+    model_lines_to_drop <- c(model_lines_to_drop, i)
+    name_map[[lpop_name]] <- pop_var
+  }
+
+  ## ============================================================
+  ## PASS 2: Non-mu-referenced THETAs.
+  ## After pass 1, remaining `POP_X <- <init>` lines in ini may still be
+  ## referenced in model({}) via simple `<lhs> <- POP_X` assignments
+  ## (typical for THETAs without IIV, e.g. POP_MAT). Without rewriting,
+  ## nlmixr2 SAEM walks POP_X on natural scale and can drift it negative.
+  ##   * `POP_X <- fixed(<val>)` → inline `<val>` into the model ref and
+  ##     remove POP_X from ini (nlmixr2 SAEM has trouble with fixed-via-
+  ##     indirection: it integrates MAT through POP_MAT in a way that
+  ##     destabilises the M-step even though POP_MAT itself is fixed).
+  ##   * `POP_X <- <positive numeric|c(...)>` → convert to lpop_X form and
+  ##     rewrite `<lhs> <- POP_X` to `<lhs> <- exp(lpop_X)`, add to map.
+  ## ============================================================
+  pop_re_full <- "^(\\s*)(POP_[A-Za-z0-9_]+)\\s*<-\\s*(.+?)\\s*$"
+  ## scan ini block (skip lines we already rewrote in pass 1)
+  for(i in seq(ini_start[1], ini_end)) {
+    if(i %in% ini_lines_to_drop) next
+    pm <- regmatches(lines[i], regexec(pop_re_full, lines[i]))[[1]]
+    if(length(pm) != 4) next
+    pop_var <- pm[[3]]
+    ## Skip if this POP_X was rewritten in pass 1 (its line no longer
+    ## starts with POP_, it's now lpop_X).
+    if(!grepl("^POP_", pop_var)) next
+    info <- extract_init(pm[[4]])
+    if(is.na(info$init)) next
+
+    ## Find direct `<lhs> <- POP_X` reference in model block (not inside
+    ## an exp() or log() — those are mu-referenced and handled in pass 1).
+    direct_re <- paste0("^(\\s*)([A-Za-z_][A-Za-z0-9_]*)\\s*<-\\s*",
+                       pop_var, "\\s*$")
+    model_range <- seq(ini_end + 1L, length(lines))
+    dir_idx <- model_range[grepl(direct_re, lines[model_range])]
+    if(length(dir_idx) == 0) next  # no direct ref; leave alone
+
+    if(info$is_fixed) {
+      ## Inline the fixed value into every direct ref; remove POP_X from ini.
+      for(j in dir_idx) {
+        dm <- regmatches(lines[j], regexec(direct_re, lines[j]))[[1]]
+        lines[j] <- paste0(dm[[2]], dm[[3]], " <- ", info$init)
+      }
+      ini_lines_to_drop <- c(ini_lines_to_drop, i)
+    } else if(info$init > 0) {
+      ## Log-transform: POP_X → lpop_X, `<lhs> <- POP_X` → `<lhs> <- exp(lpop_X)`.
+      lpop_name <- paste0("lpop_", sub("^POP_", "", pop_var))
+      lines[i] <- paste0(pm[[2]], lpop_name, " <- log(", info$init, ")")
+      for(j in dir_idx) {
+        dm <- regmatches(lines[j], regexec(direct_re, lines[j]))[[1]]
+        lines[j] <- paste0(dm[[2]], dm[[3]], " <- exp(", lpop_name, ")")
+      }
+      name_map[[lpop_name]] <- pop_var
+    }
+  }
+
+  drop_idx <- sort(unique(c(model_lines_to_drop, ini_lines_to_drop)))
+  if(length(drop_idx) > 0) lines <- lines[-drop_idx]
+
+  list(code = paste(lines, collapse = "\n"), name_map = name_map)
 }
 
 #' Inject `scale_observations` into pharmpy-generated nlmixr code
