@@ -451,6 +451,9 @@
   : Stack encounters when data from multiple encounters is available for
   the same ID, and TIME is starting at 0 for each encounter.
 
+- [`strip_input_commas()`](https://insightrx.github.io/pharmr.extra/reference/strip_input_commas.md)
+  : Strip commas from the \$INPUT record of NONMEM model code
+
 - [`unquote_column_names()`](https://insightrx.github.io/pharmr.extra/reference/unquote_column_names.md)
   : Strip surrounding quote characters from data.frame column names
 
