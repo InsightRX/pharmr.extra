@@ -38,7 +38,8 @@ create_model_from_file <- function(
   tryCatch({
     model_code <- readLines(model_file) |>
       paste(collapse = "\n") |>
-      fix_eta_dummy_bug()
+      fix_eta_dummy_bug() |>
+      strip_input_commas()
     if(!is.null(data)) {
       ## if `data` supplied, then make sure current path is DUMMYPATH
       ## otherwise, if it points to a file that does not exists,
@@ -96,6 +97,21 @@ create_model_from_file <- function(
   }
   
   model
+}
+
+#' Strip commas from the $INPUT record of NONMEM model code
+#'
+#' Comma-separated `$INPUT` items are valid NONMEM but not accepted by
+#' Pharmpy, which expects space-separated column names. This replaces commas
+#' inside the `$INPUT` record with spaces, leaving other records (e.g. the
+#' comma-containing `$THETA`/`$OMEGA` bounds) untouched. Matching stops at the
+#' next record boundary (`$`).
+#'
+#' @param text Character string with model code.
+#'
+#' @returns Character string with model code.
+strip_input_commas <- function(text) {
+  gsub("(?:\\$INPUT\\b|\\G)[^,$]*\\K,", " ", text, perl = TRUE)
 }
 
 #' Guard against a bug in Pharmpy where eta_dummy is not correctly imported
