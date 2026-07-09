@@ -111,7 +111,7 @@ create_model_from_file <- function(
 #'
 #' @returns Character string with model code.
 strip_input_commas <- function(text) {
-  gsub("(?:\\$INPUT\\b|\\G)[^,$]*\\K,", " ", text, perl = TRUE)
+  gsub("(?:\\$INPUT\\b|(?!\\A)\\G)[^,$]*\\K,", " ", text, perl = TRUE)
 }
 
 #' Guard against a bug in Pharmpy where eta_dummy is not correctly imported

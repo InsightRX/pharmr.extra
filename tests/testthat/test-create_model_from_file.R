@@ -254,3 +254,10 @@ test_that("strip_input_commas handles multi-line $INPUT", {
   expect_true(grepl("$INPUT ID  TIME \n  DV  AMT", out, fixed = TRUE))
   expect_true(grepl("$DATA data.csv, IGNORE=@", out, fixed = TRUE))
 })
+
+test_that("strip_input_commas leaves commas in a leading comment untouched", {
+  code <- "; PK model, final\n$PROBLEM Test\n$INPUT ID, TIME, DV"
+  out <- strip_input_commas(code)
+  expect_true(grepl("; PK model, final", out, fixed = TRUE))
+  expect_true(grepl("$INPUT ID  TIME  DV", out, fixed = TRUE))
+})
