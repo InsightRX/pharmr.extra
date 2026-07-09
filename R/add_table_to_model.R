@@ -7,7 +7,10 @@
 #' @param reload_dataset should dataset be reloaded into the Pharmpy model object
 #' after updating the model. Default is TRUE, to ensure a proper Pharmpy model object,
 #' but can result in issues.
-#' 
+#' @param format NONMEM `$TABLE` output format. Defaults to `sF9.0`, which keeps
+#' enough digits to write large integer subject IDs without truncation (NONMEM's
+#' default format truncates IDs to ~6-7 significant digits).
+#'
 #' @returns TODO
 #'
 #' @export
@@ -16,7 +19,8 @@ add_table_to_model <- function(
     variables,
     firstonly = FALSE,
     file,
-    reload_dataset = TRUE
+    reload_dataset = TRUE,
+    format = "sF9.0"
 ) {
   check_nm_table_variables(model, variables)
   tool <- get_tool_from_model(model)
@@ -36,6 +40,10 @@ add_table_to_model <- function(
       paste0(c(" ", variables), collapse = " "),
       ifelse(firstonly, "\n  FIRSTONLY", ""),
       "\n  NOAPPEND NOPRINT",
+      ## FORMAT must precede FILE: remove_table_sections() strips a $TABLE by
+      ## matching up to `FILE=<file>`, so FILE has to stay the last option or
+      ## any trailing option is orphaned and corrupts the next record.
+      "\n  FORMAT=", format,
       "\n  FILE=", file,
       "\n\n"
     )

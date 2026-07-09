@@ -9,7 +9,8 @@ add_table_to_model(
   variables,
   firstonly = FALSE,
   file,
-  reload_dataset = TRUE
+  reload_dataset = TRUE,
+  format = "sF9.0"
 )
 }
 \arguments{
@@ -24,6 +25,10 @@ add_table_to_model(
 \item{reload_dataset}{should dataset be reloaded into the Pharmpy model object
 after updating the model. Default is TRUE, to ensure a proper Pharmpy model object,
 but can result in issues.}
+
+\item{format}{NONMEM \verb{$TABLE} output format. Defaults to \code{sF9.0}, which keeps
+enough digits to write large integer subject IDs without truncation (NONMEM's
+default format truncates IDs to ~6-7 significant digits).}
 }
 \value{
 TODO
