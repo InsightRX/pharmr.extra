@@ -40,8 +40,11 @@ add_table_to_model <- function(
       paste0(c(" ", variables), collapse = " "),
       ifelse(firstonly, "\n  FIRSTONLY", ""),
       "\n  NOAPPEND NOPRINT",
-      "\n  FILE=", file,
+      ## FORMAT must precede FILE: remove_table_sections() strips a $TABLE by
+      ## matching up to `FILE=<file>`, so FILE has to stay the last option or
+      ## any trailing option is orphaned and corrupts the next record.
       "\n  FORMAT=", format,
+      "\n  FILE=", file,
       "\n\n"
     )
     model <- pharmr::read_model_from_string(

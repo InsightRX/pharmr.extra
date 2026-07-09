@@ -18,7 +18,7 @@ test_that("adds table correctly", {
     file = "patab"
   )
   
-  expected_addition <- "\\n\\$TABLE\\n  ID CL V\\n  NOAPPEND NOPRINT\\n  FILE=patab\\n  FORMAT=sF9.0\\n\\n"
+  expected_addition <- "\\n\\$TABLE\\n  ID CL V\\n  NOAPPEND NOPRINT\\n  FORMAT=sF9.0\\n  FILE=patab\\n\\n"
   expect_true(grepl(expected_addition, result$code))
 
   # Test with firstonly = TRUE
@@ -29,7 +29,7 @@ test_that("adds table correctly", {
     file = "patab"
   )
 
-  expected_addition <- "\\n\\$TABLE\\n  ID CL V\\n  FIRSTONLY\\n  NOAPPEND NOPRINT\\n  FILE=patab\\n  FORMAT=sF9.0\\n\\n"
+  expected_addition <- "\\n\\$TABLE\\n  ID CL V\\n  FIRSTONLY\\n  NOAPPEND NOPRINT\\n  FORMAT=sF9.0\\n  FILE=patab\\n\\n"
   expect_true(grepl(expected_addition, result$code))
 })
 
