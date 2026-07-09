@@ -120,7 +120,9 @@ create_vpc_data <- function(
   vpc_vars <- unique(vpc_vars)
   model_code <- remove_record(model_code, "COV")     ## matches $COV / $COVA ... / $COVARIANCE
   model_code <- remove_record(model_code, "TABLE")
-  model_code <- add_table_record(model_code, vpc_vars, file = "sdtab")
+
+  ## ensure enough digits for saving unique IDs (this ensures 9 unique digits)
+  model_code <- add_table_record(model_code, vpc_vars, file = "sdtab", format = "sF9.0")
 
   ## Point the model's $DATA at our sanitised CSV so Pharmpy (inside
   ## run_nlme) reads numeric data only.
@@ -460,11 +462,16 @@ remove_record <- function(code, record_name) {
 
 #' Add a $TABLE record at the end of the model code.
 #' @noRd
-add_table_record <- function(code, variables, file = "sdtab") {
+add_table_record <- function(
+    code,
+    variables,
+    file = "sdtab",
+    format = "sF9.0"
+) {
   table_line <- paste(
     "$TABLE",
     paste(variables, collapse = " "),
-    paste0("NOAPPEND NOPRINT FILE=", file)
+    paste0("NOAPPEND NOPRINT FILE=", file, " FORMAT=", format)
   )
   paste0(sub("\\s+$", "", code), "\n", table_line, "\n")
 }

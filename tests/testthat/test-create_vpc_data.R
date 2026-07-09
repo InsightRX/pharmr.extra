@@ -278,6 +278,23 @@ test_that("add_table_record() appends a single $TABLE record", {
   expect_match(out, "\\$TABLE ID TIME PRED NOAPPEND NOPRINT FILE=sdtab")
 })
 
+test_that("add_table_record() sets a wide FORMAT so IDs are not truncated", {
+  ## Regression: NONMEM's default table format is 12.4g, which truncates large
+  ## integer IDs (e.g. 8- or 9-digit subject IDs) to ~6-7 significant digits.
+  ## A wide sF9.0 format preserves the full integer ID in the VPC output.
+  code <- "$PROBLEM t\n$THETA 1\n"
+  out <- pharmr.extra:::add_table_record(code, c("ID", "TIME", "PRED"), file = "sdtab")
+  expect_match(out, "FORMAT=sF9.0")
+})
+
+test_that("add_table_record() honours a custom FORMAT", {
+  code <- "$PROBLEM t\n$THETA 1\n"
+  out <- pharmr.extra:::add_table_record(
+    code, c("ID", "TIME", "PRED"), file = "sdtab", format = "sF12.0"
+  )
+  expect_match(out, "FILE=sdtab FORMAT=sF12.0")
+})
+
 
 # set_estimation_maxeval_zero / convert_estimation_to_simulation -------
 
