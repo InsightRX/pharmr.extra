@@ -519,7 +519,7 @@ test_that("create_sim_dataset: t_obs limits observation records to requested tim
   expect_true(all(obs_rows$TIME %in% c(6, 12)))
 })
 
-test_that("run_sim (stub): NULL table in results triggers warning and empty output", {
+test_that("run_sim (stub): NULL table in results aborts with a NONMEM-failure error", {
   local_pharmr.extra_options()
   skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
@@ -531,11 +531,13 @@ test_that("run_sim (stub): NULL table in results triggers warning and empty outp
     run_nlme = function(...) empty_result,
     .package = "pharmr.extra"
   )
-  expect_warning(
-    out <- run_sim(model = mod, data = .sim_dat(), verbose = FALSE),
-    "did not output any results"
+  ## run_sim guards against silent NONMEM failures: when the simulation
+  ## produces no output table it calls abort_on_failed_sim(), which errors
+  ## (surfacing the .lst) rather than returning an empty table with a warning.
+  expect_error(
+    run_sim(model = mod, data = .sim_dat(), verbose = FALSE),
+    "produced no output"
   )
-  expect_equal(nrow(out), 0)
 })
 
 test_that("create_sim_dataset: n_subjects truncates subjects from original dataset", {
