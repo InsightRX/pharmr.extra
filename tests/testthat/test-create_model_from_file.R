@@ -218,3 +218,46 @@ test_that("create_model_from_file circumvents bug in pharmpy with dummy_eta and 
   expect_s3_class(mod2, "pharmpy.model.model.Model")
   expect_true(all(c("POP_QP1", "POP_VP1") %in% mod2$parameters$names))
 })
+
+test_that("strip_input_commas replaces commas in $INPUT with spaces", {
+  expect_equal(
+    strip_input_commas("$INPUT ID, TIME, DV, AMT"),
+    "$INPUT ID  TIME  DV  AMT"
+  )
+})
+
+test_that("strip_input_commas leaves comma-free $INPUT untouched", {
+  expect_equal(
+    strip_input_commas("$INPUT ID TIME DV AMT"),
+    "$INPUT ID TIME DV AMT"
+  )
+})
+
+test_that("strip_input_commas only touches $INPUT, not other records", {
+  code <- paste(
+    "$PROBLEM Test",
+    "$INPUT ID, TIME, DV, AMT",
+    "$DATA data.csv",
+    "$THETA (0, 1), (0, 2)",
+    "$OMEGA 0.1, 0.2",
+    sep = "\n"
+  )
+  out <- strip_input_commas(code)
+  expect_true(grepl("$INPUT ID  TIME  DV  AMT", out, fixed = TRUE))
+  expect_true(grepl("$THETA (0, 1), (0, 2)", out, fixed = TRUE))
+  expect_true(grepl("$OMEGA 0.1, 0.2", out, fixed = TRUE))
+})
+
+test_that("strip_input_commas handles multi-line $INPUT", {
+  code <- "$INPUT ID, TIME,\n  DV, AMT\n$DATA data.csv, IGNORE=@"
+  out <- strip_input_commas(code)
+  expect_true(grepl("$INPUT ID  TIME \n  DV  AMT", out, fixed = TRUE))
+  expect_true(grepl("$DATA data.csv, IGNORE=@", out, fixed = TRUE))
+})
+
+test_that("strip_input_commas leaves commas in a leading comment untouched", {
+  code <- "; PK model, final\n$PROBLEM Test\n$INPUT ID, TIME, DV"
+  out <- strip_input_commas(code)
+  expect_true(grepl("; PK model, final", out, fixed = TRUE))
+  expect_true(grepl("$INPUT ID  TIME  DV", out, fixed = TRUE))
+})

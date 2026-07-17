@@ -18,9 +18,9 @@ test_that("adds table correctly", {
     file = "patab"
   )
   
-  expected_addition <- "\\n\\$TABLE\\n  ID CL V\\n  NOAPPEND NOPRINT\\n  FILE=patab\\n\\n"
+  expected_addition <- "\\n\\$TABLE\\n  ID CL V\\n  NOAPPEND NOPRINT\\n  FORMAT=sF9.0\\n  FILE=patab\\n\\n"
   expect_true(grepl(expected_addition, result$code))
-  
+
   # Test with firstonly = TRUE
   result <- add_table_to_model(
     model = mod,
@@ -28,9 +28,38 @@ test_that("adds table correctly", {
     firstonly = TRUE,
     file = "patab"
   )
-  
-  expected_addition <- "\\n\\$TABLE\\n  ID CL V\\n  FIRSTONLY\\n  NOAPPEND NOPRINT\\n  FILE=patab\\n\\n"
+
+  expected_addition <- "\\n\\$TABLE\\n  ID CL V\\n  FIRSTONLY\\n  NOAPPEND NOPRINT\\n  FORMAT=sF9.0\\n  FILE=patab\\n\\n"
   expect_true(grepl(expected_addition, result$code))
+})
+
+test_that("adds a wide FORMAT so subject IDs are not truncated", {
+  ## Regression: NONMEM's default table format truncates large integer IDs to
+  ## ~6-7 significant digits. add_table_to_model() must emit an explicit FORMAT
+  ## wide enough to preserve full 8-9 digit IDs in simulation/output tables.
+  dat <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0)
+  )
+  mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
+
+  # Default format
+  result <- add_table_to_model(
+    model = mod, variables = c("ID", "CL", "V"), file = "patab"
+  )
+  expect_true(grepl("FORMAT=sF9.0", result$code, fixed = TRUE))
+
+  # Custom format is honoured
+  result2 <- add_table_to_model(
+    model = mod, variables = c("ID", "CL", "V"), file = "patab",
+    format = "sF12.0"
+  )
+  expect_true(grepl("FORMAT=sF12.0", result2$code, fixed = TRUE))
 })
 
 test_that("warns on duplicate file", {
