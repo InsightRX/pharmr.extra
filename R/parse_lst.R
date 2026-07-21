@@ -13,10 +13,6 @@
 #'
 #' Standard errors and covariance-step output are not parsed.
 #'
-#' **Limitations:** OMEGA/SIGMA matrices are read from the single column block
-#' NONMEM prints for up to six random effects; wider matrices (which NONMEM
-#' splits across multiple column blocks) are not yet supported.
-#'
 #' @param lst_file path to a NONMEM report file (`.lst`, `.res`, ...).
 #' @param code character string with the report file contents (alternative to
 #'   `lst_file`).
@@ -130,8 +126,11 @@ parse_lst <- function(lst_file = NULL, code = NULL) {
 
 #' Parse a final OMEGA/SIGMA covariance matrix from a NONMEM report file
 #'
-#' Matrix rows are the `+`-prefixed value lines that follow the given header.
-#' The returned matrix is symmetric (lower triangle mirrored).
+#' Each matrix row begins with a `+`-prefixed value line. NONMEM wraps rows
+#' wider than 12 elements onto continuation lines that carry values but no `+`
+#' prefix; those are folded back into the current row so wide matrices (more
+#' than six random effects) are reconstructed correctly. The returned matrix is
+#' symmetric (lower triangle mirrored).
 #'
 #' @noRd
 .parse_lst_matrix <- function(lines, header) {
@@ -141,10 +140,28 @@ parse_lst <- function(lst_file = NULL, code = NULL) {
   rest <- fp[(hdr + 1L):length(fp)]
   stop_at <- which(stringr::str_detect(rest, .lst_section_break))[1]
   if (!is.na(stop_at)) rest <- rest[seq_len(stop_at - 1L)]
-  row_lines <- rest[stringr::str_detect(rest, "^\\s*\\+")]
-  if (length(row_lines) == 0) return(NULL)
-  rows <- lapply(row_lines, .nm_numbers)
+
+  # A value line carries E-notation numbers; a label / column-header line does
+  # not. Row = the `+` line plus any following value-only continuation lines,
+  # terminated by a blank line.
+  is_val <- function(l) stringr::str_detect(l, "[0-9]\\.[0-9]*[eE]")
+  rows <- list()
+  current <- NULL
+  for (l in rest) {
+    if (stringr::str_detect(l, "^\\s*\\+")) {
+      if (!is.null(current)) rows[[length(rows) + 1L]] <- current
+      current <- .nm_numbers(l)
+    } else if (!is.null(current) && is_val(l)) {
+      current <- c(current, .nm_numbers(l))
+    } else if (!is.null(current) && !stringr::str_detect(l, "\\S")) {
+      rows[[length(rows) + 1L]] <- current
+      current <- NULL
+    }
+  }
+  if (!is.null(current)) rows[[length(rows) + 1L]] <- current
+
   n <- length(rows)
+  if (n == 0) return(NULL)
   m <- matrix(0, n, n)
   for (i in seq_len(n)) {
     ri <- rows[[i]]

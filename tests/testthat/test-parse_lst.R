@@ -66,6 +66,23 @@ test_that("parse_lst uses the last FINAL section for multi-step estimation", {
   expect_equal(parse_lst(code = code)$theta, 2.0)
 })
 
+test_that("parse_lst reassembles matrix rows wrapped onto continuation lines", {
+  # NONMEM wraps rows wider than 12 elements onto a continuation line with no
+  # `+` prefix. Here the second OMEGA row is split to exercise that folding.
+  code <- paste(
+    "$PROBLEM x", "$THETA 1", "", "NM-TRAN MESSAGES", "",
+    " FINAL PARAMETER ESTIMATE",
+    " OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS",
+    "         ETA1      ETA2", "",
+    " ETA1", "+        1.00E-01", "",
+    " ETA2", "+        2.00E-02", "          3.00E-01", "",
+    sep = "\n"
+  )
+  om <- parse_lst(code = code)$omega
+  expect_equal(dim(om), c(2L, 2L))
+  expect_equal(om, matrix(c(0.1, 0.02, 0.02, 0.30), 2, 2), tolerance = 1e-9)
+})
+
 test_that(".nm_numbers maps structural-zero dots to 0", {
   expect_equal(.nm_numbers("+       .........  2.50E-05"), c(0, 2.5e-05))
 })

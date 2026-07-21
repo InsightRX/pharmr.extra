@@ -31,8 +31,4 @@ precision than those in the corresponding \code{.ext} file. Use the \code{.ext} 
 (via \code{\link[=create_model_from_file]{create_model_from_file()}}) when full precision is required.
 
 Standard errors and covariance-step output are not parsed.
-
-\strong{Limitations:} OMEGA/SIGMA matrices are read from the single column block
-NONMEM prints for up to six random effects; wider matrices (which NONMEM
-splits across multiple column blocks) are not yet supported.
 }
