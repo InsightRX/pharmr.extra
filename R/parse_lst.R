@@ -91,14 +91,19 @@ parse_lst <- function(lst_file = NULL, code = NULL) {
 #' Bounded by the `STANDARD ERROR OF ESTIMATE` banner (if present) so the
 #' repeated headers / correlation matrices there are excluded.
 #'
+#' Multi-step estimation (e.g. SAEM followed by IMP) prints one section per
+#' step; the **last** one holds the final estimates, matching the last table
+#' pharmpy reads from the `.ext` file.
+#'
 #' @noRd
 .final_est_region <- function(lines) {
-  start <- which(stringr::str_detect(lines, "FINAL PARAMETER ESTIMATE"))[1]
-  if (is.na(start)) {
+  starts <- which(stringr::str_detect(lines, "FINAL PARAMETER ESTIMATE"))
+  if (length(starts) == 0) {
     cli::cli_abort(
       "No 'FINAL PARAMETER ESTIMATE' section found in report file; the run may not have completed."
     )
   }
+  start <- starts[length(starts)]
   se <- which(stringr::str_detect(lines, "STANDARD ERROR OF ESTIMATE"))
   se <- se[se > start][1]
   end <- if (is.na(se)) length(lines) else se - 1L

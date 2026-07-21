@@ -46,6 +46,26 @@ test_that("parse_lst errors when neither input is supplied", {
   expect_error(parse_lst(), "NONMEM report file")
 })
 
+test_that("parse_lst uses the last FINAL section for multi-step estimation", {
+  # SAEM+IMP runs print one FINAL PARAMETER ESTIMATE section per step; the
+  # last one holds the final estimates (matching the last .ext table).
+  code <- paste(
+    "$PROBLEM x", "$THETA 1", "",
+    "NM-TRAN MESSAGES", "",
+    " FINAL PARAMETER ESTIMATE",
+    " THETA - VECTOR OF FIXED EFFECTS PARAMETERS", "         TH 1", "",
+    "         1.00E+00",
+    " STANDARD ERROR OF ESTIMATE",
+    " THETA - VECTOR OF FIXED EFFECTS PARAMETERS", "         TH 1", "",
+    "         9.00E-01",
+    " FINAL PARAMETER ESTIMATE",
+    " THETA - VECTOR OF FIXED EFFECTS PARAMETERS", "         TH 1", "",
+    "         2.00E+00",
+    sep = "\n"
+  )
+  expect_equal(parse_lst(code = code)$theta, 2.0)
+})
+
 test_that(".nm_numbers maps structural-zero dots to 0", {
   expect_equal(.nm_numbers("+       .........  2.50E-05"), c(0, 2.5e-05))
 })
