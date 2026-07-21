@@ -108,7 +108,7 @@ create_model_from_lst <- function(
 
   names_all <- c(th_names, o$names, s$names)
   vals_all <- c(parsed$theta, o$vals, s$vals)
-  ofv <- if (is.na(parsed$ofv)) 0 else parsed$ofv
+  ofv <- if (is.na(parsed$ofv)) NaN else parsed$ofv
 
   fmt <- function(x) formatC(x, format = "E", digits = 5, width = 13)
   header1 <- paste0(

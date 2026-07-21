@@ -87,6 +87,37 @@ test_that(".nm_numbers maps structural-zero dots to 0", {
   expect_equal(.nm_numbers("+       .........  2.50E-05"), c(0, 2.5e-05))
 })
 
+test_that("parse_lst folds an all-dots continuation line into the matrix row", {
+  # A wide row can wrap a segment that is entirely structural-zero dots (no
+  # E-notation); it must still be folded so later columns don't shift left.
+  code <- paste(
+    "$PROBLEM x", "$THETA 1", "", "NM-TRAN MESSAGES", "",
+    " FINAL PARAMETER ESTIMATE",
+    " OMEGA - COV MATRIX FOR RANDOM EFFECTS - ETAS",
+    "         ETA1      ETA2", "",
+    " ETA1", "+        1.00E-01", "",
+    " ETA2", "+        .........", "          2.00E-01", "",
+    sep = "\n"
+  )
+  om <- parse_lst(code = code)$omega
+  expect_equal(om, matrix(c(0.1, 0, 0, 0.2), 2, 2), tolerance = 1e-9)
+})
+
+test_that("parse_lst OFV fallback reads #OBJV, not the #OBJT banner", {
+  # When the WITHOUT CONSTANT line is absent, the value lives on #OBJV; the
+  # `MINIMUM VALUE OF OBJECTIVE FUNCTION` phrase sits on the number-less #OBJT.
+  code <- paste(
+    "$PROBLEM x", "$THETA 1", "", "NM-TRAN MESSAGES", "",
+    " FINAL PARAMETER ESTIMATE",
+    " THETA - VECTOR OF FIXED EFFECTS PARAMETERS", "         TH 1", "",
+    "         1.00E+00",
+    " #OBJT:****   MINIMUM VALUE OF OBJECTIVE FUNCTION   ****",
+    " #OBJV:****            5335.951            ****",
+    sep = "\n"
+  )
+  expect_equal(parse_lst(code = code)$ofv, 5335.951, tolerance = 1e-9)
+})
+
 # End-to-end: needs NONMEM/Pharmpy to build the model and apply estimates.
 test_that("create_model_from_lst applies the recovered estimates", {
   skip_if_nonmem_not_available()

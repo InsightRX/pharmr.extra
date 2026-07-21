@@ -141,10 +141,12 @@ parse_lst <- function(lst_file = NULL, code = NULL) {
   stop_at <- which(stringr::str_detect(rest, .lst_section_break))[1]
   if (!is.na(stop_at)) rest <- rest[seq_len(stop_at - 1L)]
 
-  # A value line carries E-notation numbers; a label / column-header line does
-  # not. Row = the `+` line plus any following value-only continuation lines,
-  # terminated by a blank line.
-  is_val <- function(l) stringr::str_detect(l, "[0-9]\\.[0-9]*[eE]")
+  # A value line carries E-notation numbers or structural-zero dot-runs
+  # (`.........`); a label / column-header line has neither. Row = the `+` line
+  # plus any following value-only continuation lines, terminated by a blank
+  # line. Folding dot-only continuations is essential for wide (>12-element)
+  # rows whose wrapped segment is entirely off-block zeros.
+  is_val <- function(l) stringr::str_detect(l, "[0-9]\\.[0-9]*[eE]|\\.{3,}")
   rows <- list()
   current <- NULL
   for (l in rest) {
@@ -165,7 +167,9 @@ parse_lst <- function(lst_file = NULL, code = NULL) {
   m <- matrix(0, n, n)
   for (i in seq_len(n)) {
     ri <- rows[[i]]
-    for (j in seq_along(ri)) {
+    # A lower-triangular row i holds at most i entries; guard against a mis-
+    # folded (over-long) row so a parse hiccup degrades instead of erroring.
+    for (j in seq_len(min(length(ri), i))) {
       m[i, j] <- ri[j]
       m[j, i] <- ri[j]
     }
@@ -176,12 +180,15 @@ parse_lst <- function(lst_file = NULL, code = NULL) {
 #' Parse the objective function value from a NONMEM report file
 #'
 #' Prefers the full-precision `OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT` line.
+#' Falls back to the `#OBJV:` tag line (the `MINIMUM VALUE OF OBJECTIVE
+#' FUNCTION` phrase sits on the neighbouring `#OBJT:` banner, which carries no
+#' number, so it must not be matched).
 #'
 #' @noRd
 .parse_lst_ofv <- function(lines) {
   ln <- lines[stringr::str_detect(lines, "OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT")]
   if (length(ln) == 0) {
-    ln <- lines[stringr::str_detect(lines, "MINIMUM VALUE OF OBJECTIVE FUNCTION")]
+    ln <- lines[stringr::str_detect(lines, "#OBJV")]
   }
   if (length(ln) == 0) return(NA_real_)
   v <- .nm_numbers(ln[length(ln)])
