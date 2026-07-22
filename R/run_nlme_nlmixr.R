@@ -391,6 +391,11 @@ as_pharmpy_shaped_fit <- function(raw_fit, model, input_data = NULL) {
     standard_errors = standard_errors,
     relative_standard_errors = rse,
     correlation_matrix = tryCatch(raw_fit$cor, error = function(e) NULL),
+    ## nlmixr2's `$cov` is the variance-covariance matrix of the fixed effects,
+    ## already labelled with pharmpy-style parameter names (POP_*). Expose it as
+    ## `covariance_matrix` so uncertainty propagation (run_sim(n_uncertainty=))
+    ## can sample from it, mirroring pharmpy's ModelfitResults slot.
+    covariance_matrix = tryCatch(raw_fit$cov, error = function(e) NULL),
     predictions = predictions,
     residuals = residuals,
     estimation_runtime = unname(raw_fit$time$optimize),
