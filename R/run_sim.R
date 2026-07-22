@@ -107,10 +107,12 @@ run_sim <- function(
   if(!is.null(n_uncertainty)) {
     n_num <- suppressWarnings(as.numeric(n_uncertainty))
     ## Reject (rather than silently truncate) fractional / non-numeric input so
-    ## e.g. `0.5` does not quietly collapse to a point-estimate run.
+    ## e.g. `0.5` does not quietly collapse to a point-estimate run. Bound above
+    ## by the integer range too: `as.integer()` returns NA past that, which would
+    ## later blow up in `seq_len()`.
     if(length(n_num) != 1 || is.na(n_num) || n_num < 0 ||
-       n_num != round(n_num)) {
-      cli::cli_abort("`n_uncertainty` must be a non-negative integer or NULL.")
+       n_num != round(n_num) || n_num > .Machine$integer.max) {
+      cli::cli_abort("`n_uncertainty` must be a non-negative integer (<= {.Machine$integer.max}) or NULL.")
     }
     n_uncertainty <- as.integer(n_num)
     if(n_uncertainty == 0) n_uncertainty <- NULL
