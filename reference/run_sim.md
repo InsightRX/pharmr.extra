@@ -13,6 +13,7 @@ run_sim(
   force = FALSE,
   tool = c("auto", "nonmem", "nlmixr2"),
   n_iterations = 1,
+  n_uncertainty = NULL,
   variables = NULL,
   add_pk_variables = FALSE,
   output_file = "simtab",
@@ -61,6 +62,28 @@ run_sim(
 
   number of iterations of the entire simulation to perform. The dataset
   for the simulation will stay the same between each iterations.
+
+- n_uncertainty:
+
+  number of parameter sets to draw from the fit's covariance matrix to
+  propagate parameter uncertainty. If `NULL` (default) or `0`, the point
+  estimates are used and no uncertainty is propagated. If a positive
+  integer, the point estimate is omitted and `n_uncertainty` parameter
+  sets are sampled instead; one simulation is run per draw with its
+  thetas/omegas/sigmas updated, so a total of
+  `n_iterations * n_uncertainty` simulations are performed. Requires a
+  `fit` object carrying a covariance matrix (i.e. the model was run with
+  a `$COVARIANCE` step or SIR). When set, the output gains a
+  `.uncertainty` column counting the replicate (1-based).
+
+  Only parameters present in the covariance matrix are resampled; any
+  other estimated parameters are held at their point estimates and a
+  warning lists them. This matters for nlmixr2 fits in particular: the
+  default nlmixr2 covariance step reports uncertainty only for the
+  population fixed effects, so residual and random-effect variance
+  parameters (SIGMA, OMEGA/IIV) are held fixed. For full uncertainty on
+  those, use a bootstrap (`nlmixr2est::bootstrapFit()`). NONMEM
+  `$COVARIANCE` typically covers all parameters, so all are resampled.
 
 - variables:
 

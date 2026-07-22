@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9100</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9104</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -50,6 +50,7 @@
 <span>  force <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  tool <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"auto"</span>, <span class="st">"nonmem"</span>, <span class="st">"nlmixr2"</span><span class="op">)</span>,</span>
 <span>  n_iterations <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  n_uncertainty <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  variables <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  add_pk_variables <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  output_file <span class="op">=</span> <span class="st">"simtab"</span>,</span>
@@ -99,6 +100,26 @@ removed before rerunning NONMEM? Default <code>FALSE</code>.</p></dd>
 <dd><p>number of iterations of the entire simulation to
 perform. The dataset for the simulation will stay the same between each
 iterations.</p></dd>
+
+
+<dt id="arg-n-uncertainty">n_uncertainty<a class="anchor" aria-label="anchor" href="#arg-n-uncertainty"></a></dt>
+<dd><p>number of parameter sets to draw from the fit's
+covariance matrix to propagate parameter uncertainty. If <code>NULL</code> (default)
+or <code>0</code>, the point estimates are used and no uncertainty is propagated. If a
+positive integer, the point estimate is omitted and <code>n_uncertainty</code>
+parameter sets are sampled instead; one simulation is run per draw with its
+thetas/omegas/sigmas updated, so a total of <code>n_iterations * n_uncertainty</code>
+simulations are performed. Requires a <code>fit</code> object carrying a covariance
+matrix (i.e. the model was run with a <code>$COVARIANCE</code> step or SIR). When set,
+the output gains a <code>.uncertainty</code> column counting the replicate (1-based).</p>
+<p>Only parameters present in the covariance matrix are resampled; any other
+estimated parameters are held at their point estimates and a warning lists
+them. This matters for nlmixr2 fits in particular: the default nlmixr2
+covariance step reports uncertainty only for the population fixed effects,
+so residual and random-effect variance parameters (SIGMA, OMEGA/IIV) are
+held fixed. For full uncertainty on those, use a bootstrap
+(<code>nlmixr2est::bootstrapFit()</code>). NONMEM <code>$COVARIANCE</code> typically covers all
+parameters, so all are resampled.</p></dd>
 
 
 <dt id="arg-variables">variables<a class="anchor" aria-label="anchor" href="#arg-variables"></a></dt>
