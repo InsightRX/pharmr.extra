@@ -523,6 +523,42 @@ test_that("sample_uncertainty_parameters draws from a real covariance matrix", {
   expect_true(all(c("POP_CL", "IIV_CL") %in% names(draws)))
 })
 
+test_that("sample_uncertainty_parameters is invariant to covariance row order", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  fx  <- readRDS(test_path("fixtures", "nlmixr2_pheno_focei_fit.rds"))
+  mod <- pharmr::convert_model(pharmr::load_example_model("pheno"), "nlmixr")
+  cov <- as.matrix(fx$covariance_matrix)
+
+  ## Permute rows only (columns intact). A correct impl realigns rows to
+  ## columns, so sampling is identical to the unpermuted covariance.
+  cov_shuffled <- cov[rev(seq_len(nrow(cov))), , drop = FALSE]
+
+  d1 <- sample_uncertainty_parameters(
+    mod, fx$parameter_estimates, cov, n = 3, seed = 7
+  )
+  d2 <- sample_uncertainty_parameters(
+    mod, fx$parameter_estimates, cov_shuffled, n = 3, seed = 7
+  )
+  expect_equal(d1, d2)
+})
+
+test_that("sample_uncertainty_parameters rejects mismatched covariance row/col names", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  fx  <- readRDS(test_path("fixtures", "nlmixr2_pheno_focei_fit.rds"))
+  mod <- pharmr::convert_model(pharmr::load_example_model("pheno"), "nlmixr")
+  bad <- as.matrix(fx$covariance_matrix)
+  rownames(bad)[1] <- "NOT_A_PARAM"
+
+  expect_error(
+    sample_uncertainty_parameters(mod, fx$parameter_estimates, bad, n = 2, seed = 1),
+    "same parameters"
+  )
+})
+
 test_that("sample_uncertainty_parameters draws from a real nlmixr2 FOCEi covariance", {
   local_pharmr.extra_options()
   skip_if_nonmem_not_available()
@@ -657,6 +693,48 @@ test_that("run_sim (stub): n_uncertainty samples draws and tags .uncertainty col
   expect_equal(sampled, n_draws)
   expect_true(".uncertainty" %in% names(out))
   expect_equal(sort(unique(out$.uncertainty)), seq_len(n_draws))
+})
+
+test_that("run_sim (stub): each replicate perturbs the model with its own draw", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- make_model_without_cov()
+  fake_fit <- list(
+    parameter_estimates = c(POP_CL = 1, POP_V = 10),
+    covariance_matrix   = diag(2)
+  )
+  n_draws <- 3L
+  ## Distinct value per draw so we can verify draw r reaches replicate r.
+  draws <- data.frame(POP_CL = c(11, 22, 33), POP_V = c(44, 55, 66))
+  applied <- list()
+  local_mocked_bindings(
+    run_nlme = function(...) .mock_nlme_result(),
+    sample_uncertainty_parameters =
+      function(model, parameter_estimates, covariance_matrix, n, seed) {
+        draws[seq_len(n), , drop = FALSE]
+      },
+    .package = "pharmr.extra"
+  )
+  local_mocked_bindings(
+    set_initial_estimates = function(model, inits) {
+      applied[[length(applied) + 1]] <<- inits
+      model
+    },
+    .package = "pharmr"
+  )
+
+  out <- run_sim(fit = fake_fit, model = mod, data = .sim_dat(),
+                 n_uncertainty = n_draws, verbose = FALSE)
+
+  ## Draws must reach set_initial_estimates once per replicate, in order, each
+  ## carrying that replicate's own row -- guards against a regression where the
+  ## sampled parameters never reach the simulator.
+  expect_length(applied, n_draws)
+  for(r in seq_len(n_draws)) {
+    expect_equal(applied[[r]], as.list(draws[r, , drop = FALSE]))
+  }
 })
 
 test_that("run_sim (stub): n_uncertainty=0 behaves like no uncertainty (point estimate)", {

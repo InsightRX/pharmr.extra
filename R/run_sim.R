@@ -105,10 +105,14 @@ run_sim <- function(
   ## estimate). Sampling from the covariance matrix needs a `fit` object; a
   ## bare model carries no covariance.
   if(!is.null(n_uncertainty)) {
-    n_uncertainty <- suppressWarnings(as.integer(n_uncertainty))
-    if(is.na(n_uncertainty) || n_uncertainty < 0) {
+    n_num <- suppressWarnings(as.numeric(n_uncertainty))
+    ## Reject (rather than silently truncate) fractional / non-numeric input so
+    ## e.g. `0.5` does not quietly collapse to a point-estimate run.
+    if(length(n_num) != 1 || is.na(n_num) || n_num < 0 ||
+       n_num != round(n_num)) {
       cli::cli_abort("`n_uncertainty` must be a non-negative integer or NULL.")
     }
+    n_uncertainty <- as.integer(n_num)
     if(n_uncertainty == 0) n_uncertainty <- NULL
   }
   if(!is.null(n_uncertainty)) {
@@ -341,12 +345,22 @@ run_sim <- function(
   out <- lapply(seq_len(n_uncertainty), function(r) {
     if(verbose) cli::cli_alert_info("Uncertainty replicate {r}/{n_uncertainty}")
     inits <- as.list(draws[r, , drop = FALSE])
+    m <- pharmr::set_initial_estimates(model, inits = inits)
+    ## Force nlmixr2 code to regenerate from the updated estimates: a stale
+    ## cached `nlmixr_code` attribute would otherwise make run_sim_nlmixr()
+    ## silently simulate the point estimates on every replicate.
+    attr(m, "nlmixr_code") <- NULL
     ## distinct seed per draw so subproblem RNG differs between replicates
-    res <- run_sim_engine(
-      pharmr::set_initial_estimates(model, inits = inits),
-      seed + r
-    )
-    if(!is.null(res) && nrow(res) > 0) res[[".uncertainty"]] <- r
+    res <- run_sim_engine(m, seed + r)
+    if(is.null(res) || nrow(res) == 0) {
+      ## Surface dropped replicates so a short result set is not mistaken for a
+      ## complete `1:n_uncertainty` run.
+      cli::cli_warn(
+        "Uncertainty replicate {r} produced no simulation output; omitted."
+      )
+      return(NULL)
+    }
+    res[[".uncertainty"]] <- r
     res
   }) |>
     dplyr::bind_rows()
@@ -405,14 +419,24 @@ sample_uncertainty_parameters <- function(
 
   cov_mat <- as.matrix(to_r(covariance_matrix))
   storage.mode(cov_mat) <- "double"
-  ## A pandas DataFrame round-tripped through py_to_r keeps column names but may
-  ## drop matching row names; mirror columns onto rows so pharmpy can index.
-  if(is.null(rownames(cov_mat)) && !is.null(colnames(cov_mat))) {
-    rownames(cov_mat) <- colnames(cov_mat)
-  }
   cov_names <- colnames(cov_mat)
   if(is.null(cov_names)) {
     cli::cli_abort("`covariance_matrix` must have parameter names as row/column names.")
+  }
+  ## Align rows to columns before stripping names for pharmpy. A pandas
+  ## DataFrame round-tripped through py_to_r keeps column names but may drop
+  ## matching row names; and an R matrix could arrive with rows in a different
+  ## order than columns. Either would silently mislabel the covariance (rows
+  ## carry one parameter's variance but get another's name), so mirror when
+  ## row names are absent, reorder when they are a permutation, and abort when
+  ## they disagree as a set.
+  row_names <- rownames(cov_mat)
+  if(is.null(row_names)) {
+    rownames(cov_mat) <- cov_names
+  } else if(!setequal(row_names, cov_names)) {
+    cli::cli_abort("`covariance_matrix` row and column names must reference the same parameters.")
+  } else if(!identical(row_names, cov_names)) {
+    cov_mat <- cov_mat[cov_names, , drop = FALSE]
   }
 
   ## pharmpy requires the means and the covariance matrix to span the same
