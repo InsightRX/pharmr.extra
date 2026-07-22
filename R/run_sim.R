@@ -11,6 +11,24 @@
 #' @param n_iterations number of iterations of the entire simulation to
 #' perform. The dataset for the simulation will stay the same between each
 #' iterations.
+#' @param n_uncertainty number of parameter sets to draw from the fit's
+#' covariance matrix to propagate parameter uncertainty. If `NULL` (default)
+#' or `0`, the point estimates are used and no uncertainty is propagated. If a
+#' positive integer, the point estimate is omitted and `n_uncertainty`
+#' parameter sets are sampled instead; one simulation is run per draw with its
+#' thetas/omegas/sigmas updated, so a total of `n_iterations * n_uncertainty`
+#' simulations are performed. Requires a `fit` object carrying a covariance
+#' matrix (i.e. the model was run with a `$COVARIANCE` step or SIR). When set,
+#' the output gains a `.uncertainty` column counting the replicate (1-based).
+#'
+#' Only parameters present in the covariance matrix are resampled; any other
+#' estimated parameters are held at their point estimates and a warning lists
+#' them. This matters for nlmixr2 fits in particular: the default nlmixr2
+#' covariance step reports uncertainty only for the population fixed effects,
+#' so residual and random-effect variance parameters (SIGMA, OMEGA/IIV) are
+#' held fixed. For full uncertainty on those, use a bootstrap
+#' (`nlmixr2est::bootstrapFit()`). NONMEM `$COVARIANCE` typically covers all
+#' parameters, so all are resampled.
 #' @param add_pk_variables calculate basic PK variables: CMAX_OBS, TMAX_OBS,
 #' CMIN_OBS, and (when `CL` is in the output table) AUC_SS. AUC_SS is derived
 #' as the last dose in the simulation dataset divided by CL.
@@ -36,6 +54,7 @@ run_sim <- function(
     force = FALSE,
     tool = c("auto", "nonmem", "nlmixr2"),
     n_iterations = 1,
+    n_uncertainty = NULL,
     variables = NULL,
     add_pk_variables = FALSE,
     output_file = "simtab",
@@ -43,7 +62,7 @@ run_sim <- function(
     seed = 12345,
     verbose = TRUE
 ) {
-  
+
   ## parse arguments
   if(is.null(fit) && is.null(model)) {
     cli::cli_abort("For simulations we need either a `fit` object, or a `model` file (with updated estimates)")
@@ -73,8 +92,6 @@ run_sim <- function(
       }
     }
   }
-  input_data <- model$dataset
-
   tool <- match.arg(tool)
   if(tool == "auto") {
     tool <- get_tool_from_model(model)
@@ -83,6 +100,32 @@ run_sim <- function(
   if(! tool %in% c("nonmem", "nlmixr2")) {
     cli::cli_abort("Unsupported simulation tool: {tool}.")
   }
+
+  ## Validate uncertainty request. Treat NULL/0 as "no uncertainty" (point
+  ## estimate). Sampling from the covariance matrix needs a `fit` object; a
+  ## bare model carries no covariance.
+  if(!is.null(n_uncertainty)) {
+    n_uncertainty <- suppressWarnings(as.integer(n_uncertainty))
+    if(is.na(n_uncertainty) || n_uncertainty < 0) {
+      cli::cli_abort("`n_uncertainty` must be a non-negative integer or NULL.")
+    }
+    if(n_uncertainty == 0) n_uncertainty <- NULL
+  }
+  if(!is.null(n_uncertainty)) {
+    if(is.null(fit) || is.null(fit$covariance_matrix) ||
+       is.null(fit$parameter_estimates)) {
+      cli::cli_abort(c(
+        "`n_uncertainty` simulation needs a `fit` object with a covariance matrix.",
+        i = "Run the model with a {.code $COVARIANCE} step (or SIR) so parameter uncertainty can be sampled."
+      ))
+    }
+  }
+
+  ## Engine: run one full simulation (all regimens, `n_iterations` subproblems)
+  ## for a given model and seed. Captures the remaining arguments lexically.
+  ## `model`/`seed` vary between uncertainty replicates.
+  run_sim_engine <- function(model, seed) {
+  input_data <- model$dataset
 
   ## Engine dispatch: nlmixr2 simulations go through rxode2::rxSolve()
   ## directly. Pharmpy-driven nlmixr simulation needs the same pyreadr
@@ -252,6 +295,161 @@ run_sim <- function(
   
   if(verbose) cli::cli_alert_success("Done")
   out
+  } ## end run_sim_engine
+
+  ## No uncertainty: single pass with point estimates (unchanged behaviour)
+  if(is.null(n_uncertainty)) {
+    return(run_sim_engine(model, seed))
+  }
+
+  ## Uncertainty: draw `n_uncertainty` parameter sets from the covariance
+  ## matrix and run one simulation per draw, each with updated
+  ## thetas/omegas/sigmas and tagged with a 1-based `.uncertainty` index.
+  ## The point estimate is intentionally omitted.
+  if(verbose) {
+    cli::cli_alert_info("Sampling {n_uncertainty} parameter set{?s} from covariance matrix")
+  }
+  draws <- sample_uncertainty_parameters(
+    model = model,
+    parameter_estimates = fit$parameter_estimates,
+    covariance_matrix = fit$covariance_matrix,
+    n = n_uncertainty,
+    seed = seed
+  )
+
+  ## Warn (once, regardless of `verbose`) about estimated parameters the
+  ## covariance matrix does not cover: these are held at their point estimates,
+  ## so their uncertainty is not propagated. Common for nlmixr2 fits, whose
+  ## default covariance step omits variance parameters (SIGMA, OMEGA/IIV).
+  pe_names <- names(fit$parameter_estimates)
+  if(is.null(pe_names) && inherits(fit$parameter_estimates, "python.builtin.object")) {
+    pe_names <- names(reticulate::py_to_r(fit$parameter_estimates))
+  }
+  held_fixed <- setdiff(pe_names, names(draws))
+  if(length(held_fixed) > 0) {
+    cli::cli_warn(c(
+      "!" = "Covariance matrix does not cover all estimated parameters; \\
+             {length(held_fixed)} parameter{?s} held at point estimate{?s} \\
+             (uncertainty not propagated).",
+      "i" = "Held fixed: {held_fixed}",
+      "i" = "nlmixr2 fits often omit variance parameters (SIGMA, OMEGA/IIV) \\
+             from the covariance step; use {.fn nlmixr2est::bootstrapFit} for \\
+             full uncertainty on those."
+    ))
+  }
+
+  out <- lapply(seq_len(n_uncertainty), function(r) {
+    if(verbose) cli::cli_alert_info("Uncertainty replicate {r}/{n_uncertainty}")
+    inits <- as.list(draws[r, , drop = FALSE])
+    ## distinct seed per draw so subproblem RNG differs between replicates
+    res <- run_sim_engine(
+      pharmr::set_initial_estimates(model, inits = inits),
+      seed + r
+    )
+    if(!is.null(res) && nrow(res) > 0) res[[".uncertainty"]] <- r
+    res
+  }) |>
+    dplyr::bind_rows()
+
+  if(verbose) {
+    cli::cli_alert_success("Done ({n_uncertainty} uncertainty replicate{?s})")
+  }
+  out
+}
+
+#' Sample parameter vectors from a fit's covariance matrix
+#'
+#' Draws `n` parameter sets from a multivariate normal defined by the fit's
+#' point estimates (means) and covariance matrix, for propagating parameter
+#' uncertainty into simulations.
+#'
+#' We call `pharmpy.modeling.sample_parameters_from_covariance_matrix()`
+#' directly rather than [pharmr::sample_parameters_from_covariance_matrix()]:
+#' the pharmr wrapper coerces `parameter_estimates` to a Python `dict`, but
+#' pharmpy (>= 2) requires a `pd.Series` (it indexes on `.index`) and raises
+#' `'dict' object has no attribute 'index'` otherwise.
+#'
+#' @param model a Pharmpy model object.
+#' @param parameter_estimates named numeric vector (or pandas Series) of
+#' parameter point estimates, used as sampling means.
+#' @param covariance_matrix parameter uncertainty covariance matrix, as an R
+#' matrix/data.frame (row/column names = parameter names) or a pandas
+#' DataFrame.
+#' @param n number of parameter sets to draw.
+#' @param seed random seed.
+#'
+#' @returns a data.frame with one sampled parameter set per row and one column
+#' per parameter (columns follow the covariance matrix's parameters).
+#' @noRd
+sample_uncertainty_parameters <- function(
+    model,
+    parameter_estimates,
+    covariance_matrix,
+    n,
+    seed
+) {
+  pd   <- reticulate::import("pandas", convert = FALSE)
+  pmod <- reticulate::import("pharmpy.modeling", convert = FALSE)
+
+  ## Normalise inputs to plain R structures; they may arrive as pandas objects
+  ## (via reticulate auto-conversion off) or as native R vectors/data.frames.
+  to_r <- function(x) {
+    if(inherits(x, "python.builtin.object")) reticulate::py_to_r(x) else x
+  }
+  pe        <- to_r(parameter_estimates)
+  pe_names  <- names(pe)
+  pe_vals   <- as.numeric(pe)
+  if(is.null(pe_names)) {
+    cli::cli_abort("`parameter_estimates` must be a named vector/Series of parameters.")
+  }
+
+  cov_mat <- as.matrix(to_r(covariance_matrix))
+  storage.mode(cov_mat) <- "double"
+  ## A pandas DataFrame round-tripped through py_to_r keeps column names but may
+  ## drop matching row names; mirror columns onto rows so pharmpy can index.
+  if(is.null(rownames(cov_mat)) && !is.null(colnames(cov_mat))) {
+    rownames(cov_mat) <- colnames(cov_mat)
+  }
+  cov_names <- colnames(cov_mat)
+  if(is.null(cov_names)) {
+    cli::cli_abort("`covariance_matrix` must have parameter names as row/column names.")
+  }
+
+  ## pharmpy requires the means and the covariance matrix to span the same
+  ## parameters. A covariance matrix often covers only the parameters that were
+  ## estimated with a standard error (e.g. fixed effects), so restrict the
+  ## means to the covariance parameters. Unsampled parameters keep the model's
+  ## current estimates.
+  missing_means <- setdiff(cov_names, pe_names)
+  if(length(missing_means) > 0) {
+    cli::cli_abort(c(
+      "Covariance matrix references parameters absent from `parameter_estimates`.",
+      x = "Missing: {missing_means}"
+    ))
+  }
+  pe_vals  <- pe_vals[match(cov_names, pe_names)]
+  pe_names <- cov_names
+
+  pe_s   <- pd$Series(reticulate::np_array(pe_vals), index = as.list(pe_names))
+  cov_df <- pd$DataFrame(
+    reticulate::np_array(cov_mat),
+    index   = as.list(cov_names),
+    columns = as.list(cov_names)
+  )
+
+  draws <- pmod$sample_parameters_from_covariance_matrix(
+    model,
+    pe_s,
+    cov_df,
+    n    = as.integer(n),
+    seed = as.integer(seed)
+  )
+  draws <- as.data.frame(reticulate::py_to_r(draws))
+  ## Drop the residual pandas index metadata py_to_r leaves behind, so the
+  ## result is a plain R data.frame (two identical draws compare equal).
+  attr(draws, "pandas.index") <- NULL
+  rownames(draws) <- NULL
+  draws
 }
 
 #' Calculate some basic PK variables from simulated or observed data

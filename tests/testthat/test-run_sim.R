@@ -508,6 +508,172 @@ test_that("run_sim (stub): add_pk_variables=TRUE computes AUC_SS when CL in outp
   expect_equal(unique(out$AUC_SS), 100 / 2) # last dose / CL
 })
 
+test_that("sample_uncertainty_parameters draws from a real covariance matrix", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  mod <- pharmr::load_example_model("pheno")
+  res <- pharmr::load_example_modelfit_results("pheno")
+  draws <- sample_uncertainty_parameters(
+    mod, res$parameter_estimates, res$covariance_matrix, n = 4, seed = 1
+  )
+  expect_s3_class(draws, "data.frame")
+  expect_equal(nrow(draws), 4)
+  ## columns follow the covariance matrix parameters
+  expect_true(all(c("POP_CL", "IIV_CL") %in% names(draws)))
+})
+
+test_that("sample_uncertainty_parameters draws from a real nlmixr2 FOCEi covariance", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  ## Anchor: covariance + estimates captured from an actual nlmixr2 FOCEi fit
+  ## of the pheno example (see tests/testthat/fixtures/). The nlmixr2 $cov
+  ## spans only the fixed effects (POP_CL, POP_VC, COVAPGR), not SIGMA/IIV, so
+  ## the means are restricted to those parameters.
+  fx  <- readRDS(test_path("fixtures", "nlmixr2_pheno_focei_fit.rds"))
+  mod <- pharmr::convert_model(pharmr::load_example_model("pheno"), "nlmixr")
+
+  draws <- sample_uncertainty_parameters(
+    mod, fx$parameter_estimates, fx$covariance_matrix, n = 3, seed = 42
+  )
+
+  expect_s3_class(draws, "data.frame")
+  expect_equal(nrow(draws), 3)
+  ## restricted to the covariance parameters only
+  expect_equal(sort(names(draws)), c("COVAPGR", "POP_CL", "POP_VC"))
+  ## deterministic given the seed (numpy Generator is stable across versions)
+  expect_equal(draws$POP_CL,
+               c(0.004151587, 0.004306600, 0.004108466), tolerance = 1e-6)
+  ## reproducible: same seed -> identical draws
+  draws2 <- sample_uncertainty_parameters(
+    mod, fx$parameter_estimates, fx$covariance_matrix, n = 3, seed = 42
+  )
+  expect_equal(draws, draws2)
+})
+
+test_that("run_sim (nlmixr2): n_uncertainty propagates a real nlmixr2 covariance", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  skip_if_not_installed("rxode2")
+
+  ## resolve fixture path before switching working directory
+  fx  <- readRDS(test_path("fixtures", "nlmixr2_pheno_focei_fit.rds"))
+  withr::local_dir(tempdir())
+
+  mod <- pharmr::convert_model(pharmr::load_example_model("pheno"), "nlmixr")
+  fit <- list(
+    parameter_estimates = fx$parameter_estimates,
+    covariance_matrix   = fx$covariance_matrix
+  )
+  dat <- as.data.frame(mod$dataset)
+  dat$EVID <- ifelse(dat$AMT > 0, 1, 0)
+  dat$MDV  <- ifelse(dat$DV == 0, 1, 0)
+
+  ## nlmixr2's covariance omits SIGMA/IIV, so run_sim warns those are held fixed
+  expect_warning(
+    out <- run_sim(fit = fit, model = mod, data = dat, tool = "nlmixr2",
+                   n_uncertainty = 3, n_iterations = 2, verbose = FALSE),
+    "held at point estimate"
+  )
+
+  expect_s3_class(out, "data.frame")
+  expect_true(".uncertainty" %in% names(out))
+  expect_equal(sort(unique(out$.uncertainty)), 1:3)
+})
+
+test_that("run_sim: warns which parameters are held fixed under n_uncertainty", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- make_model_without_cov()
+  ## covariance covers only POP_CL; POP_V is estimated but uncovered -> warned
+  fake_fit <- list(
+    parameter_estimates = c(POP_CL = 1, POP_V = 10),
+    covariance_matrix   = matrix(1, dimnames = list("POP_CL", "POP_CL"))
+  )
+  local_mocked_bindings(
+    run_nlme = function(...) .mock_nlme_result(),
+    sample_uncertainty_parameters =
+      function(model, parameter_estimates, covariance_matrix, n, seed) {
+        data.frame(POP_CL = seq_len(n))   # only POP_CL sampled
+      },
+    .package = "pharmr.extra"
+  )
+  local_mocked_bindings(
+    set_initial_estimates = function(model, inits) model,
+    .package = "pharmr"
+  )
+
+  expect_warning(
+    run_sim(fit = fake_fit, model = mod, data = .sim_dat(),
+            n_uncertainty = 2, verbose = FALSE),
+    "POP_V"
+  )
+})
+
+test_that("run_sim: n_uncertainty without a fit covariance matrix errors", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  mod <- make_model_without_cov()
+  expect_error(
+    run_sim(model = mod, data = .sim_dat(), n_uncertainty = 5, verbose = FALSE),
+    "covariance matrix"
+  )
+})
+
+test_that("run_sim (stub): n_uncertainty samples draws and tags .uncertainty column", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- make_model_without_cov()
+  fake_fit <- list(
+    parameter_estimates = c(POP_CL = 1, POP_V = 10),
+    covariance_matrix   = diag(2)
+  )
+  n_draws <- 3L
+  sampled <- 0L
+  local_mocked_bindings(
+    run_nlme = function(...) .mock_nlme_result(),
+    sample_uncertainty_parameters =
+      function(model, parameter_estimates, covariance_matrix, n, seed) {
+        sampled <<- n
+        as.data.frame(matrix(rep(seq_len(n), 2), ncol = 2,
+                             dimnames = list(NULL, c("POP_CL", "POP_V"))))
+      },
+    .package = "pharmr.extra"
+  )
+  local_mocked_bindings(
+    set_initial_estimates = function(model, inits) model,
+    .package = "pharmr"
+  )
+
+  out <- run_sim(fit = fake_fit, model = mod, data = .sim_dat(),
+                 n_uncertainty = n_draws, verbose = FALSE)
+
+  expect_equal(sampled, n_draws)
+  expect_true(".uncertainty" %in% names(out))
+  expect_equal(sort(unique(out$.uncertainty)), seq_len(n_draws))
+})
+
+test_that("run_sim (stub): n_uncertainty=0 behaves like no uncertainty (point estimate)", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- make_model_without_cov()
+  local_mocked_bindings(
+    run_nlme = function(...) .mock_nlme_result(),
+    .package = "pharmr.extra"
+  )
+  out <- run_sim(model = mod, data = .sim_dat(), n_uncertainty = 0,
+                 verbose = FALSE)
+  expect_false(".uncertainty" %in% names(out))
+})
+
 test_that("create_sim_dataset: t_obs limits observation records to requested times", {
   local_pharmr.extra_options()
   skip_if_nonmem_not_available()
