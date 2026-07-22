@@ -30,5 +30,8 @@ roughly three significant figures, so estimates recovered this way are lower
 precision than those in the corresponding \code{.ext} file. Use the \code{.ext} file
 (via \code{\link[=create_model_from_file]{create_model_from_file()}}) when full precision is required.
 
-Standard errors and covariance-step output are not parsed.
+Standard errors and covariance-step output are not parsed. OMEGA/SIGMA
+parsing handles the single column block NONMEM prints for up to six random
+effects; wider matrices, which NONMEM splits across multiple column blocks,
+are not yet supported.
 }

@@ -11,7 +11,10 @@
 #' precision than those in the corresponding `.ext` file. Use the `.ext` file
 #' (via [create_model_from_file()]) when full precision is required.
 #'
-#' Standard errors and covariance-step output are not parsed.
+#' Standard errors and covariance-step output are not parsed. OMEGA/SIGMA
+#' parsing handles the single column block NONMEM prints for up to six random
+#' effects; wider matrices, which NONMEM splits across multiple column blocks,
+#' are not yet supported.
 #'
 #' @param lst_file path to a NONMEM report file (`.lst`, `.res`, ...).
 #' @param code character string with the report file contents (alternative to
@@ -126,11 +129,12 @@ parse_lst <- function(lst_file = NULL, code = NULL) {
 
 #' Parse a final OMEGA/SIGMA covariance matrix from a NONMEM report file
 #'
-#' Each matrix row begins with a `+`-prefixed value line. NONMEM wraps rows
-#' wider than 12 elements onto continuation lines that carry values but no `+`
-#' prefix; those are folded back into the current row so wide matrices (more
-#' than six random effects) are reconstructed correctly. The returned matrix is
-#' symmetric (lower triangle mirrored).
+#' Each matrix row begins with a `+`-prefixed value line. When a row's values
+#' run onto continuation lines (carrying values but no `+` prefix), those are
+#' folded back into the current row. This reads the single OMEGA/SIGMA column
+#' block NONMEM prints for up to six random effects; NONMEM's multi-block
+#' printing for wider matrices is not handled. The returned matrix is symmetric
+#' (lower triangle mirrored).
 #'
 #' @noRd
 .parse_lst_matrix <- function(lines, header) {
@@ -144,8 +148,8 @@ parse_lst <- function(lst_file = NULL, code = NULL) {
   # A value line carries E-notation numbers or structural-zero dot-runs
   # (`.........`); a label / column-header line has neither. Row = the `+` line
   # plus any following value-only continuation lines, terminated by a blank
-  # line. Folding dot-only continuations is essential for wide (>12-element)
-  # rows whose wrapped segment is entirely off-block zeros.
+  # line. Dot-only continuations are folded too so a wrapped segment of
+  # structural zeros doesn't shift later columns left.
   is_val <- function(l) stringr::str_detect(l, "[0-9]\\.[0-9]*[eE]|\\.{3,}")
   rows <- list()
   current <- NULL

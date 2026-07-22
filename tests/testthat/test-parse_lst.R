@@ -84,7 +84,10 @@ test_that("parse_lst reassembles matrix rows wrapped onto continuation lines", {
 })
 
 test_that(".nm_numbers maps structural-zero dots to 0", {
-  expect_equal(.nm_numbers("+       .........  2.50E-05"), c(0, 2.5e-05))
+  expect_equal(
+    pharmr.extra:::.nm_numbers("+       .........  2.50E-05"),
+    c(0, 2.5e-05)
+  )
 })
 
 test_that("parse_lst folds an all-dots continuation line into the matrix row", {
