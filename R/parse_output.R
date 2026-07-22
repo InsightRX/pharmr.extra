@@ -16,35 +16,35 @@
 #' effects; wider matrices, which NONMEM splits across multiple column blocks,
 #' are not yet supported.
 #'
-#' @param lst_file path to a NONMEM report file (`.lst`, `.res`, ...).
+#' @param output_file path to a NONMEM report file (`.lst`, `.res`, ...).
 #' @param code character string with the report file contents (alternative to
-#'   `lst_file`).
+#'   `output_file`).
 #'
 #' @returns a list with elements `control_stream` (character), `theta` (numeric
 #'   vector), `omega` (numeric matrix or `NULL`), `sigma` (numeric matrix or
 #'   `NULL`), and `ofv` (numeric scalar or `NA`).
 #'
 #' @export
-parse_lst <- function(lst_file = NULL, code = NULL) {
+parse_output <- function(output_file = NULL, code = NULL) {
   if (is.null(code)) {
-    if (is.null(lst_file)) {
+    if (is.null(output_file)) {
       cli::cli_abort(
-        "Please specify a NONMEM report file (`lst_file`) or its contents (`code`)."
+        "Please specify a NONMEM report file (`output_file`) or its contents (`code`)."
       )
     }
-    if (!file.exists(lst_file)) {
-      cli::cli_abort("NONMEM report file ({lst_file}) not found.")
+    if (!file.exists(output_file)) {
+      cli::cli_abort("NONMEM report file ({output_file}) not found.")
     }
-    code <- readChar(lst_file, file.info(lst_file)$size)
+    code <- readChar(output_file, file.info(output_file)$size)
   }
   lines <- stringr::str_split(code, "\\r?\\n")[[1]]
 
   list(
     control_stream = .extract_control_stream(lines),
-    theta = .parse_lst_theta(lines),
-    omega = .parse_lst_matrix(lines, "OMEGA - COV MATRIX"),
-    sigma = .parse_lst_matrix(lines, "SIGMA - COV MATRIX"),
-    ofv = .parse_lst_ofv(lines)
+    theta = .parse_output_theta(lines),
+    omega = .parse_output_matrix(lines, "OMEGA - COV MATRIX"),
+    sigma = .parse_output_matrix(lines, "SIGMA - COV MATRIX"),
+    ofv = .parse_output_ofv(lines)
   )
 }
 
@@ -110,17 +110,17 @@ parse_lst <- function(lst_file = NULL, code = NULL) {
 }
 
 # Lines that start a new sub-section within the final-estimate region.
-.lst_section_break <- "MATRIX FOR RANDOM|VECTOR OF FIXED|STANDARD ERROR|\\*{6,}"
+.output_section_break <- "MATRIX FOR RANDOM|VECTOR OF FIXED|STANDARD ERROR|\\*{6,}"
 
 #' Parse the final THETA vector from a NONMEM report file
 #'
 #' @noRd
-.parse_lst_theta <- function(lines) {
+.parse_output_theta <- function(lines) {
   fp <- .final_est_region(lines)
   hdr <- which(stringr::str_detect(fp, "THETA - VECTOR OF FIXED EFFECTS"))[1]
   if (is.na(hdr)) return(numeric(0))
   rest <- fp[(hdr + 1L):length(fp)]
-  stop_at <- which(stringr::str_detect(rest, .lst_section_break))[1]
+  stop_at <- which(stringr::str_detect(rest, .output_section_break))[1]
   if (!is.na(stop_at)) rest <- rest[seq_len(stop_at - 1L)]
   # Value lines carry E-notation; the `TH 1  TH 2` label line does not.
   val_lines <- rest[stringr::str_detect(rest, "[0-9]\\.[0-9]*[eE]")]
@@ -137,12 +137,12 @@ parse_lst <- function(lst_file = NULL, code = NULL) {
 #' (lower triangle mirrored).
 #'
 #' @noRd
-.parse_lst_matrix <- function(lines, header) {
+.parse_output_matrix <- function(lines, header) {
   fp <- .final_est_region(lines)
   hdr <- which(stringr::str_detect(fp, header))[1]
   if (is.na(hdr)) return(NULL)
   rest <- fp[(hdr + 1L):length(fp)]
-  stop_at <- which(stringr::str_detect(rest, .lst_section_break))[1]
+  stop_at <- which(stringr::str_detect(rest, .output_section_break))[1]
   if (!is.na(stop_at)) rest <- rest[seq_len(stop_at - 1L)]
 
   # A value line carries E-notation numbers or structural-zero dot-runs
@@ -189,7 +189,7 @@ parse_lst <- function(lst_file = NULL, code = NULL) {
 #' number, so it must not be matched).
 #'
 #' @noRd
-.parse_lst_ofv <- function(lines) {
+.parse_output_ofv <- function(lines) {
   ln <- lines[stringr::str_detect(lines, "OBJECTIVE FUNCTION VALUE WITHOUT CONSTANT")]
   if (length(ln) == 0) {
     ln <- lines[stringr::str_detect(lines, "#OBJV")]

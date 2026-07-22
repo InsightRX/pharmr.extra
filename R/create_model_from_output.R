@@ -9,11 +9,11 @@
 #' fed through the existing [create_model_from_file()] path, so pharmpy handles
 #' the NONMEM-name to parameter-name mapping.
 #'
-#' **Precision:** estimates recovered from a `.lst` are rounded to ~3
-#' significant figures (see [parse_lst()]). Use an `.ext` file with
+#' **Precision:** estimates recovered from a report file are rounded to ~3
+#' significant figures (see [parse_output()]). Use an `.ext` file with
 #' [create_model_from_file()] when full precision is required.
 #'
-#' @param lst_file path to a NONMEM report file (`.lst`, `.res`, ...).
+#' @param output_file path to a NONMEM report file (`.lst`, `.res`, ...).
 #' @param data optional dataset (filename or `data.frame`) passed to
 #'   [create_model_from_file()].
 #' @param save_as optional path to write the resulting NONMEM model code to.
@@ -22,33 +22,33 @@
 #'
 #' @returns a Pharmpy model object.
 #'
-#' @seealso [parse_lst()], [create_model_from_file()]
+#' @seealso [parse_output()], [create_model_from_file()]
 #'
 #' @export
-create_model_from_lst <- function(
-  lst_file,
+create_model_from_output <- function(
+  output_file,
   data = NULL,
   save_as = NULL,
   verbose = TRUE
 ) {
-  if (!inherits(lst_file, "character")) {
-    cli::cli_abort("`lst_file` should be a string.")
+  if (!inherits(output_file, "character")) {
+    cli::cli_abort("`output_file` should be a string.")
   }
-  if (!file.exists(lst_file)) {
-    cli::cli_abort("Report file {lst_file} does not exist.")
+  if (!file.exists(output_file)) {
+    cli::cli_abort("Report file {output_file} does not exist.")
   }
 
-  parsed <- parse_lst(lst_file)
+  parsed <- parse_output(output_file)
 
   if (verbose) {
     cli::cli_alert_info(
-      "Recovering final estimates from {.path {basename(lst_file)}}. Values are rounded (~3 sig. figs); use the .ext file for full precision."
+      "Recovering final estimates from {.path {basename(output_file)}}. Values are rounded (~3 sig. figs); use the .ext file for full precision."
     )
   }
 
   ## Write the control stream and a synthetic .ext into a temp run folder, then
   ## reuse the .ext -> update_parameters() path in create_model_from_file().
-  model_id <- basename(tools::file_path_sans_ext(lst_file))
+  model_id <- basename(tools::file_path_sans_ext(output_file))
   tmp_dir <- tempfile(pattern = paste0(model_id, "_"), tmpdir = tempdir())
   dir.create(tmp_dir, showWarnings = FALSE, recursive = TRUE)
   mod_path <- file.path(tmp_dir, paste0(model_id, ".mod"))
