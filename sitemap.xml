@@ -36,6 +36,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/create_dosing_records.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/create_model.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/create_model_from_file.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/create_model_from_output.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/create_model_nlmixr.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/create_modelfit_info_table.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/create_modelfit_parameter_table.html</loc></url>
@@ -116,6 +117,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/nm_update_dataset.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/parse_data_dictionary.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/parse_estimation_options.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/parse_output.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/parse_psn_args.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/pharmr.extra-package.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/plot_bootstrap.html</loc></url>

@@ -140,6 +140,12 @@ MIT © InsightRX
   : Create a Pharmpy model object from a model file and dataset
   (optional)
 
+- [`create_model_from_output()`](https://insightrx.github.io/pharmr.extra/reference/create_model_from_output.md)
+  :
+
+  Create a Pharmpy model object from a NONMEM report file
+  (`.lst`/`.res`)
+
 - [`create_model_nlmixr()`](https://insightrx.github.io/pharmr.extra/reference/create_model_nlmixr.md)
   : Temporary function that returns a hardcoded nlmixr2 model
 
@@ -399,6 +405,11 @@ MIT © InsightRX
 
 - [`parse_estimation_options()`](https://insightrx.github.io/pharmr.extra/reference/parse_estimation_options.md)
   : Parse estimation_options into a per-step list.
+
+- [`parse_output()`](https://insightrx.github.io/pharmr.extra/reference/parse_output.md)
+  :
+
+  Parse a NONMEM report file (`.lst`/`.res`)
 
 - [`parse_psn_args()`](https://insightrx.github.io/pharmr.extra/reference/parse_psn_args.md)
   : Parse tool options specified in YAML into PsN commandline args
