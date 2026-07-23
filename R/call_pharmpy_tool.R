@@ -92,7 +92,7 @@ call_pharmpy_tool <- function(
     "modelsearch", "covsearch", "iivsearch", "ruvsearch",
     "amd", "bootstrap"
   )
-  req_results <- c("modelsearch", "covsearch", "iivsearch", "ruvsearch", "amd")
+  req_results <- c("modelsearch", "covsearch", "iivsearch", "ruvsearch", "amd", "structsearch")
   if(tool == "ruvsearch" && engine != "nonmem") {
     cli::cli_abort(c(
       "Pharmpy {.val ruvsearch} does not currently support nlmixr-format models.",
