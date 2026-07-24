@@ -40,7 +40,10 @@ do we want to remove them first?}
 
 \item{options}{list of arguments pass on to \code{tool} as argument. Documentation
 for available arguments for each Pharmpy tool can be found here:
-https://pharmpy.github.io/latest/mfl.html.}
+https://pharmpy.github.io/latest/mfl.html. For \code{tool = "structsearch"} with
+\code{type = "tmdd"}, the pharmr.extra-specific \code{kd} element (target dissociation
+constant seed, in concentration units) seeds the QSS candidates' target
+parameters via \code{\link[=seed_tmdd_results]{seed_tmdd_results()}} and is \emph{not} forwarded to Pharmpy.}
 
 \item{remove_tables}{if \code{TRUE} (default), removes all \verb{$TABLE} records from the model
 before passing it to the Pharmpy tool.}

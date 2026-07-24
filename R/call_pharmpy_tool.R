@@ -13,7 +13,10 @@
 #' @param force TODO
 #' @param options list of arguments pass on to `tool` as argument. Documentation
 #' for available arguments for each Pharmpy tool can be found here:
-#' https://pharmpy.github.io/latest/mfl.html.
+#' https://pharmpy.github.io/latest/mfl.html. For `tool = "structsearch"` with
+#' `type = "tmdd"`, the pharmr.extra-specific `kd` element (target dissociation
+#' constant seed, in concentration units) seeds the QSS candidates' target
+#' parameters via [seed_tmdd_results()] and is *not* forwarded to Pharmpy.
 #' @param remove_tables if `TRUE` (default), removes all `$TABLE` records from the model
 #' before passing it to the Pharmpy tool.
 #' @param uppercase_mfl if `TRUE` (default), uppercases the model's `$INPUT` /
@@ -93,10 +96,15 @@ call_pharmpy_tool <- function(
     "amd", "bootstrap"
   )
   req_results <- c("modelsearch", "covsearch", "iivsearch", "ruvsearch", "amd", "structsearch")
-  if(tool == "ruvsearch" && engine != "nonmem") {
+  ## Tools that only support NONMEM-format models. Pharmpy has no (or immature)
+  ## nlmixr dispatch for these, and they are absent from `search_tools` below,
+  ## so the nlmixr code paths (esttool injection, report suppression) never run
+  ## for them. Abort early rather than let them fail deep inside Pharmpy.
+  nonmem_only_tools <- c("ruvsearch", "structsearch")
+  if(tool %in% nonmem_only_tools && engine != "nonmem") {
     cli::cli_abort(c(
-      "Pharmpy {.val ruvsearch} does not currently support nlmixr-format models.",
-      i = "Use NONMEM for {.val ruvsearch}, or run an nlmixr residual-error model comparison outside Pharmpy's {.val ruvsearch} tool."
+      "Pharmpy {.val {tool}} does not currently support nlmixr-format models.",
+      i = "Use a NONMEM-format model for {.val {tool}}."
     ))
   }
   needs_native_nlmixr_results <- tool %in% req_results && engine != "nonmem"
@@ -148,6 +156,22 @@ call_pharmpy_tool <- function(
       model <- model_from_results
     }
   }
+
+  ## TMDD structsearch: seed the target-binding parameters. Pharmpy's
+  ## `create_qss_models()` derives sane initial estimates for POP_KDC (= POP_KM)
+  ## and POP_KINT (= POP_KM * POP_CLMM / (R_0 * VC)) *only* when the base-fit
+  ## results carry POP_KM and POP_CLMM. A plain linear PK base fit has neither,
+  ## so every QSS candidate starts from POP_KINT = POP_KDC = 0.1 and the stiff
+  ## TMDD ODE diverges (PRED EXIT), which cascades into a Pharmpy
+  ## `KeyError('POP_KINT')`. Passing `kd` augments the results with POP_KM (= kd,
+  ## the target dissociation constant, in concentration units) and POP_CLMM
+  ## (= the fitted POP_CL) so the search starts from a physiologically-plausible
+  ## point. Ignored for non-TMDD tools or when the base is already MM-parameterised.
+  if(tool == "structsearch" && identical(options$type, "tmdd") &&
+     !is.null(options$kd) && !is.null(results)) {
+    results <- seed_tmdd_results(results, kd = options$kd, verbose = verbose)
+  }
+  options$kd <- NULL  # `kd` is a pharmr.extra convenience, not a run_structsearch arg
 
   ## Prepare run folder
   if(is.null(folder)) {
@@ -351,4 +375,47 @@ if hasattr(_pharmr_extra_reporting, '_pharmr_extra_report_available'):
     delattr(_pharmr_extra_reporting, '_pharmr_extra_report_available')
 ")
   }
+}
+
+#' Seed TMDD target-binding parameters into a base-fit results object
+#'
+#' Returns a copy of `results` whose `parameter_estimates` gains `POP_KM` (= `kd`)
+#' and `POP_CLMM` (= the fitted `POP_CL`). Pharmpy's TMDD `structsearch` uses these
+#' to seed the QSS candidates' `POP_KDC` / `POP_KINT`; without them the stiff TMDD
+#' ODE diverges. Used internally by [call_pharmpy_tool()] when `tool = "structsearch"`,
+#' `options$type = "tmdd"` and `options$kd` is supplied. If the results already carry
+#' `POP_KM`/`POP_CLMM` (an MM-parameterised base) the object is returned unchanged.
+#'
+#' @param results a Pharmpy `ModelfitResults` object (e.g. from [run_nlme()]).
+#' @param kd target dissociation constant seed (concentration units).
+#' @param verbose emit an info message?
+#'
+#' @return a `ModelfitResults` with augmented `parameter_estimates`.
+#' @keywords internal
+seed_tmdd_results <- function(results, kd, verbose = TRUE) {
+  pe <- results$parameter_estimates
+  nm <- names(pe)
+  if(all(c("POP_KM", "POP_CLMM") %in% nm)) {
+    return(results)
+  }
+  if(!"POP_CL" %in% nm) {
+    cli::cli_alert_warning(
+      "Cannot seed TMDD parameters: base results have no {.val POP_CL}. Proceeding without seeding."
+    )
+    return(results)
+  }
+  new_vals <- c(
+    stats::setNames(as.numeric(pe), nm),
+    POP_KM   = as.numeric(kd),
+    POP_CLMM = as.numeric(pe[["POP_CL"]])
+  )
+  pd <- reticulate::import("pandas", convert = FALSE)
+  dc <- reticulate::import("dataclasses", convert = FALSE)
+  ser <- pd$Series(as.list(stats::setNames(as.numeric(new_vals), names(new_vals))))
+  if(verbose) {
+    cli::cli_alert_info(
+      "Seeding TMDD target parameters for structsearch ({.code POP_KM = {kd}}, {.code POP_CLMM = POP_CL})."
+    )
+  }
+  dc$replace(results, parameter_estimates = ser)
 }
