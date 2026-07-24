@@ -19,9 +19,12 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          # The nlmixr2/rxode2 chain now depends on qs2 (on CRAN) rather than
-          # the archived qs, so the earlier R 4.5 pin is no longer needed.
-          - {os: ubuntu-latest,   r: 'release'}
+          # Pinned to R 4.5: P3M has binaries for the nlmixr2/rxode2 +
+          # qs2/stringfish (RcppParallel) chain on 4.5, so nothing is compiled
+          # from source. On 'release'/4.6 those binaries don't exist yet and
+          # the chain builds from source, which both is slow and re-triggers
+          # the stringfish TBB load failure (see the Makevars step below).
+          - {os: ubuntu-latest,   r: '4.5'}
           #- {os: macos-latest,   r: 'release'}
           #- {os: windows-latest, r: 'release'}
           #- {os: ubuntu-latest,   r: 'devel', http-user-agent: 'release'}
@@ -30,18 +33,12 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
-      # Build stringfish/qs2 (RcppParallel-based) without TBB. When compiled
-      # from source on the x86_64 runner they otherwise link RcppParallel's
-      # bundled legacy TBB, and the resulting .so fails to load against the
-      # runner's oneTBB (undefined symbol tbb::...::concurrent_vector_base_v3).
-      # The TinyThread++ fallback avoids TBB entirely.
-      RCPP_PARALLEL_USE_TBB: 0
-    
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: r-lib/actions/setup-pandoc@v2
-      
+
       - name: Install curl
         run: |
           sudo apt-get update
@@ -52,6 +49,19 @@ jobs:
           r-version: ${{ matrix.config.r }}
           http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
+
+      # Safety net for any RcppParallel-based package (stringfish/qs2/rxode2)
+      # that still builds from source: force the TinyThread++ backend so the
+      # compiled .so does not reference TBB. Without this, a source build links
+      # RcppParallel's bundled legacy TBB and fails to load against the runner's
+      # oneTBB (undefined symbol tbb::...::concurrent_vector_base_v3...). The
+      # macro is a compile-time -D flag; the env var of the same name has no
+      # effect. RcppParallel defaults RCPP_PARALLEL_USE_TBB to 1 on linux.
+      - name: Disable TBB backend for RcppParallel builds
+        run: |
+          mkdir -p ~/.R
+          echo 'CPPFLAGS += -DRCPP_PARALLEL_USE_TBB=0' >> ~/.R/Makevars
+        shell: bash
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
