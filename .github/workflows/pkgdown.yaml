@@ -33,13 +33,14 @@ jobs:
           r-version: '4.5'
           use-public-rspm: true
 
-      # See R-CMD-check.yaml: force the TinyThread++ backend so any source
-      # build of stringfish/qs2 doesn't fail to load against the runner's oneTBB.
-      - name: Disable TBB backend for RcppParallel builds
+      # See R-CMD-check.yaml: build qs2 with --without-TBB so its .so doesn't
+      # fail to load against the runner's oneTBB (undefined symbol tbb::task).
+      - name: Install qs2 without TBB (avoids oneTBB tbb::task load failure)
         run: |
-          mkdir -p ~/.R
-          echo 'CPPFLAGS += -DRCPP_PARALLEL_USE_TBB=0' >> ~/.R/Makevars
-        shell: bash
+          install.packages(c("Rcpp", "RcppParallel", "stringfish"))
+          install.packages("qs2", type = "source",
+                            configure.args = c(qs2 = "--without-TBB"))
+        shell: Rscript {0}
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:

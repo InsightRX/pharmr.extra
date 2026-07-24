@@ -19,11 +19,12 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          # Pinned to R 4.5: P3M has binaries for the nlmixr2/rxode2 +
-          # qs2/stringfish (RcppParallel) chain on 4.5, so nothing is compiled
-          # from source. On 'release'/4.6 those binaries don't exist yet and
-          # the chain builds from source, which both is slow and re-triggers
-          # the stringfish TBB load failure (see the Makevars step below).
+          # Pinned to R 4.5: P3M ships binaries for most of the nlmixr2/rxode2
+          # chain (incl. stringfish) on 4.5, so little is compiled from source.
+          # On 'release'/4.6 those binaries don't exist yet, so the whole chain
+          # (stringfish included) builds from source and hits the RcppParallel
+          # legacy-TBB load failure. qs2 has no binary on either and is handled
+          # by the --without-TBB install step below.
           - {os: ubuntu-latest,   r: '4.5'}
           #- {os: macos-latest,   r: 'release'}
           #- {os: windows-latest, r: 'release'}
@@ -50,18 +51,19 @@ jobs:
           http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
 
-      # Safety net for any RcppParallel-based package (stringfish/qs2/rxode2)
-      # that still builds from source: force the TinyThread++ backend so the
-      # compiled .so does not reference TBB. Without this, a source build links
-      # RcppParallel's bundled legacy TBB and fails to load against the runner's
-      # oneTBB (undefined symbol tbb::...::concurrent_vector_base_v3...). The
-      # macro is a compile-time -D flag; the env var of the same name has no
-      # effect. RcppParallel defaults RCPP_PARALLEL_USE_TBB to 1 on linux.
-      - name: Disable TBB backend for RcppParallel builds
+      # qs2 (pulled in by rxode2) has no P3M binary and builds from source; it
+      # then links RcppParallel's legacy TBB and its .so fails to load against
+      # the runner's oneTBB (undefined symbol typeinfo for tbb::task). Its
+      # configure supports --without-TBB, which selects the TinyThread++ backend
+      # and references no TBB symbols. Install it here first (deps, incl. the
+      # stringfish binary, resolve normally) so pak reuses this build. stringfish
+      # itself has a P3M binary on R 4.5, so it needs no source workaround.
+      - name: Install qs2 without TBB (avoids oneTBB tbb::task load failure)
         run: |
-          mkdir -p ~/.R
-          echo 'CPPFLAGS += -DRCPP_PARALLEL_USE_TBB=0' >> ~/.R/Makevars
-        shell: bash
+          install.packages(c("Rcpp", "RcppParallel", "stringfish"))
+          install.packages("qs2", type = "source",
+                            configure.args = c(qs2 = "--without-TBB"))
+        shell: Rscript {0}
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
