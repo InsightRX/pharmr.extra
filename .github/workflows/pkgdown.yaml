@@ -44,6 +44,9 @@ jobs:
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
+          # cache-version bump: the previous cache held a truncated
+          # RcppParallel/lib/libtbb.so ("file too short" on rxode2.so load).
+          cache-version: 2
           extra-packages: any::pkgdown, local::.
           needs: website
 
