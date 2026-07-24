@@ -96,10 +96,14 @@ call_pharmpy_tool <- function(
     "amd", "bootstrap"
   )
   req_results <- c("modelsearch", "covsearch", "iivsearch", "ruvsearch", "amd", "structsearch")
-  ## Tools that only support NONMEM-format models. Pharmpy has no (or immature)
-  ## nlmixr dispatch for these, and they are absent from `search_tools` below,
-  ## so the nlmixr code paths (esttool injection, report suppression) never run
-  ## for them. Abort early rather than let them fail deep inside Pharmpy.
+  ## Tools that only support NONMEM-format models: Pharmpy has no (or immature)
+  ## nlmixr dispatch for these, so abort early for nlmixr-format models rather
+  ## than letting them fail deep inside Pharmpy. This abort is what keeps the
+  ## nlmixr code paths below (esttool injection, report suppression) from ever
+  ## running for these tools; those paths are additionally gated on
+  ## `engine != "nonmem"`. (Note `ruvsearch` is also listed in `search_tools`,
+  ## but that membership is inert for it: it can only reach here with an
+  ## nlmixr engine via the abort, so the `engine != "nonmem"` blocks never fire.)
   nonmem_only_tools <- c("ruvsearch", "structsearch")
   if(tool %in% nonmem_only_tools && engine != "nonmem") {
     cli::cli_abort(c(
