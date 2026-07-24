@@ -12,15 +12,15 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
+      # See R-CMD-check.yaml: build stringfish/qs2 without TBB so the source
+      # build's .so doesn't fail to load against the runner's oneTBB.
+      RCPP_PARALLEL_USE_TBB: 0
 
     steps:
       - uses: actions/checkout@v4
 
       - uses: r-lib/actions/setup-r@v2
         with:
-          # Pinned to R 4.5 — see R-CMD-check.yaml for rationale (qs dep
-          # is archived and its source doesn't compile against R 4.6+).
-          r-version: '4.5'
           use-public-rspm: true
 
       - uses: r-lib/actions/setup-r-dependencies@v2
@@ -28,7 +28,6 @@ jobs:
           extra-packages: |
             any::covr
             any::xml2
-            qsbase/qs
             cran/lotri
             cran/rxode2
             cran/nlmixr2est
