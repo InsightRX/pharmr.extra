@@ -62,7 +62,12 @@ call_pharmpy_tool(
 
   list of arguments pass on to `tool` as argument. Documentation for
   available arguments for each Pharmpy tool can be found here:
-  https://pharmpy.github.io/latest/mfl.html.
+  https://pharmpy.github.io/latest/mfl.html. For `tool = "structsearch"`
+  with `type = "tmdd"`, the pharmr.extra-specific `kd` element (target
+  dissociation constant seed, in concentration units) seeds the QSS
+  candidates' target parameters via
+  [`seed_tmdd_results()`](https://insightrx.github.io/pharmr.extra/reference/seed_tmdd_results.md)
+  and is *not* forwarded to Pharmpy.
 
 - remove_tables:
 

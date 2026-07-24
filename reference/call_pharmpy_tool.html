@@ -9,7 +9,7 @@ or modelsearch. A separate function is available for fit()"></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9104</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9109</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -101,7 +101,10 @@ do we want to remove them first?</p></dd>
 <dt id="arg-options">options<a class="anchor" aria-label="anchor" href="#arg-options"></a></dt>
 <dd><p>list of arguments pass on to <code>tool</code> as argument. Documentation
 for available arguments for each Pharmpy tool can be found here:
-https://pharmpy.github.io/latest/mfl.html.</p></dd>
+https://pharmpy.github.io/latest/mfl.html. For <code>tool = "structsearch"</code> with
+<code>type = "tmdd"</code>, the pharmr.extra-specific <code>kd</code> element (target dissociation
+constant seed, in concentration units) seeds the QSS candidates' target
+parameters via <code><a href="seed_tmdd_results.html">seed_tmdd_results()</a></code> and is <em>not</em> forwarded to Pharmpy.</p></dd>
 
 
 <dt id="arg-remove-tables">remove_tables<a class="anchor" aria-label="anchor" href="#arg-remove-tables"></a></dt>
