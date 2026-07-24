@@ -170,6 +170,11 @@ call_pharmpy_tool <- function(
   if(tool == "structsearch" && identical(options$type, "tmdd") &&
      !is.null(options$kd) && !is.null(results)) {
     results <- seed_tmdd_results(results, kd = options$kd, verbose = verbose)
+  } else if(!is.null(options$kd)) {
+    cli::cli_alert_warning(
+      "Ignoring {.code kd}: it only applies to {.code tool = \"structsearch\"} with \\
+       {.code options$type = \"tmdd\"} and non-NULL {.code results}. No seeding performed."
+    )
   }
   options$kd <- NULL  # `kd` is a pharmr.extra convenience, not a run_structsearch arg
 
@@ -395,6 +400,13 @@ if hasattr(_pharmr_extra_reporting, '_pharmr_extra_report_available'):
 seed_tmdd_results <- function(results, kd, verbose = TRUE) {
   pe <- results$parameter_estimates
   nm <- names(pe)
+  ## For NONMEM `ModelfitResults`, `parameter_estimates` may be an unconverted
+  ## pandas Series (names() == NULL); convert so we can index it by name. See
+  ## the same fallback in run_sim.R.
+  if(is.null(nm) && inherits(pe, "python.builtin.object")) {
+    pe <- reticulate::py_to_r(pe)
+    nm <- names(pe)
+  }
   if(all(c("POP_KM", "POP_CLMM") %in% nm)) {
     return(results)
   }
@@ -404,14 +416,19 @@ seed_tmdd_results <- function(results, kd, verbose = TRUE) {
     )
     return(results)
   }
-  new_vals <- c(
-    stats::setNames(as.numeric(pe), nm),
-    POP_KM   = as.numeric(kd),
-    POP_CLMM = as.numeric(pe[["POP_CL"]])
-  )
+  ## Only add the parameters that are missing, so a partial-MM base fit keeps
+  ## its already-fitted POP_KM / POP_CLMM instead of having them overwritten by
+  ## the raw seed (a duplicate index would silently clobber the fitted value).
+  new_vals <- stats::setNames(as.numeric(pe), nm)
+  if(!"POP_KM" %in% nm) {
+    new_vals <- c(new_vals, POP_KM = as.numeric(kd))
+  }
+  if(!"POP_CLMM" %in% nm) {
+    new_vals <- c(new_vals, POP_CLMM = as.numeric(pe[["POP_CL"]]))
+  }
   pd <- reticulate::import("pandas", convert = FALSE)
   dc <- reticulate::import("dataclasses", convert = FALSE)
-  ser <- pd$Series(as.list(stats::setNames(as.numeric(new_vals), names(new_vals))))
+  ser <- pd$Series(as.list(new_vals))
   if(verbose) {
     cli::cli_alert_info(
       "Seeding TMDD target parameters for structsearch ({.code POP_KM = {kd}}, {.code POP_CLMM = POP_CL})."

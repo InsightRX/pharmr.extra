@@ -39,12 +39,27 @@ test_that("call_pharmpy_tool auto-generates results for structsearch (req_result
   )
   mod <- create_model(route = "iv", data = dat, tables = "fit", verbose = FALSE)
 
-  run_nlme_fn <- mockery::mock(NULL)
+  ## run_nlme returns a sentinel so we can assert the auto-generated results
+  ## actually propagate into the pharmpy tool call (not just that run_nlme
+  ## was invoked). A plain string carries no "model" attr, so the
+  ## `attr(results, "model")` branch is skipped and `model` is left intact.
+  fake_results <- "GENERATED_RESULTS_SENTINEL"
+  run_nlme_fn <- mockery::mock(fake_results)
+
+  ## Persistent run folder (a stub-local tempdir would be cleaned up on stub
+  ## return, breaking the real withr::with_dir(run_folder) downstream).
+  run_dir <- withr::local_tempdir()
+
+  captured <- NULL
   stub(call_pharmpy_tool, "run_nlme", run_nlme_fn)
   stub(call_pharmpy_tool, "remove_tables_from_model", function(m, ...) m)
-  stub(call_pharmpy_tool, "create_run_folder", function(...) withr::local_tempdir())
+  stub(call_pharmpy_tool, "create_run_folder", function(...) run_dir)
   stub(call_pharmpy_tool, "clean_pharmpy_runfolders", function(...) invisible(NULL))
-  stub(call_pharmpy_tool, "withr::with_dir", function(...) stop("abort before pharmpy"))
+  ## Capture the arguments handed to the pharmpy tool at the do.call boundary.
+  stub(call_pharmpy_tool, "do.call", function(what, args, ...) {
+    captured <<- list(what = what, args = args)
+    stop("captured before pharmpy call")
+  })
 
   tryCatch(
     call_pharmpy_tool(
@@ -59,6 +74,9 @@ test_that("call_pharmpy_tool auto-generates results for structsearch (req_result
 
   # structsearch is in req_results, so no `results` provided -> run_nlme called
   mockery::expect_called(run_nlme_fn, 1)
+  # ...and the generated results are passed through to run_structsearch
+  expect_equal(captured$what, "run_structsearch")
+  expect_equal(captured$args$results, fake_results)
 })
 
 test_that("call_pharmpy_tool does not call remove_tables_from_model when remove_tables = FALSE", {
