@@ -18,17 +18,24 @@ jobs:
 
       - uses: r-lib/actions/setup-r@v2
         with:
-          # Pinned to R 4.5 — see R-CMD-check.yaml for rationale (qs dep
-          # is archived and its source doesn't compile against R 4.6+).
+          # Pinned to R 4.5 for P3M binary availability; see R-CMD-check.yaml.
           r-version: '4.5'
           use-public-rspm: true
+
+      # See R-CMD-check.yaml: build qs2 with --without-TBB so its .so doesn't
+      # fail to load against the runner's oneTBB (undefined symbol tbb::task).
+      - name: Install qs2 without TBB (avoids oneTBB tbb::task load failure)
+        run: |
+          install.packages(c("Rcpp", "RcppParallel", "stringfish"))
+          install.packages("qs2", type = "source",
+                            configure.args = c(qs2 = "--without-TBB"))
+        shell: Rscript {0}
 
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           extra-packages: |
             any::covr
             any::xml2
-            qsbase/qs
             cran/lotri
             cran/rxode2
             cran/nlmixr2est

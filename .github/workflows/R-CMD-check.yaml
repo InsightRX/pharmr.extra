@@ -19,11 +19,12 @@ jobs:
       fail-fast: false
       matrix:
         config:
-          # Pinned to R 4.5 because qs (a transitive dep of nlmixr2est) is
-          # archived from CRAN and its source no longer compiles against
-          # R 4.6+ (LEVELS, Rf_allocSExp etc. removed). P3M has qs binaries
-          # for R 4.5 but not R 4.6. Revert to 'release' once the dep chain
-          # drops qs or upstream restores R 4.6 compatibility.
+          # Pinned to R 4.5: P3M ships binaries for most of the nlmixr2/rxode2
+          # chain (incl. stringfish) on 4.5, so little is compiled from source.
+          # On 'release'/4.6 those binaries don't exist yet, so the whole chain
+          # (stringfish included) builds from source and hits the RcppParallel
+          # legacy-TBB load failure. qs2 has no binary on either and is handled
+          # by the --without-TBB install step below.
           - {os: ubuntu-latest,   r: '4.5'}
           #- {os: macos-latest,   r: 'release'}
           #- {os: windows-latest, r: 'release'}
@@ -33,12 +34,12 @@ jobs:
     env:
       GITHUB_PAT: ${{ secrets.GITHUB_TOKEN }}
       R_KEEP_PKG_SOURCE: yes
-    
+
     steps:
       - uses: actions/checkout@v4
 
       - uses: r-lib/actions/setup-pandoc@v2
-      
+
       - name: Install curl
         run: |
           sudo apt-get update
@@ -50,13 +51,25 @@ jobs:
           http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
 
+      # qs2 (pulled in by rxode2) has no P3M binary and builds from source; it
+      # then links RcppParallel's legacy TBB and its .so fails to load against
+      # the runner's oneTBB (undefined symbol typeinfo for tbb::task). Its
+      # configure supports --without-TBB, which selects the TinyThread++ backend
+      # and references no TBB symbols. Install it here first (deps, incl. the
+      # stringfish binary, resolve normally) so pak reuses this build. stringfish
+      # itself has a P3M binary on R 4.5, so it needs no source workaround.
+      - name: Install qs2 without TBB (avoids oneTBB tbb::task load failure)
+        run: |
+          install.packages(c("Rcpp", "RcppParallel", "stringfish"))
+          install.packages("qs2", type = "source",
+                            configure.args = c(qs2 = "--without-TBB"))
+        shell: Rscript {0}
+
       - uses: r-lib/actions/setup-r-dependencies@v2
         with:
           pak-version: devel
           extra-packages: |
             any::rcmdcheck
-            traversc/stringfish@36c0ed0
-            qsbase/qs
             cran/lotri
             cran/rxode2
             cran/nlmixr2est
