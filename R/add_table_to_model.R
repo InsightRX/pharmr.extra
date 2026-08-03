@@ -7,9 +7,16 @@
 #' @param reload_dataset should dataset be reloaded into the Pharmpy model object
 #' after updating the model. Default is TRUE, to ensure a proper Pharmpy model object,
 #' but can result in issues.
-#' @param format NONMEM `$TABLE` output format. Defaults to `sF9.0`, which keeps
-#' enough digits to write large integer subject IDs without truncation (NONMEM's
-#' default format truncates IDs to ~6-7 significant digits).
+#' @param id_format NONMEM `$TABLE` output format for the `ID` column only.
+#' Defaults to `sF11.0`, which writes integer subject IDs of up to 10 digits
+#' in full (NONMEM's default format truncates IDs to ~6-7 significant digits).
+#' Set to `NULL` to leave the ID column at NONMEM's default format.
+#' @param format NONMEM `$TABLE` output format for *all* columns. `NULL`
+#' (default) leaves NONMEM's default (`s1PE11.4`), which is what you almost
+#' always want: a fixed-point format such as `sF9.0` rounds every column in the
+#' table (concentrations, times, parameters) to that many decimals. Note that
+#' NONMEM carries `FORMAT` over to all subsequent `$TABLE` records, so setting
+#' it here also affects tables added later.
 #'
 #' @returns TODO
 #'
@@ -20,8 +27,10 @@ add_table_to_model <- function(
     firstonly = FALSE,
     file,
     reload_dataset = TRUE,
-    format = "sF9.0"
+    id_format = "sF11.0",
+    format = NULL
 ) {
+  check_table_formats(id_format, format)
   check_nm_table_variables(model, variables)
   tool <- get_tool_from_model(model)
   if(tool == "nonmem") {
@@ -40,10 +49,11 @@ add_table_to_model <- function(
       paste0(c(" ", variables), collapse = " "),
       ifelse(firstonly, "\n  FIRSTONLY", ""),
       "\n  NOAPPEND NOPRINT",
-      ## FORMAT must precede FILE: remove_table_sections() strips a $TABLE by
+      ## (ID)FORMAT must precede FILE: remove_table_sections() strips a $TABLE by
       ## matching up to `FILE=<file>`, so FILE has to stay the last option or
       ## any trailing option is orphaned and corrupts the next record.
-      "\n  FORMAT=", format,
+      if(!is.null(id_format)) paste0("\n  IDFORMAT=", id_format) else "",
+      if(!is.null(format)) paste0("\n  FORMAT=", format) else "",
       "\n  FILE=", file,
       "\n\n"
     )

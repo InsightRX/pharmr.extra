@@ -10,7 +10,8 @@ add_table_to_model(
   firstonly = FALSE,
   file,
   reload_dataset = TRUE,
-  format = "sF9.0"
+  id_format = "sF11.0",
+  format = NULL
 )
 }
 \arguments{
@@ -26,9 +27,17 @@ add_table_to_model(
 after updating the model. Default is TRUE, to ensure a proper Pharmpy model object,
 but can result in issues.}
 
-\item{format}{NONMEM \verb{$TABLE} output format. Defaults to \code{sF9.0}, which keeps
-enough digits to write large integer subject IDs without truncation (NONMEM's
-default format truncates IDs to ~6-7 significant digits).}
+\item{id_format}{NONMEM \verb{$TABLE} output format for the \code{ID} column only.
+Defaults to \code{sF11.0}, which writes integer subject IDs of up to 10 digits
+in full (NONMEM's default format truncates IDs to ~6-7 significant digits).
+Set to \code{NULL} to leave the ID column at NONMEM's default format.}
+
+\item{format}{NONMEM \verb{$TABLE} output format for \emph{all} columns. \code{NULL}
+(default) leaves NONMEM's default (\code{s1PE11.4}), which is what you almost
+always want: a fixed-point format such as \code{sF9.0} rounds every column in the
+table (concentrations, times, parameters) to that many decimals. Note that
+NONMEM carries \code{FORMAT} over to all subsequent \verb{$TABLE} records, so setting
+it here also affects tables added later.}
 }
 \value{
 TODO

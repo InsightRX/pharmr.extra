@@ -1,5 +1,17 @@
 # pharmr.extra (development version)
 
+* `$TABLE` records written by `add_table_to_model()`, `add_default_output_tables()`,
+  `run_sim()` and `create_vpc_data()` no longer round every output column to a
+  whole number (#114, a regression in 0.0.0.9092). Those functions widened the
+  `ID` column with `FORMAT=sF9.0`, but NONMEM applies `FORMAT` to *all* columns
+  of the table — and to all subsequent `$TABLE` records — so concentrations,
+  times and parameter columns were quantised (severely distorting VPC data).
+  The ID column is now widened with `IDFORMAT=sF11.0`, which formats the `ID`
+  column only (integer IDs up to 10 digits) and leaves every other column at
+  NONMEM's default precision. A table-wide `FORMAT` is still available as an
+  opt-in `format` argument of `add_table_to_model()`, and `create_vpc_data()`
+  gained an `id_format` argument.
+
 * `run_nlme()` SAEM fits of nlmixr2 models no longer fail when the model was
   modified by a pharmpy operation after `create_model()` (e.g.
   `create_model(...) |> set_initial_estimates(...)`). Such operations return a

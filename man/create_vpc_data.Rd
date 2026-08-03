@@ -16,7 +16,8 @@ create_vpc_data(
   id = NULL,
   use_pharmpy = TRUE,
   fix_input_heuristic = TRUE,
-  seed = NULL
+  seed = NULL,
+  id_format = "sF11.0"
 )
 }
 \arguments{
@@ -55,6 +56,13 @@ a \code{LOG()} call in a covariate transform doesn't trigger a false swap.}
 draws a random seed per call (so repeated \code{create_vpc_data()} calls
 in one session aren't pinned to identical draws); supply a value for
 bit-reproducible runs.}
+
+\item{id_format}{NONMEM \verb{$TABLE} \code{IDFORMAT} for the simulation table, which
+sets the output format of the \code{ID} column only. Defaults to \code{sF11.0}, so
+integer subject IDs of up to 10 digits are written in full instead of
+being truncated by NONMEM's default (~6 significant digits). All other
+columns keep NONMEM's default format. \code{NULL} uses the NONMEM default for
+\code{ID} too.}
 }
 \value{
 list with \code{obs} and \code{sim} data frames.

@@ -275,24 +275,40 @@ test_that("remove_record() matches NONMEM abbreviations of the keyword", {
 test_that("add_table_record() appends a single $TABLE record", {
   code <- "$PROBLEM t\n$THETA 1\n"
   out <- pharmr.extra:::add_table_record(code, c("ID", "TIME", "PRED"), file = "sdtab")
-  expect_match(out, "\\$TABLE ID TIME PRED NOAPPEND NOPRINT FILE=sdtab")
+  expect_match(out, "\\$TABLE ID TIME PRED NOAPPEND NOPRINT")
+  expect_match(out, "FILE=sdtab")
 })
 
-test_that("add_table_record() sets a wide FORMAT so IDs are not truncated", {
-  ## Regression: NONMEM's default table format is 12.4g, which truncates large
-  ## integer IDs (e.g. 8- or 9-digit subject IDs) to ~6-7 significant digits.
-  ## A wide sF9.0 format preserves the full integer ID in the VPC output.
+test_that("add_table_record() widens only the ID column", {
+  ## Regression (#114): NONMEM's default table format truncates large integer
+  ## IDs (8-9 digits) to ~6 significant digits, so the ID column is widened
+  ## with IDFORMAT. A table-wide FORMAT must NOT be used: it rounded DV/TIME
+  ## in the VPC output (and leaked into all later $TABLE records).
   code <- "$PROBLEM t\n$THETA 1\n"
   out <- pharmr.extra:::add_table_record(code, c("ID", "TIME", "PRED"), file = "sdtab")
-  expect_match(out, "FORMAT=sF9.0")
+  expect_match(out, "IDFORMAT=sF11.0")
+  expect_no_match(out, "[^D]FORMAT=")
 })
 
-test_that("add_table_record() honours a custom FORMAT", {
+test_that("add_table_record() honours a custom IDFORMAT and rejects invalid ones", {
   code <- "$PROBLEM t\n$THETA 1\n"
   out <- pharmr.extra:::add_table_record(
-    code, c("ID", "TIME", "PRED"), file = "sdtab", format = "sF12.0"
+    code, c("ID", "TIME", "PRED"), file = "sdtab", id_format = "sF10.0"
   )
-  expect_match(out, "FILE=sdtab FORMAT=sF12.0")
+  expect_match(out, "IDFORMAT=sF10.0 FILE=sdtab")
+
+  out_none <- pharmr.extra:::add_table_record(
+    code, c("ID", "TIME", "PRED"), file = "sdtab", id_format = NULL
+  )
+  expect_no_match(out_none, "FORMAT")
+
+  ## Wider than the (default) column width -> NONMEM would abort mid-run
+  expect_error(
+    pharmr.extra:::add_table_record(
+      code, c("ID", "TIME", "PRED"), file = "sdtab", id_format = "sF12.0"
+    ),
+    "wider than"
+  )
 })
 
 
