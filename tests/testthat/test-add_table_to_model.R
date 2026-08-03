@@ -18,7 +18,7 @@ test_that("adds table correctly", {
     file = "patab"
   )
   
-  expected_addition <- "\\n\\$TABLE\\n  ID CL V\\n  NOAPPEND NOPRINT\\n  FORMAT=sF9.0\\n  FILE=patab\\n\\n"
+  expected_addition <- "\\n\\$TABLE\\n  ID CL V\\n  NOAPPEND NOPRINT\\n  IDFORMAT=sF11.0\\n  FILE=patab\\n\\n"
   expect_true(grepl(expected_addition, result$code))
 
   # Test with firstonly = TRUE
@@ -29,14 +29,16 @@ test_that("adds table correctly", {
     file = "patab"
   )
 
-  expected_addition <- "\\n\\$TABLE\\n  ID CL V\\n  FIRSTONLY\\n  NOAPPEND NOPRINT\\n  FORMAT=sF9.0\\n  FILE=patab\\n\\n"
+  expected_addition <- "\\n\\$TABLE\\n  ID CL V\\n  FIRSTONLY\\n  NOAPPEND NOPRINT\\n  IDFORMAT=sF11.0\\n  FILE=patab\\n\\n"
   expect_true(grepl(expected_addition, result$code))
 })
 
-test_that("adds a wide FORMAT so subject IDs are not truncated", {
-  ## Regression: NONMEM's default table format truncates large integer IDs to
-  ## ~6-7 significant digits. add_table_to_model() must emit an explicit FORMAT
-  ## wide enough to preserve full 8-9 digit IDs in simulation/output tables.
+test_that("widens only the ID column, not the whole table", {
+  ## Regression (#114): NONMEM's default table format truncates large integer
+  ## IDs to ~6-7 significant digits, so add_table_to_model() widens the ID
+  ## column. It must do so with IDFORMAT, not FORMAT: FORMAT applies to *every*
+  ## column (and to all later $TABLE records), so `FORMAT=sF9.0` rounded DV,
+  ## TIME and parameter columns to whole numbers.
   dat <- data.frame(
     ID = 1,
     TIME = c(0, 1, 2),
@@ -48,18 +50,58 @@ test_that("adds a wide FORMAT so subject IDs are not truncated", {
   )
   mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
 
-  # Default format
+  # Default: IDFORMAT only, no table-wide FORMAT
   result <- add_table_to_model(
     model = mod, variables = c("ID", "CL", "V"), file = "patab"
   )
-  expect_true(grepl("FORMAT=sF9.0", result$code, fixed = TRUE))
+  expect_true(grepl("IDFORMAT=sF11.0", result$code, fixed = TRUE))
+  expect_false(grepl("[^D]FORMAT=", result$code))
 
-  # Custom format is honoured
+  # Custom id_format is honoured
   result2 <- add_table_to_model(
     model = mod, variables = c("ID", "CL", "V"), file = "patab",
-    format = "sF12.0"
+    id_format = "sF10.0"
   )
-  expect_true(grepl("FORMAT=sF12.0", result2$code, fixed = TRUE))
+  expect_true(grepl("IDFORMAT=sF10.0", result2$code, fixed = TRUE))
+
+  # A table-wide FORMAT is opt-in only
+  result3 <- add_table_to_model(
+    model = mod, variables = c("ID", "CL", "V"), file = "patab",
+    id_format = NULL, format = "s1PE15.8"
+  )
+  expect_true(grepl("\n  FORMAT=s1PE15.8", result3$code, fixed = TRUE))
+  expect_false(grepl("IDFORMAT", result3$code, fixed = TRUE))
+})
+
+test_that("rejects an id_format wider than the table column width", {
+  ## NONMEM writes each column into a field of width(FORMAT) + 1 characters and
+  ## dies with "Fortran runtime error: End of record" if IDFORMAT is wider, so
+  ## catch it before the run instead.
+  dat <- data.frame(
+    ID = 1,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1,
+    EVID = c(1, 0, 0),
+    MDV = c(1, 0, 0)
+  )
+  mod <- create_model(route = "iv", data = dat, tables = NULL, verbose = FALSE)
+
+  expect_error(
+    add_table_to_model(
+      model = mod, variables = c("ID", "CL", "V"), file = "patab",
+      id_format = "sF12.0"
+    ),
+    "wider than"
+  )
+  # ... unless FORMAT is widened along with it
+  expect_no_error(
+    add_table_to_model(
+      model = mod, variables = c("ID", "CL", "V"), file = "patab",
+      id_format = "sF12.0", format = "s1PE15.8"
+    )
+  )
 })
 
 test_that("warns on duplicate file", {

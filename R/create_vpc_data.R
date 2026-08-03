@@ -36,6 +36,12 @@
 #'   draws a random seed per call (so repeated `create_vpc_data()` calls
 #'   in one session aren't pinned to identical draws); supply a value for
 #'   bit-reproducible runs.
+#' @param id_format NONMEM `$TABLE` `IDFORMAT` for the simulation table, which
+#'   sets the output format of the `ID` column only. Defaults to `sF11.0`, so
+#'   integer subject IDs of up to 10 digits are written in full instead of
+#'   being truncated by NONMEM's default (~6 significant digits). All other
+#'   columns keep NONMEM's default format. `NULL` uses the NONMEM default for
+#'   `ID` too.
 #'
 #' @returns list with `obs` and `sim` data frames.
 #'
@@ -51,8 +57,10 @@ create_vpc_data <- function(
   id = NULL,
   use_pharmpy = TRUE,
   fix_input_heuristic = TRUE,
-  seed = NULL
+  seed = NULL,
+  id_format = "sF11.0"
 ) {
+  check_table_formats(id_format)
 
   ## ---- Resolve model & dispatch nlmixr branch via the original code path ----
   caller_supplied_model <- !is.null(model)
@@ -121,8 +129,12 @@ create_vpc_data <- function(
   model_code <- remove_record(model_code, "COV")     ## matches $COV / $COVA ... / $COVARIANCE
   model_code <- remove_record(model_code, "TABLE")
 
-  ## ensure enough digits for saving unique IDs (this ensures 9 unique digits)
-  model_code <- add_table_record(model_code, vpc_vars, file = "sdtab", format = "sF9.0")
+  ## IDFORMAT widens the ID column only, so large integer IDs survive while
+  ## DV/TIME/PRED keep NONMEM's default precision (a table-wide FORMAT would
+  ## quantise them, see issue #114).
+  model_code <- add_table_record(
+    model_code, vpc_vars, file = "sdtab", id_format = id_format
+  )
 
   ## Point the model's $DATA at our sanitised CSV so Pharmpy (inside
   ## run_nlme) reads numeric data only.
@@ -461,17 +473,30 @@ remove_record <- function(code, record_name) {
 }
 
 #' Add a $TABLE record at the end of the model code.
+#'
+#' `id_format` sets `IDFORMAT`, which widens the ID column only; `format` sets
+#' `FORMAT`, which applies to every column (and to every later $TABLE record),
+#' so it defaults to `NULL`. See [check_table_formats()].
 #' @noRd
 add_table_record <- function(
     code,
     variables,
     file = "sdtab",
-    format = "sF9.0"
+    id_format = "sF11.0",
+    format = NULL
 ) {
+  check_table_formats(id_format, format)
   table_line <- paste(
     "$TABLE",
     paste(variables, collapse = " "),
-    paste0("NOAPPEND NOPRINT FILE=", file, " FORMAT=", format)
+    paste0(
+      "NOAPPEND NOPRINT",
+      ## (ID)FORMAT precedes FILE: remove_table_sections() strips a $TABLE by
+      ## matching up to `FILE=<file>`, so FILE stays the last option.
+      if(!is.null(id_format)) paste0(" IDFORMAT=", id_format) else "",
+      if(!is.null(format)) paste0(" FORMAT=", format) else "",
+      " FILE=", file
+    )
   )
   paste0(sub("\\s+$", "", code), "\n", table_line, "\n")
 }
