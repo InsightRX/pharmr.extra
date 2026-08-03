@@ -23,7 +23,7 @@ and post-processing of obs/sim is identical to the original."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9109</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9110</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -77,7 +77,8 @@ and post-processing of <code>obs</code>/<code>sim</code> is identical to the ori
 <span>  id <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  use_pharmpy <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  fix_input_heuristic <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  seed <span class="op">=</span> <span class="cn">NULL</span></span>
+<span>  seed <span class="op">=</span> <span class="cn">NULL</span>,</span>
+<span>  id_format <span class="op">=</span> <span class="st">"sF11.0"</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -141,6 +142,15 @@ a <code>LOG()</code> call in a covariate transform doesn't trigger a false swap.
 draws a random seed per call (so repeated <code>create_vpc_data()</code> calls
 in one session aren't pinned to identical draws); supply a value for
 bit-reproducible runs.</p></dd>
+
+
+<dt id="arg-id-format">id_format<a class="anchor" aria-label="anchor" href="#arg-id-format"></a></dt>
+<dd><p>NONMEM <code>$TABLE</code> <code>IDFORMAT</code> for the simulation table, which
+sets the output format of the <code>ID</code> column only. Defaults to <code>sF11.0</code>, so
+integer subject IDs of up to 10 digits are written in full instead of
+being truncated by NONMEM's default (~6 significant digits). All other
+columns keep NONMEM's default format. <code>NULL</code> uses the NONMEM default for
+<code>ID</code> too.</p></dd>
 
 </dl></div>
     <div class="section level2">

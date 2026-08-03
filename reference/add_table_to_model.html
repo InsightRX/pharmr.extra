@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9109</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9110</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -48,7 +48,8 @@
 <span>  firstonly <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  <span class="va">file</span>,</span>
 <span>  reload_dataset <span class="op">=</span> <span class="cn">TRUE</span>,</span>
-<span>  format <span class="op">=</span> <span class="st">"sF9.0"</span></span>
+<span>  id_format <span class="op">=</span> <span class="st">"sF11.0"</span>,</span>
+<span>  format <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -78,10 +79,20 @@ after updating the model. Default is TRUE, to ensure a proper Pharmpy model obje
 but can result in issues.</p></dd>
 
 
+<dt id="arg-id-format">id_format<a class="anchor" aria-label="anchor" href="#arg-id-format"></a></dt>
+<dd><p>NONMEM <code>$TABLE</code> output format for the <code>ID</code> column only.
+Defaults to <code>sF11.0</code>, which writes integer subject IDs of up to 10 digits
+in full (NONMEM's default format truncates IDs to ~6-7 significant digits).
+Set to <code>NULL</code> to leave the ID column at NONMEM's default format.</p></dd>
+
+
 <dt id="arg-format">format<a class="anchor" aria-label="anchor" href="#arg-format"></a></dt>
-<dd><p>NONMEM <code>$TABLE</code> output format. Defaults to <code>sF9.0</code>, which keeps
-enough digits to write large integer subject IDs without truncation (NONMEM's
-default format truncates IDs to ~6-7 significant digits).</p></dd>
+<dd><p>NONMEM <code>$TABLE</code> output format for <em>all</em> columns. <code>NULL</code>
+(default) leaves NONMEM's default (<code>s1PE11.4</code>), which is what you almost
+always want: a fixed-point format such as <code>sF9.0</code> rounds every column in the
+table (concentrations, times, parameters) to that many decimals. Note that
+NONMEM carries <code>FORMAT</code> over to all subsequent <code>$TABLE</code> records, so setting
+it here also affects tables added later.</p></dd>
 
 </dl></div>
     <div class="section level2">

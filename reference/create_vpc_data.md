@@ -27,7 +27,8 @@ create_vpc_data(
   id = NULL,
   use_pharmpy = TRUE,
   fix_input_heuristic = TRUE,
-  seed = NULL
+  seed = NULL,
+  id_format = "sF11.0"
 )
 ```
 
@@ -92,6 +93,15 @@ create_vpc_data(
   random seed per call (so repeated `create_vpc_data()` calls in one
   session aren't pinned to identical draws); supply a value for
   bit-reproducible runs.
+
+- id_format:
+
+  NONMEM `$TABLE` `IDFORMAT` for the simulation table, which sets the
+  output format of the `ID` column only. Defaults to `sF11.0`, so
+  integer subject IDs of up to 10 digits are written in full instead of
+  being truncated by NONMEM's default (~6 significant digits). All other
+  columns keep NONMEM's default format. `NULL` uses the NONMEM default
+  for `ID` too.
 
 ## Value
 
