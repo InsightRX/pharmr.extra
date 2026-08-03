@@ -49,12 +49,9 @@ check_table_formats <- function(id_format, format = NULL) {
 
   if(id_width > format_width) {
     cli::cli_abort(c(
-      "{.arg id_format} ({.val {id_format}}) is wider than the column width of \\
-       {.arg format} ({format_width} characters).",
-      "x" = "NONMEM aborts with {.emph Fortran runtime error: End of record} \\
-             when writing the table.",
-      "i" = "Use an {.arg id_format} of at most {format_width} characters, or \\
-             widen {.arg format}."
+      "{.arg id_format} ({.val {id_format}}) is wider than the column width of {.arg format} ({format_width} characters).",
+      "x" = "NONMEM aborts with {.emph Fortran runtime error: End of record} when writing the table.",
+      "i" = "Use an {.arg id_format} of at most {format_width} characters, or widen {.arg format}."
     ))
   }
   invisible(NULL)
