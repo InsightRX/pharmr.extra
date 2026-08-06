@@ -25,7 +25,9 @@ create_run_folder <- function(
       cli::cli_abort(paste0("Run folder (", fit_folder, ") exists. Use `force` to overwrite."))
     }
   } else {
-    dir.create(fit_folder)
+    ## recursive so nested ids (e.g. `run1/regimen_2` from run_sim) create
+    ## any missing parent folders instead of failing.
+    dir.create(fit_folder, recursive = TRUE)
   }
   fit_folder
 }

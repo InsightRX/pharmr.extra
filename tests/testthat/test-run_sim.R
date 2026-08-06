@@ -508,6 +508,74 @@ test_that("run_sim (stub): add_pk_variables=TRUE computes AUC_SS when CL in outp
   expect_equal(unique(out$AUC_SS), 100 / 2) # last dose / CL
 })
 
+test_that("run_sim (stub): each regimen runs in its own id/regimen_<i> folder", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- make_model_without_cov()
+  seen_ids <- character(0)
+  local_mocked_bindings(
+    run_nlme = function(id, ...) {
+      seen_ids[[length(seen_ids) + 1L]] <<- id
+      .mock_nlme_result()
+    },
+    .package = "pharmr.extra"
+  )
+  dat <- rbind(
+    cbind(.sim_dat(), .regimen = "100mg"),
+    cbind(.sim_dat(), .regimen = "200mg")
+  )
+  run_sim(model = mod, id = "sim1", data = dat, verbose = FALSE)
+
+  ## distinct, numerically-indexed subfolders — regimens don't overwrite
+  expect_setequal(
+    seen_ids,
+    c(file.path("sim1", "regimen_1"), file.path("sim1", "regimen_2"))
+  )
+})
+
+test_that("run_sim (stub): path is forwarded to run_nlme when set", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- make_model_without_cov()
+  seen_path <- new.env()
+  seen_path$val <- "unset"
+  local_mocked_bindings(
+    run_nlme = function(id, path = NULL, ...) {
+      seen_path$val <- path
+      .mock_nlme_result()
+    },
+    .package = "pharmr.extra"
+  )
+  target <- file.path(tempdir(), "custom_sim_out")
+  run_sim(model = mod, id = "sim1", path = target, data = .sim_dat(),
+          verbose = FALSE)
+  expect_equal(seen_path$val, target)
+})
+
+test_that("run_sim (stub): path=NULL (default) is not passed to run_nlme", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- make_model_without_cov()
+  seen_path <- new.env()
+  seen_path$val <- "sentinel"
+  local_mocked_bindings(
+    ## default keeps the sentinel, so we can tell whether `path` was supplied
+    run_nlme = function(id, path = "sentinel", ...) {
+      seen_path$val <- path
+      .mock_nlme_result()
+    },
+    .package = "pharmr.extra"
+  )
+  run_sim(model = mod, id = "sim1", data = .sim_dat(), verbose = FALSE)
+  expect_equal(seen_path$val, "sentinel")
+})
+
 test_that("sample_uncertainty_parameters draws from a real covariance matrix", {
   local_pharmr.extra_options()
   skip_if_nonmem_not_available()

@@ -1,6 +1,9 @@
 #' Run simulations
 #'
 #' @inheritParams run_nlme
+#' @param id base run id (default a random `sim_*`). Each regimen is run in its
+#' own subfolder `id/regimen_<i>` (`<i>` = 1-based regimen index), so regimens
+#' don't overwrite each other's output.
 #' @param model either a Pharmpy model object, or a filename (for a model
 #' with NONMEM model code). If the latter, `run_sim()` will attempt to load the
 #' model into Pharmpy first.
@@ -40,6 +43,9 @@
 #' @param variables vector of variables to output. If `NULL`, will output
 #' default variables `c("ID", "TIME", "DV", "EVID", "PRED")` as well as
 #' all variables declared in the NONMEM code.
+#' @param path folder in which to create the run folder(s). Each regimen is
+#' run in its own subfolder `id/regimen_<i>`. If `NULL` (default), the folder
+#' is forwarded to [run_nlme()] unset, so `run_nlme()`'s own default applies.
 #' @param output_file TODO
 #' @param seed TODO
 #'
@@ -51,6 +57,7 @@ run_sim <- function(
     data = NULL,
     model = NULL,
     id = irxutils::get_random_id("sim_"),
+    path = NULL,
     force = FALSE,
     tool = c("auto", "nonmem", "nlmixr2"),
     n_iterations = 1,
@@ -142,6 +149,7 @@ run_sim <- function(
       data = data,
       model = model,
       id = id,
+      path = path,
       n_iterations = n_iterations,
       variables = variables,
       add_pk_variables = add_pk_variables,
@@ -174,8 +182,13 @@ run_sim <- function(
   unique_regimens <- unique(sim_data[[".regimen"]])
   comb <- list()
 
-  ## Loop over regimens to simulate
-  for(reg_label in unique_regimens) {
+  ## Loop over regimens to simulate. Each regimen gets its own run folder
+  ## (`id/regimen_<i>`) so regimens don't overwrite each other's output.
+  ## Numeric indexing avoids sanitizing user labels that may contain spaces
+  ## NONMEM cannot handle in `$DATA` paths.
+  for(i in seq_along(unique_regimens)) {
+    reg_label <- unique_regimens[i]
+    id_i <- file.path(id, paste0("regimen_", i))
 
     ## grab data for regimen
     sim_data_regimen <- sim_data |>
@@ -235,16 +248,19 @@ run_sim <- function(
     ## Run simulation
     if(verbose) cli::cli_alert_info("Running simulation ({reg_label})")
 
-    ## sim_data_regimen
-    results <- run_nlme(
+    ## sim_data_regimen. Forward `path` only when set, so run_nlme()'s own
+    ## default applies otherwise (decoupled from any getwd() default here).
+    nlme_args <- list(
       model = sim_model,
       data = new_dataset_file,
-      id = id,
+      id = id_i,
       force = TRUE,
       copy_dataset = TRUE,
       auto_stack_encounters = FALSE,
       verbose = FALSE
     )
+    if(!is.null(path)) nlme_args$path <- path
+    results <- do.call(run_nlme, nlme_args)
 
     ## Detect silent NONMEM failures: pharmpy/run_nlme do not raise when a
     ## simulation produces no output table, so we check here and surface the
@@ -254,7 +270,8 @@ run_sim <- function(
     if(is.null(sim_tab) || nrow(sim_tab) == 0) {
       abort_on_failed_sim(
         regimen_label = reg_label,
-        fit_folder = file.path(getwd(), id)
+        fit_folder = attr(results, "fit_folder") %||%
+          file.path(path %||% getwd(), id_i)
       )
     }
 
