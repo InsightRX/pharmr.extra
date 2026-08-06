@@ -10,6 +10,7 @@ run_sim(
   data = NULL,
   model = NULL,
   id = irxutils::get_random_id("sim_"),
+  path = NULL,
   force = FALSE,
   tool = c("auto", "nonmem", "nlmixr2"),
   n_iterations = 1,
@@ -44,10 +45,19 @@ run_sim(
 
 - id:
 
-  run id, e.g. `run1`. This will be the folder in which the NONMEM model
-  is run. If no folder is specified, it will create a folder `run1` in
-  the current working directory, and will increment the run number for
-  each subsequent run.
+  base run id (default a random `sim_*`). Each regimen is run in its own
+  subfolder `id/regimen_<i>` (`<i>` = 1-based regimen index), so
+  regimens don't overwrite each other's output.
+
+- path:
+
+  folder in which to create the run folder(s). Each regimen is run in
+  its own subfolder `id/regimen_<i>`. If `NULL` (default), the folder is
+  forwarded to
+  [`run_nlme()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme.md)
+  unset, so
+  [`run_nlme()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme.md)'s
+  own default applies.
 
 - force:
 
