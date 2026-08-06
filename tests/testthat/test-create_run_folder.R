@@ -37,6 +37,16 @@ test_that("works with nested path structures", {
   expect_equal(out, file.path(nested_path, "nested_run"))
 })
 
+test_that("creates missing parent folders when id is nested (e.g. run_sim regimens)", {
+  tmp_dir <- withr::local_tempdir()
+  ## id carrying a subfolder, as run_sim() uses for per-regimen output
+  out <- create_run_folder(id = file.path("sim1", "regimen_2"),
+                           path = tmp_dir, verbose = FALSE)
+
+  expect_true(dir.exists(out))
+  expect_equal(out, file.path(tmp_dir, "sim1", "regimen_2"))
+})
+
 test_that("errors when folder exists and force is FALSE", {
   tmp_dir <- withr::local_tempdir()
   existing_folder <- file.path(tmp_dir, "existing_run")

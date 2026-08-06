@@ -9,6 +9,7 @@ run_sim_nlmixr(
   data = NULL,
   model = NULL,
   id = irxutils::get_random_id("sim_"),
+  path = NULL,
   n_iterations = 1,
   variables = NULL,
   add_pk_variables = FALSE,
@@ -32,6 +33,10 @@ model into Pharmpy first.}
 model is run. If no folder is specified, it will create a folder \code{run1} in
 the current working directory, and will increment the run number for each
 subsequent run.}
+
+\item{path}{folder in which to create the run folder(s). Each regimen is
+run in its own subfolder \verb{id/regimen_<i>}. If \code{NULL} (default), the folder
+is forwarded to \code{\link[=run_nlme]{run_nlme()}} unset, so \code{run_nlme()}'s own default applies.}
 
 \item{n_iterations}{number of iterations of the entire simulation to
 perform. The dataset for the simulation will stay the same between each

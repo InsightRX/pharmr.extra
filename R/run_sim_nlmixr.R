@@ -20,6 +20,7 @@ run_sim_nlmixr <- function(
   data = NULL,
   model = NULL,
   id = irxutils::get_random_id("sim_"),
+  path = NULL,
   n_iterations = 1,
   variables = NULL,
   add_pk_variables = FALSE,

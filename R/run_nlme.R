@@ -451,6 +451,10 @@ run_nlme <- function(
   time_all <- round(as.numeric(time_end - time_start), 1)
   if(verbose) cli::cli_alert_success(paste0("Run done (", time_all,"s)."))
 
+  ## Expose the resolved run folder so callers (e.g. run_sim) can locate
+  ## on-disk output without re-deriving it from `path`/`id` defaults.
+  attr(fit, "fit_folder") <- obj$fit_folder
+
   fit
 
 }
