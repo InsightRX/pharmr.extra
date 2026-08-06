@@ -33,10 +33,9 @@ attached to \code{model} is used as-is.}
 with NONMEM model code). If the latter, \code{run_sim()} will attempt to load the
 model into Pharmpy first.}
 
-\item{id}{run id, e.g. \code{run1}. This will be the folder in which the NONMEM
-model is run. If no folder is specified, it will create a folder \code{run1} in
-the current working directory, and will increment the run number for each
-subsequent run.}
+\item{id}{base run id (default a random \verb{sim_*}). Each regimen is run in its
+own subfolder \verb{id/regimen_<i>} (\verb{<i>} = 1-based regimen index), so regimens
+don't overwrite each other's output.}
 
 \item{path}{folder in which to create the run folder(s). Each regimen is
 run in its own subfolder \verb{id/regimen_<i>}. If \code{NULL} (default), the folder

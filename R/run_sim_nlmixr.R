@@ -14,6 +14,9 @@
 #' prediction); rxSolve does not produce both in a single call.
 #'
 #' @inheritParams run_sim
+#' @param path ignored for the nlmixr2 backend: simulations run via
+#' [rxode2::rxSolve()] and create no NONMEM-style run folders. Accepted only to
+#' keep the signature aligned with [run_sim()].
 #' @keywords internal
 run_sim_nlmixr <- function(
   fit = NULL,

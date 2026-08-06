@@ -1,6 +1,9 @@
 #' Run simulations
 #'
 #' @inheritParams run_nlme
+#' @param id base run id (default a random `sim_*`). Each regimen is run in its
+#' own subfolder `id/regimen_<i>` (`<i>` = 1-based regimen index), so regimens
+#' don't overwrite each other's output.
 #' @param model either a Pharmpy model object, or a filename (for a model
 #' with NONMEM model code). If the latter, `run_sim()` will attempt to load the
 #' model into Pharmpy first.
