@@ -32,11 +32,13 @@
 #' to files `stdout` and `stderr` in fit folder.
 #' @param force if run folder (`id`) exists, should existing results be
 #' removed before rerunning NONMEM? Default `FALSE`.
-#' @param save_fit save fit object. If `TRUE`, will save as <run_id.rds>. Can
-#' also specify filename (rds) to save to.
+#' @param save_fit save fit object. If `TRUE`, will save as `<id>.rds` inside
+#' `path`. Can also specify a filename (rds) to save to; relative filenames
+#' are resolved against `path`, absolute ones are used as-is. `FALSE` writes
+#' nothing.
 #' @param save_summary save fit summary and parameter estimates to file?
-#' Default is `TRUE`. Will use current folder, and save as
-#' `fit_summary_<id>.txt` and `fit_parameters_<id>.csv`.
+#' Default is `TRUE`. Files are written to `path` as `<id>_fit_summary.txt`
+#' and `<id>_fit_parameters.csv`.
 #' @param estimation_method Optional. Character vector of estimation method(s)
 #' to apply to model. Will remove all existing estimation steps in the model
 #' and update with methods specified in argument.
@@ -417,13 +419,15 @@ run_nlme <- function(
       }
     }
 
-    ## save fit object to file
+    ## save fit object to file. Relative names resolve against `path`, not
+    ## the working directory, so a caller that runs in a temp/analysis folder
+    ## doesn't get stray files next to their R session.
     if(!is.null(save_fit)){
       if(inherits(save_fit, "character")) {
-        saveRDS(fit, save_fit)
+        saveRDS(fit, resolve_output_file(save_fit, path))
       } else if(inherits(save_fit, "logical")) {
         if(save_fit) {
-          saveRDS(fit, paste0(id, ".rds"))
+          saveRDS(fit, resolve_output_file(paste0(id, ".rds"), path))
         }
       }
     }
@@ -435,12 +439,12 @@ run_nlme <- function(
       txt_summ <- knitr::kable(fit_summ, row.names = FALSE, format = "simple")
       writeLines(
         txt_summ,
-        paste0(id, "_fit_summary.txt")
+        resolve_output_file(paste0(id, "_fit_summary.txt"), path)
       )
       par_est <- create_modelfit_parameter_table(fit)
       write.csv(
         par_est,
-        paste0(id, "_fit_parameters.csv"),
+        resolve_output_file(paste0(id, "_fit_parameters.csv"), path),
         quote=F, row.names=F
       )
       if(verbose) cli::cli_process_done()

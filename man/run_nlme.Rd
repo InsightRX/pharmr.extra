@@ -67,12 +67,14 @@ removed before rerunning NONMEM? Default \code{FALSE}.}
 \item{console}{show stderr and stdout in R console? If FALSE, will stream
 to files \code{stdout} and \code{stderr} in fit folder.}
 
-\item{save_fit}{save fit object. If \code{TRUE}, will save as <run_id.rds>. Can
-also specify filename (rds) to save to.}
+\item{save_fit}{save fit object. If \code{TRUE}, will save as \verb{<id>.rds} inside
+\code{path}. Can also specify a filename (rds) to save to; relative filenames
+are resolved against \code{path}, absolute ones are used as-is. \code{FALSE} writes
+nothing.}
 
 \item{save_summary}{save fit summary and parameter estimates to file?
-Default is \code{TRUE}. Will use current folder, and save as
-\verb{fit_summary_<id>.txt} and \verb{fit_parameters_<id>.csv}.}
+Default is \code{TRUE}. Files are written to \code{path} as \verb{<id>_fit_summary.txt}
+and \verb{<id>_fit_parameters.csv}.}
 
 \item{estimation_method}{Optional. Character vector of estimation method(s)
 to apply to model. Will remove all existing estimation steps in the model

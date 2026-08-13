@@ -177,19 +177,24 @@ run_nlme_nlmixr <- function(
   }
 
   ## Persist
+  ## Relative filenames resolve against `path` (see resolve_output_file()).
   if(!is.null(save_fit)) {
     if(inherits(save_fit, "character")) {
-      saveRDS(fit, save_fit)
+      saveRDS(fit, resolve_output_file(save_fit, path))
     } else if(isTRUE(save_fit)) {
-      saveRDS(fit, paste0(id, ".rds"))
+      saveRDS(fit, resolve_output_file(paste0(id, ".rds"), path))
     }
   }
   if(save_summary) {
     fit_summ <- create_modelfit_info_table(fit)
     txt_summ <- knitr::kable(fit_summ, row.names = FALSE, format = "simple")
-    writeLines(txt_summ, paste0(id, "_fit_summary.txt"))
+    writeLines(txt_summ, resolve_output_file(paste0(id, "_fit_summary.txt"), path))
     par_est <- create_modelfit_parameter_table(fit)
-    utils::write.csv(par_est, paste0(id, "_fit_parameters.csv"), quote = FALSE, row.names = FALSE)
+    utils::write.csv(
+      par_est,
+      resolve_output_file(paste0(id, "_fit_parameters.csv"), path),
+      quote = FALSE, row.names = FALSE
+    )
   }
 
   if(verbose) {

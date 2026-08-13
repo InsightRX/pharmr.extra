@@ -465,3 +465,57 @@ test_that("replace_inits_in_text() stops when the queue is exhausted", {
   )
   expect_equal(out$text, " 1 2 0.30")
 })
+
+
+# temp file hygiene (#118) ------------------------------------------------
+
+test_that("create_vpc_data() does not ask run_nlme() to write fit files", {
+  ## The three fit artefacts (<id>.rds, <id>_fit_summary.txt,
+  ## <id>_fit_parameters.csv) are never read back — results come from
+  ## attr(res, "tables"). Make sure both run_nlme() calls turn them off.
+  csv <- tempfile(fileext = ".csv")
+  on.exit(unlink(csv), add = TRUE)
+  utils::write.csv(
+    data.frame(ID = 1, TIME = c(0, 1), DV = c(0, 10), AMT = c(100, 0),
+               EVID = c(1, 0), MDV = c(1, 0)),
+    csv, quote = FALSE, row.names = FALSE
+  )
+
+  code <- paste(
+    "$PROBLEM test",
+    paste0("$DATA ", csv, " IGNORE=@"),
+    "$INPUT ID TIME DV AMT EVID MDV",
+    "$SUBROUTINE ADVAN1 TRANS2",
+    "$PK\nCL=THETA(1)\nV=THETA(2)\nS1=V",
+    "$ERROR\nY=F+F*EPS(1)",
+    "$THETA (0, 5)",
+    "$THETA (0, 50)",
+    "$OMEGA 0.1",
+    "$SIGMA 0.1",
+    "$ESTIMATION METHOD=1 MAXEVAL=9999",
+    sep = "\n"
+  )
+
+  calls <- list()
+  local_mocked_bindings(
+    run_nlme = function(...) {
+      args <- list(...)
+      calls[[length(calls) + 1]] <<- args
+      structure(list(), tables = list(data.frame(ID = 1, TIME = 0, DV = 0,
+                                                 PRED = 0, EVID = 0, MDV = 0)))
+    }
+  )
+
+  suppressWarnings(try(
+    create_vpc_data(model = code, n = 2, verbose = FALSE),
+    silent = TRUE
+  ))
+
+  expect_length(calls, 2)
+  for(args in calls) {
+    expect_false(isTRUE(args$save_fit))
+    expect_false(isTRUE(args$save_summary))
+    expect_identical(args$save_fit, FALSE)
+    expect_identical(args$save_summary, FALSE)
+  }
+})

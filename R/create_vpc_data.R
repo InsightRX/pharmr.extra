@@ -154,6 +154,8 @@ create_vpc_data <- function(
 
   if(verbose) cli::cli_alert_info("Running input model evaluation for VPC")
   eval_mod <- write_temp_mod(eval_code)
+  ## Results are taken from `attr(res, "tables")` in memory, so the fit
+  ## object / summary / parameter files are never read back — don't write them.
   eval_res <- run_nlme(
     model = eval_mod,
     data = clean_csv,
@@ -161,6 +163,8 @@ create_vpc_data <- function(
     force = TRUE,
     id = id,
     save_final = FALSE,
+    save_fit = FALSE,
+    save_summary = FALSE,
     verbose = verbose
   )
   obs <- attr(eval_res, "tables")[[1]]
@@ -177,6 +181,8 @@ create_vpc_data <- function(
     force = TRUE,
     id = id,
     save_final = FALSE,
+    save_fit = FALSE,
+    save_summary = FALSE,
     verbose = verbose
   )
   sim <- attr(sim_res, "tables")[[1]]

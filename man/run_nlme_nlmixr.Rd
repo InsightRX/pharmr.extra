@@ -16,6 +16,7 @@ run_nlme_nlmixr(
   save_summary = TRUE,
   save_final = TRUE,
   clean = TRUE,
+  mu_reference = "auto",
   verbose = TRUE
 )
 }
@@ -46,17 +47,25 @@ and update with methods specified in argument.}
 \item{force}{if run folder (\code{id}) exists, should existing results be
 removed before rerunning NONMEM? Default \code{FALSE}.}
 
-\item{save_fit}{save fit object. If \code{TRUE}, will save as <run_id.rds>. Can
-also specify filename (rds) to save to.}
+\item{save_fit}{save fit object. If \code{TRUE}, will save as \verb{<id>.rds} inside
+\code{path}. Can also specify a filename (rds) to save to; relative filenames
+are resolved against \code{path}, absolute ones are used as-is. \code{FALSE} writes
+nothing.}
 
 \item{save_summary}{save fit summary and parameter estimates to file?
-Default is \code{TRUE}. Will use current folder, and save as
-\verb{fit_summary_<id>.txt} and \verb{fit_parameters_<id>.csv}.}
+Default is \code{TRUE}. Files are written to \code{path} as \verb{<id>_fit_summary.txt}
+and \verb{<id>_fit_parameters.csv}.}
 
 \item{save_final}{after running the model, should a file \code{final.mod} be created
 with the final estimates from the run.}
 
 \item{clean}{clean up run folder after NONMEM execution?}
+
+\item{mu_reference}{Controls mu-referencing for SAEM models. \code{"auto"}
+(default) automatically applies \code{pharmr::mu_reference_model()} when SAEM is
+used and the model is not already mu-referenced. \code{TRUE} always applies
+mu-referencing. \code{FALSE} never applies mu-referencing (old behaviour: warns
+when SAEM is used without mu-referencing).}
 
 \item{verbose}{verbose output?}
 }
