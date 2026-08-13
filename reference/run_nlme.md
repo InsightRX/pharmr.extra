@@ -94,14 +94,16 @@ run_nlme(
 
 - save_fit:
 
-  save fit object. If `TRUE`, will save as \<run_id.rds\>. Can also
-  specify filename (rds) to save to.
+  save fit object. If `TRUE`, will save as `<id>.rds` inside `path`. Can
+  also specify a filename (rds) to save to; relative filenames are
+  resolved against `path`, absolute ones are used as-is. `FALSE` writes
+  nothing.
 
 - save_summary:
 
   save fit summary and parameter estimates to file? Default is `TRUE`.
-  Will use current folder, and save as `fit_summary_<id>.txt` and
-  `fit_parameters_<id>.csv`.
+  Files are written to `path` as `<id>_fit_summary.txt` and
+  `<id>_fit_parameters.csv`.
 
 - estimation_method:
 

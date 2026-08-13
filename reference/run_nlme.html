@@ -13,7 +13,7 @@ inspection of intermediate model fit."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9111</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9113</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -139,14 +139,16 @@ to files <code>stdout</code> and <code>stderr</code> in fit folder.</p></dd>
 
 
 <dt id="arg-save-fit">save_fit<a class="anchor" aria-label="anchor" href="#arg-save-fit"></a></dt>
-<dd><p>save fit object. If <code>TRUE</code>, will save as &lt;run_id.rds&gt;. Can
-also specify filename (rds) to save to.</p></dd>
+<dd><p>save fit object. If <code>TRUE</code>, will save as <code>&lt;id&gt;.rds</code> inside
+<code>path</code>. Can also specify a filename (rds) to save to; relative filenames
+are resolved against <code>path</code>, absolute ones are used as-is. <code>FALSE</code> writes
+nothing.</p></dd>
 
 
 <dt id="arg-save-summary">save_summary<a class="anchor" aria-label="anchor" href="#arg-save-summary"></a></dt>
 <dd><p>save fit summary and parameter estimates to file?
-Default is <code>TRUE</code>. Will use current folder, and save as
-<code>fit_summary_&lt;id&gt;.txt</code> and <code>fit_parameters_&lt;id&gt;.csv</code>.</p></dd>
+Default is <code>TRUE</code>. Files are written to <code>path</code> as <code>&lt;id&gt;_fit_summary.txt</code>
+and <code>&lt;id&gt;_fit_parameters.csv</code>.</p></dd>
 
 
 <dt id="arg-estimation-method">estimation_method<a class="anchor" aria-label="anchor" href="#arg-estimation-method"></a></dt>
