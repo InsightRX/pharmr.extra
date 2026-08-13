@@ -31,6 +31,25 @@ test_that("resolve_output_file() leaves absolute paths untouched", {
     pharmr.extra:::resolve_output_file("C:\\tmp\\fit.rds", tempdir()),
     "C:\\tmp\\fit.rds"
   )
+  expect_identical(
+    pharmr.extra:::resolve_output_file("C:/tmp/fit.rds", tempdir()),
+    "C:/tmp/fit.rds"
+  )
+})
+
+test_that("resolve_output_file() leaves UNC and drive-relative paths untouched", {
+  expect_identical(
+    pharmr.extra:::resolve_output_file("\\\\server\\share\\fit.rds", tempdir()),
+    "\\\\server\\share\\fit.rds"
+  )
+  expect_identical(
+    pharmr.extra:::resolve_output_file("//server/share/fit.rds", tempdir()),
+    "//server/share/fit.rds"
+  )
+  expect_identical(
+    pharmr.extra:::resolve_output_file("\\fit.rds", tempdir()),
+    "\\fit.rds"
+  )
 })
 
 test_that("resolve_output_file() falls back to the bare name without a path", {

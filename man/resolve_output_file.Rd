@@ -19,8 +19,9 @@ character path.
 Fit artefacts (\verb{<id>.rds}, \verb{<id>_fit_summary.txt},
 \verb{<id>_fit_parameters.csv}) used to be written with bare relative names, so
 they landed in \code{getwd()} even when the caller passed an explicit \code{path}.
-This helper anchors relative names to \code{path} instead. Absolute paths (and
-\code{~}-prefixed paths) are left untouched, so an explicit
-\code{save_fit = "/some/where/fit.rds"} still goes exactly where asked.
+This helper anchors relative names to \code{path} instead. Absolute paths are
+left untouched — POSIX roots, \code{~}-prefixed paths, Windows drive letters and
+UNC shares — so an explicit \code{save_fit = "/some/where/fit.rds"} still goes
+exactly where asked.
 }
 \keyword{internal}
