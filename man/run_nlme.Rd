@@ -161,9 +161,13 @@ pharmpy's API does not expose a parafile hook.}
 A Pharmpy \code{ModelfitResults} object (an nlmixr2-shaped fit list for
 nlmixr2 models), with the model, the output tables and a fit summary
 attached as the \code{model}, \code{tables} and \code{info} attributes. \code{predictions}
-holds one row per record of the model dataset, \code{residuals} one row per
-observation record plus \code{ROW} (row number in \code{model$dataset}), \code{ID} and
-\code{TIME} columns to join on.
+holds one row per record of the model dataset; \code{residuals} holds one row
+per observation record, plus join keys: \code{ROW} (row number in the model
+dataset) and the model's ID and independent-variable columns. The latter
+two are taken from the model's datainfo, so they are named \code{ID} and \code{TIME}
+for a typical NONMEM dataset but follow the dataset when it uses other
+names (e.g. \code{SUBJ} / \code{TAD}). \code{ROW} is named \code{.ROW} in the rare case that
+the dataset already has a column called \code{ROW}.
 }
 \description{
 Run the model directly using nmfe (not through pharmpy).

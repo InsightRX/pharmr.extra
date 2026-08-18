@@ -3,10 +3,21 @@
 #'
 #' @inheritParams run_nlme
 #' @inheritParams get_fit_info
-#' @param fit_folder TODO
-#' @param is_sim_model TODO
+#' @param fit_folder Folder the run was executed in, holding the output
+#'   tables and the estimation output file.
+#' @param is_sim_model Is `fit` the result of a simulation rather than an
+#'   estimation? Simulation results have no fit summary and no residuals to
+#'   repair.
 #'
-#' @returns TODO
+#' @returns The fit object with the model, the output tables and (for
+#'   estimation runs) a fit summary attached as the `model`, `tables` and
+#'   `info` attributes, and with `residuals` rebuilt into a joinable frame
+#'   (see the `Value` section of [run_nlme()]).
+#'
+#'   Note that for a Pharmpy fit this is a *new* object — `ModelfitResults` is
+#'   a frozen dataclass, so replacing `residuals` means replacing the object.
+#'   Attributes already set on the fit passed in are carried over, but any
+#'   reference the caller still holds points at the un-repaired fit.
 #'
 #' @export
 attach_fit_info <- function(

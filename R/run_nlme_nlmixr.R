@@ -158,7 +158,9 @@ run_nlme_nlmixr <- function(
     fit = fit,
     model = model,
     raw_fit = raw_fit,
-    fit_folder = fit_folder
+    fit_folder = fit_folder,
+    data = fit_data,
+    verbose = verbose
   )
 
   ## Build & store a "final" pharmpy model with updated estimates so that
@@ -424,8 +426,20 @@ as_pharmpy_shaped_fit <- function(raw_fit, model, input_data = NULL) {
 #' named `sdtab` so example code that reads `attr(fit, "tables")$sdtab`
 #' continues to work.
 #'
+#' @param data Dataset the model was actually fitted to (the output of
+#'   [resolve_nlmixr_data()]). Required to key the residuals: `model$dataset`
+#'   still points at whatever was attached at model-build time, which is not
+#'   the fit data when the caller supplied an explicit `data =` argument.
+#'
 #' @noRd
-attach_fit_info_nlmixr <- function(fit, model, raw_fit, fit_folder) {
+attach_fit_info_nlmixr <- function(
+  fit,
+  model,
+  raw_fit,
+  fit_folder,
+  data = NULL,
+  verbose = FALSE
+) {
   attr(fit, "model") <- model
 
   ## Build sdtab-equivalent from the fit data.frame.
@@ -440,7 +454,16 @@ attach_fit_info_nlmixr <- function(fit, model, raw_fit, fit_folder) {
 
   ## Give `residuals` the same observation-aligned, keyed shape as the NONMEM
   ## path (ROW / ID / TIME + residual columns), so GoF code is engine-agnostic.
-  fit <- repair_residuals(fit, model, tables)
+  ## Keyed against the data actually fitted — the same frame `predictions` was
+  ## expanded against — not `model$dataset`, which can be a different dataset.
+  fit <- repair_residuals(
+    fit,
+    model,
+    tables,
+    dataset = data %||%
+      tryCatch(resolve_nlmixr_data(model, NULL), error = function(e) NULL),
+    verbose = verbose
+  )
 
   attr(fit, "info") <- get_fit_info_nlmixr(fit)
   fit
