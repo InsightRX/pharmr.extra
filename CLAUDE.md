@@ -41,6 +41,7 @@ devtools::document()
 **Pharmpy API compatibility**: Several functions handle differences between pharmpy v1.x and v2.0+ (e.g., `set_dv.R` uses `ColumnInfo` type detection). When touching dataset/datainfo manipulation, check both API paths.
 
 **Known bug workarounds**: `R/read_modelfit_results.R` overrides `pharmr::read_modelfit_results()` with fixes for SAEM+IMP multi-step estimation failures. See the memory file for details on the four bugs patched there.
+`R/patch_pharmpy_nlmixr.R` monkey-patches Pharmpy's nlmixr backend (`pharmpy.tools.external.nlmixr.run`) so `bootstrap`/`modelsearch` and the other search tools work against nlmixr2 models; `call_pharmpy_tool()` applies it automatically for nlmixr-format models.
 
 ## Testing conventions
 

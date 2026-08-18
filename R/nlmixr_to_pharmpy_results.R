@@ -11,6 +11,7 @@ as_native_pharmpy_modelfit_results <- function(results) {
 
   pd <- reticulate::import("pandas", convert = FALSE)
   workflows <- reticulate::import("pharmpy.workflows.results", convert = FALSE)
+  log_mod <- reticulate::import("pharmpy.workflows.log", convert = FALSE)
 
   args <- list(
     ofv = scalar_or_none(results$ofv),
@@ -30,7 +31,13 @@ as_native_pharmpy_modelfit_results <- function(results) {
     function_evaluations = scalar_or_none(results$function_evaluations),
     significant_digits = scalar_or_none(results$significant_digits),
     covstep_successful = scalar_or_none(results$covstep_successful),
-    warnings = warnings_or_none(results$warnings)
+    warnings = warnings_or_none(results$warnings),
+    ## An empty `Log` rather than the `None` default: Pharmpy tools that
+    ## summarize errors across model entries call `len(res.log)` without a
+    ## None-check (`pharmpy.tools.run.summarize_errors_from_entries()`), so a
+    ## missing log makes `modelsearch` and friends fail in post-processing
+    ## (#121).
+    log = log_mod$Log()
   )
 
   out <- do.call(workflows$ModelfitResults, args)

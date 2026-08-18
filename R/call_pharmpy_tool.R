@@ -111,6 +111,12 @@ call_pharmpy_tool <- function(
       i = "Use a NONMEM-format model for {.val {tool}}."
     ))
   }
+  ## Pharmpy's nlmixr backend has bugs that make every candidate fit raise
+  ## before its results can be read; patch them before dispatching.
+  ## See `patch_pharmpy_nlmixr_results()` (#121).
+  if(engine != "nonmem") {
+    patch_pharmpy_nlmixr_results()
+  }
   needs_native_nlmixr_results <- tool %in% req_results && engine != "nonmem"
   if(tool %in% search_tools && engine != "nonmem") {
     if(verbose) {
@@ -336,7 +342,22 @@ call_pharmpy_tool <- function(
   ## Post-processing, tool-specific
   ## Save final model to file, and attach to output object
   if(stringr::str_detect(tool, "(.*search|amd)")) {
-    final_model <- update_parameters(res$final_model, res$final_results)
+    ## A degenerate candidate fit can return an estimate outside its
+    ## parameter's bounds (nlmixr2 reports the unconstrained optimum, e.g. a
+    ## negative POP_CL for a structurally wrong candidate), which Pharmpy
+    ## rejects when it is written back as an initial estimate. That should not
+    ## throw away a search that otherwise completed, so fall back to the final
+    ## model with its original inits.
+    final_model <- tryCatch(
+      update_parameters(res$final_model, res$final_results),
+      error = function(e) {
+        cli::cli_alert_warning(c(
+          "Could not update the final model with its estimates: {conditionMessage(e)}",
+          i = "Returning the final model with its original initial estimates."
+        ))
+        res$final_model
+      }
+    )
     final_model_code <- final_model$code
     writeLines(
       final_model_code,

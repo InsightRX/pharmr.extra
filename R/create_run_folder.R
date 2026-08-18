@@ -12,6 +12,9 @@ create_run_folder <- function(
     id <- paste0("run", get_new_run_number(path))
   }
   fit_folder <- file.path(path, id)
+  ## `run_nlme()` and friends default `force` to NULL, which `if()` cannot
+  ## evaluate; treat "not specified" as "do not overwrite".
+  force <- isTRUE(force)
   if(dir.exists(fit_folder)) {
     if(force) {
       if(verbose) cli::cli_alert_warning("Existing results found, removing")
