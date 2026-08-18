@@ -9,7 +9,7 @@ Pharmpy grid search final results"></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9113</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9117</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -69,7 +69,8 @@ to NONMEM model file.</p></dd>
 
 
 <dt id="arg-fit-folder">fit_folder<a class="anchor" aria-label="anchor" href="#arg-fit-folder"></a></dt>
-<dd><p>TODO</p></dd>
+<dd><p>Folder the run was executed in, holding the output
+tables and the estimation output file.</p></dd>
 
 
 <dt id="arg-output-file">output_file<a class="anchor" aria-label="anchor" href="#arg-output-file"></a></dt>
@@ -77,7 +78,9 @@ to NONMEM model file.</p></dd>
 
 
 <dt id="arg-is-sim-model">is_sim_model<a class="anchor" aria-label="anchor" href="#arg-is-sim-model"></a></dt>
-<dd><p>TODO</p></dd>
+<dd><p>Is <code>fit</code> the result of a simulation rather than an
+estimation? Simulation results have no fit summary and no residuals to
+repair.</p></dd>
 
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
@@ -86,7 +89,14 @@ to NONMEM model file.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>TODO</p>
+    <p>The fit object with the model, the output tables and (for
+estimation runs) a fit summary attached as the <code>model</code>, <code>tables</code> and
+<code>info</code> attributes, and with <code>residuals</code> rebuilt into a joinable frame
+(see the <code>Value</code> section of <code><a href="run_nlme.html">run_nlme()</a></code>).</p>
+<p>Note that for a Pharmpy fit this is a <em>new</em> object — <code>ModelfitResults</code> is
+a frozen dataclass, so replacing <code>residuals</code> means replacing the object.
+Attributes already set on the fit passed in are carried over, but any
+reference the caller still holds points at the un-repaired fit.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

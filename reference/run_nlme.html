@@ -13,7 +13,7 @@ inspection of intermediate model fit."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9113</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9117</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -262,7 +262,16 @@ pharmpy's API does not expose a parafile hook.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>TODO</p>
+    <p>A Pharmpy <code>ModelfitResults</code> object (an nlmixr2-shaped fit list for
+nlmixr2 models), with the model, the output tables and a fit summary
+attached as the <code>model</code>, <code>tables</code> and <code>info</code> attributes. <code>predictions</code>
+holds one row per record of the model dataset; <code>residuals</code> holds one row
+per observation record, plus join keys: <code>ROW</code> (row number in the model
+dataset) and the model's ID and independent-variable columns. The latter
+two are taken from the model's datainfo, so they are named <code>ID</code> and <code>TIME</code>
+for a typical NONMEM dataset but follow the dataset when it uses other
+names (e.g. <code>SUBJ</code> / <code>TAD</code>). <code>ROW</code> is named <code>.ROW</code> in the rare case that
+the dataset already has a column called <code>ROW</code>.</p>
     </div>
     <div class="section level2">
     <h2 id="details">Details<a class="anchor" aria-label="anchor" href="#details"></a></h2>

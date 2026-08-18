@@ -2,6 +2,36 @@
 
 ## pharmr.extra (development version)
 
+- [`run_nlme()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme.md)
+  fits now return a `residuals` element that can be joined to the
+  dataset (#120). Pharmpy returns residuals indexed by dataset row label
+  and drops every row whose residual columns are all exactly 0 —
+  reticulate then drops the index on conversion, so `fit$residuals`
+  reached R with neither a join key nor a row count matching the
+  observation records (1134 vs 2184 in the admiral popPK example).
+  `residuals` is now rebuilt from the run’s output tables with one row
+  per observation record — the rows of `fit$predictions` for which
+  `model$dataset$MDV == 0` — plus `ROW` (row number in `model$dataset`)
+  and the model’s ID and independent-variable columns (`ID` and `TIME`
+  for a typical NONMEM dataset; the names are taken from the model’s
+  datainfo) as join keys, and all residual columns written to the tables
+  (`CWRES`, `CIWRES`, `NPDE`, …). So
+
+  ``` r
+
+  dplyr::left_join(
+    dplyr::mutate(model$dataset, ROW = dplyr::row_number()),
+    fit$residuals,
+    by = "ROW"
+  )
+  ```
+
+  attaches the residuals to the dataset. Rows NONMEM reported as 0 are
+  kept. For NONMEM fits the pandas index is still set to the
+  `model$dataset` row labels, so Pharmpy tools that join on it (plots,
+  `ruvsearch`) are unaffected. nlmixr2 fits get the same shape, keyed
+  against the data they were actually fitted to.
+
 - `$TABLE` records written by
   [`add_table_to_model()`](https://insightrx.github.io/pharmr.extra/reference/add_table_to_model.md),
   [`add_default_output_tables()`](https://insightrx.github.io/pharmr.extra/reference/add_default_output_tables.md),
