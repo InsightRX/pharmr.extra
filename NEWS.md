@@ -1,5 +1,19 @@
 # pharmr.extra (development version)
 
+* `run_nlme()` fits now return a `residuals` element that can be joined to the
+  dataset (#120). Pharmpy returns residuals indexed by dataset row label and
+  drops every row whose residual columns are all exactly 0 — reticulate then
+  drops the index on conversion, so `fit$residuals` reached R with neither a
+  join key nor a row count matching the observation records (1134 vs 2184 in
+  the admiral popPK example). `residuals` is now rebuilt from the run's output
+  tables with one row per observation record — matching
+  `fit$predictions |> filter(MDV == 0)` — plus `ROW` (row number in
+  `model$dataset`), `ID` and `TIME` key columns, and all residual columns
+  written to the tables (`CWRES`, `CIWRES`, `NPDE`, ...). Rows NONMEM reported
+  as 0 are kept. For NONMEM fits the pandas index is still set to the
+  `model$dataset` row labels, so Pharmpy tools that join on it (plots,
+  `ruvsearch`) are unaffected. nlmixr2 fits get the same shape.
+
 * `$TABLE` records written by `add_table_to_model()`, `add_default_output_tables()`,
   `run_sim()` and `create_vpc_data()` no longer round every output column to a
   whole number (#114, a regression in 0.0.0.9092). Those functions widened the

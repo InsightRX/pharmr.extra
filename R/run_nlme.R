@@ -107,7 +107,12 @@
 #' [nlmixr2est::saemControl()]). Ignored for NONMEM models.
 #' @param verbose verbose output?
 #'
-#' @returns TODO
+#' @returns A Pharmpy `ModelfitResults` object (an nlmixr2-shaped fit list for
+#'   nlmixr2 models), with the model, the output tables and a fit summary
+#'   attached as the `model`, `tables` and `info` attributes. `predictions`
+#'   holds one row per record of the model dataset, `residuals` one row per
+#'   observation record plus `ROW` (row number in `model$dataset`), `ID` and
+#'   `TIME` columns to join on.
 #'
 #' @export
 run_nlme <- function(

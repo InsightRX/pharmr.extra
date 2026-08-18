@@ -158,7 +158,12 @@ pharmpy's API does not expose a parafile hook.}
 \item{verbose}{verbose output?}
 }
 \value{
-TODO
+A Pharmpy \code{ModelfitResults} object (an nlmixr2-shaped fit list for
+nlmixr2 models), with the model, the output tables and a fit summary
+attached as the \code{model}, \code{tables} and \code{info} attributes. \code{predictions}
+holds one row per record of the model dataset, \code{residuals} one row per
+observation record plus \code{ROW} (row number in \code{model$dataset}), \code{ID} and
+\code{TIME} columns to join on.
 }
 \description{
 Run the model directly using nmfe (not through pharmpy).

@@ -376,7 +376,9 @@ as_pharmpy_shaped_fit <- function(raw_fit, model, input_data = NULL) {
   ## Match pharmpy's row-shape convention: `predictions` keeps all rows from
   ## the input dataset (NA for non-observation events), so that
   ## `bind_cols(model$dataset, fit$predictions)` works. `residuals` is
-  ## observation-only (pharmpy filters non-obs out — see `_parse_residuals`).
+  ## observation-only (pharmpy filters non-obs out — see `_parse_residuals`);
+  ## `attach_fit_info_nlmixr()` then adds the ROW/ID/TIME join keys via
+  ## `repair_residuals()`, matching the NONMEM path.
   fit_df <- tryCatch(as.data.frame(raw_fit), error = function(e) NULL)
   pred_cols <- c("PRED", "IPRED", "CPRED", "CIPREDI", "EPRED")
   res_cols  <- c("RES", "IRES", "WRES", "IWRES", "CWRES", "CWRESI")
@@ -433,7 +435,12 @@ attach_fit_info_nlmixr <- function(fit, model, raw_fit, fit_folder) {
   if("ID" %in% names(fit_df) && is.factor(fit_df$ID)) {
     fit_df$ID <- as.numeric(as.character(fit_df$ID))
   }
-  attr(fit, "tables") <- list(sdtab = fit_df)
+  tables <- list(sdtab = fit_df)
+  attr(fit, "tables") <- tables
+
+  ## Give `residuals` the same observation-aligned, keyed shape as the NONMEM
+  ## path (ROW / ID / TIME + residual columns), so GoF code is engine-agnostic.
+  fit <- repair_residuals(fit, model, tables)
 
   attr(fit, "info") <- get_fit_info_nlmixr(fit)
   fit
