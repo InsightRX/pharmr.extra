@@ -3,8 +3,15 @@ test_that("attaches model, tables, and fit info to fit object", {
   mod <- pharmr::load_example_model("pheno")
   fit <- pharmr::load_example_modelfit_results("pheno")
   run_folder <- test_path("fixtures", "run_folder")
-  out <- attach_fit_info(fit = fit, model = mod, fit_folder = run_folder)
-  
+  ## The fixture run folder is from a different model than `pheno`, so the
+  ## tables cannot be aligned with the dataset and residual repair warns and
+  ## no-ops. That is the point of the warning; this test only checks that the
+  ## attributes are attached.
+  expect_warning(
+    out <- attach_fit_info(fit = fit, model = mod, fit_folder = run_folder),
+    "Could not rebuild"
+  )
+
   # fit object data is preserved:
   expect_equal(out$ofv, fit$ofv)
   expect_equal(out$parameter_estimates, fit$parameter_estimates)

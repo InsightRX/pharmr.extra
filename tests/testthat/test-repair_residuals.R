@@ -367,8 +367,13 @@ test_that("set_pharmpy_residuals replaces the slot on a Pharmpy fit", {
   # the pandas index is set to the dataset row labels, which is what pharmpy
   # itself joins on:
   py_res <- reticulate::py_get_attr(out, "residuals")
-  py_index <- reticulate::py_to_r(reticulate::py_get_attr(py_res, "index"))
-  expect_equal(as.numeric(py_index), rows - 1)
+  ## reticulate has no converter for a pandas Index — py_to_r() would hand
+  ## back the Python object untouched — so read it out as a list.
+  py_index <- reticulate::py_get_attr(py_res, "index")$tolist()
+  if(inherits(py_index, "python.builtin.object")) {
+    py_index <- reticulate::py_to_r(py_index)
+  }
+  expect_equal(as.numeric(unlist(py_index)), rows - 1)
 })
 
 test_that("set_pharmpy_residuals refuses to fall back to a default index", {
