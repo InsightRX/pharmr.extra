@@ -20,16 +20,27 @@ attach_fit_info(
 \item{model}{pharmpy model object or NONMEM model code (character) or path
 to NONMEM model file.}
 
-\item{fit_folder}{TODO}
+\item{fit_folder}{Folder the run was executed in, holding the output
+tables and the estimation output file.}
 
 \item{output_file}{NONMEM output file, default is \code{run.lst}}
 
-\item{is_sim_model}{TODO}
+\item{is_sim_model}{Is \code{fit} the result of a simulation rather than an
+estimation? Simulation results have no fit summary and no residuals to
+repair.}
 
 \item{verbose}{verbose output?}
 }
 \value{
-TODO
+The fit object with the model, the output tables and (for
+estimation runs) a fit summary attached as the \code{model}, \code{tables} and
+\code{info} attributes, and with \code{residuals} rebuilt into a joinable frame
+(see the \code{Value} section of \code{\link[=run_nlme]{run_nlme()}}).
+
+Note that for a Pharmpy fit this is a \emph{new} object — \code{ModelfitResults} is
+a frozen dataclass, so replacing \code{residuals} means replacing the object.
+Attributes already set on the fit passed in are carried over, but any
+reference the caller still holds points at the un-repaired fit.
 }
 \description{
 Attach fit info and tables to a fit object, e.g. from model fit or

@@ -1,5 +1,32 @@
 # pharmr.extra (development version)
 
+* `run_nlme()` fits now return a `residuals` element that can be joined to the
+  dataset (#120). Pharmpy returns residuals indexed by dataset row label and
+  drops every row whose residual columns are all exactly 0 — reticulate then
+  drops the index on conversion, so `fit$residuals` reached R with neither a
+  join key nor a row count matching the observation records (1134 vs 2184 in
+  the admiral popPK example). `residuals` is now rebuilt from the run's output
+  tables with one row per observation record — the rows of `fit$predictions`
+  for which `model$dataset$MDV == 0` — plus `ROW` (row number in
+  `model$dataset`) and the model's ID and independent-variable columns (`ID`
+  and `TIME` for a typical NONMEM dataset; the names are taken from the
+  model's datainfo) as join keys, and all residual columns written to the
+  tables (`CWRES`, `CIWRES`, `NPDE`, ...). So
+
+  ``` r
+  dplyr::left_join(
+    dplyr::mutate(model$dataset, ROW = dplyr::row_number()),
+    fit$residuals,
+    by = "ROW"
+  )
+  ```
+
+  attaches the residuals to the dataset. Rows NONMEM reported as 0 are kept.
+  For NONMEM fits the pandas index is still set to the `model$dataset` row
+  labels, so Pharmpy tools that join on it (plots, `ruvsearch`) are
+  unaffected. nlmixr2 fits get the same shape, keyed against the data they
+  were actually fitted to.
+
 * `call_pharmpy_tool()` now works for `bootstrap` and `modelsearch` (and the
   other search tools) against **nlmixr2** models (#121). Pharmpy's nlmixr
   backend had three bugs that made every candidate fit fail, so those
@@ -18,8 +45,11 @@
      datainfo path from the input model, so no candidate ever ran.
   These are patched in the Python session by the new
   `patch_pharmpy_nlmixr_results()`, which `call_pharmpy_tool()` applies
-  automatically for nlmixr-format models. The patch is idempotent and is a
-  no-op on a Pharmpy release that has fixed them.
+  automatically (best-effort) for nlmixr-format models. The patch covers both
+  the `pharmpy.tools.external.nlmixr.run` module and the package-level
+  `parse_modelfit_results` alias, so `pharmpy.tools.read_modelfit_results()`
+  and `bootstrap`'s results parsing are fixed as well. It is idempotent and is
+  a no-op on a Pharmpy release that has fixed them.
 
 * nlmixr2 fits converted to Pharmpy-native `ModelfitResults` now carry an
   empty `Log` instead of `None` (#121). Pharmpy tools summarize errors across
@@ -43,7 +73,9 @@
   existing run folder gives the intended
   `Run folder (...) exists. Use \`force\` to overwrite.` message. Previously
   this made every second nlmixr2 `run_nlme()` into the same `id` fail with an
-  unrelated error.
+  unrelated error. Non-logical truthy values (`1`, `"TRUE"`, e.g. round-tripped
+  through JSON or a CLI) keep their previous meaning and still overwrite.
+
 
 * `$TABLE` records written by `add_table_to_model()`, `add_default_output_tables()`,
   `run_sim()` and `create_vpc_data()` no longer round every output column to a
