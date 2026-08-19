@@ -10,6 +10,16 @@ skip_if_pharmpy_nlmixr_not_available <- function() {
   )
 }
 
+## `parse_modelfit_results()` reads the fit's RDATA through pyreadr, and imports
+## it before it checks whether there is anything to read — so any end-to-end
+## call needs pyreadr present, not just the pharmpy module.
+skip_if_pyreadr_not_available <- function() {
+  testthat::skip_if_not(
+    reticulate::py_module_available("pyreadr"),
+    "pyreadr not available"
+  )
+}
+
 test_that("patch is idempotent and marks the Pharmpy module", {
   skip_if_pharmpy_nlmixr_not_available()
 
@@ -121,15 +131,27 @@ _alias_patched = (
   pathlib <- reticulate::import("pathlib", convert = FALSE)
   model <- modeling$load_example_model("pheno")
 
-  expect_null(
+  strict_call <- tryCatch(
     run$parse_modelfit_results(
       model, pathlib$Path(withr::local_tempdir()), strict = TRUE
-    )
+    ),
+    error = function(e) e
   )
+  if(inherits(strict_call, "error")) {
+    ## Reaching the body at all (e.g. failing later on a missing pyreadr) is
+    ## what is being asserted; an argument-binding failure is not acceptable.
+    expect_false(
+      grepl("unexpected keyword argument|positional argument",
+            conditionMessage(strict_call))
+    )
+  } else {
+    expect_null(strict_call)
+  }
 })
 
 test_that("parse_modelfit_results still returns None when there is no RDATA", {
   skip_if_pharmpy_nlmixr_not_available()
+  skip_if_pyreadr_not_available()
   patch_pharmpy_nlmixr_results()
 
   run <- reticulate::import("pharmpy.tools.external.nlmixr.run", convert = TRUE)

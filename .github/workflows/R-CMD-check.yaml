@@ -83,6 +83,13 @@ jobs:
       - name: Install pharmpy
         run: pharmr::install_pharmpy()
         shell: Rscript {0}
+
+      # pharmpy's nlmixr backend reads a fit's RDATA through pyreadr and imports
+      # it eagerly, so `parse_modelfit_results()` raises ModuleNotFoundError
+      # without it. Not pulled in by `install_pharmpy()`.
+      - name: Install pyreadr (pharmpy nlmixr backend dependency)
+        run: reticulate::py_install("pyreadr")
+        shell: Rscript {0}
       
       - uses: r-lib/actions/check-r-package@v2
         with:
