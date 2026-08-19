@@ -12,6 +12,11 @@ create_run_folder <- function(
     id <- paste0("run", get_new_run_number(path))
   }
   fit_folder <- file.path(path, id)
+  ## `run_nlme()` and friends default `force` to NULL, which `if()` cannot
+  ## evaluate; treat "not specified" as "do not overwrite". Anything else is
+  ## coerced the way `if()` would have handled it, so callers passing a
+  ## round-tripped `1` or `"TRUE"` (e.g. via JSON/CLI) keep working.
+  force <- if(is.null(force) || length(force) == 0) FALSE else isTRUE(as.logical(force[1]))
   if(dir.exists(fit_folder)) {
     if(force) {
       if(verbose) cli::cli_alert_warning("Existing results found, removing")

@@ -111,11 +111,34 @@ call_pharmpy_tool <- function(
       i = "Use a NONMEM-format model for {.val {tool}}."
     ))
   }
+  ## Pharmpy's nlmixr backend has bugs that make every candidate fit raise
+  ## before its results can be read; patch them before dispatching.
+  ## See `patch_pharmpy_nlmixr_results()` (#121). Best-effort: on a Pharmpy
+  ## layout where the nlmixr backend cannot be imported (older
+  ## `pharmpy.plugins.nlmixr`, missing optional dependency) this must not abort
+  ## tools that never touch that backend.
+  if(engine != "nonmem") {
+    tryCatch(
+      patch_pharmpy_nlmixr_results(),
+      error = function(e) {
+        if(verbose) {
+          cli::cli_alert_warning(
+            "Could not patch Pharmpy's nlmixr backend: {conditionMessage(e)}"
+          )
+          cli::cli_bullets(c(
+            i = "Continuing unpatched; nlmixr candidate fits may fail to be read."
+          ))
+        }
+      }
+    )
+  }
   needs_native_nlmixr_results <- tool %in% req_results && engine != "nonmem"
   if(tool %in% search_tools && engine != "nonmem") {
     if(verbose) {
-      cli::cli_alert_info(c(
-        "Running {.val {tool}} against an nlmixr-format model.",
+      cli::cli_alert_info(
+        "Running {.val {tool}} against an nlmixr-format model."
+      )
+      cli::cli_bullets(c(
         i = "Pharmpy will dispatch each candidate fit via {.code pharmpy.tools.fit(esttool = 'nlmixr')}; ensure {.pkg pyreadr} (Python) and a working {.pkg nlmixr2} install are available to the Rscript that pharmpy invokes."
       ))
     }
@@ -233,8 +256,10 @@ call_pharmpy_tool <- function(
   if(uppercase_mfl && !is.null(options$search_space)) {
     lowercase_ids <- detect_lowercase_identifiers(options$search_space)
     if(length(lowercase_ids) > 0 && verbose) {
-      cli::cli_alert_warning(c(
-        "{.code search_space} contains lowercase identifier{?s}: {.val {lowercase_ids}}.",
+      cli::cli_alert_warning(
+        "{.code search_space} contains lowercase identifier{?s}: {.val {lowercase_ids}}."
+      )
+      cli::cli_bullets(c(
         i = "Pharmpy's MFL parser uppercases all identifiers (see {.url https://github.com/pharmpy/pharmpy/issues/4576}); uppercasing now."
       ))
     }
@@ -242,9 +267,9 @@ call_pharmpy_tool <- function(
     renamed <- uppercase_model_columns(model)
     if(length(renamed$renamed) > 0) {
       if(verbose) {
-        cli::cli_alert_info(c(
+        cli::cli_alert_info(
           "Uppercased {length(renamed$renamed)} model column{?s} to match MFL parser: {.val {paste0(names(renamed$renamed), ' -> ', unname(renamed$renamed))}}"
-        ))
+        )
       }
       model <- renamed$model
     }
@@ -253,8 +278,10 @@ call_pharmpy_tool <- function(
   if(needs_native_nlmixr_results &&
      !inherits(results, "pharmpy.workflows.results.ModelfitResults")) {
     if(verbose) {
-      cli::cli_alert_info(c(
-        "Converting nlmixr modelfit results to Pharmpy-native results for {.val {tool}}.",
+      cli::cli_alert_info(
+        "Converting nlmixr modelfit results to Pharmpy-native results for {.val {tool}}."
+      )
+      cli::cli_bullets(c(
         i = "This avoids refitting the input model before running the Pharmpy search tool."
       ))
     }
@@ -267,8 +294,10 @@ call_pharmpy_tool <- function(
     )
     if(inherits(native_results, "error")) {
       if(verbose) {
-        cli::cli_alert_warning(c(
-          "Could not convert nlmixr results to Pharmpy-native results; refitting input model.",
+        cli::cli_alert_warning(
+          "Could not convert nlmixr results to Pharmpy-native results; refitting input model."
+        )
+        cli::cli_bullets(c(
           i = conditionMessage(native_results)
         ))
       }
@@ -278,8 +307,10 @@ call_pharmpy_tool <- function(
       results <- native_results
     } else {
       if(verbose) {
-        cli::cli_alert_info(c(
-          "Generating Pharmpy-native nlmixr modelfit results for {.val {tool}}.",
+        cli::cli_alert_info(
+          "Generating Pharmpy-native nlmixr modelfit results for {.val {tool}}."
+        )
+        cli::cli_bullets(c(
           i = "The R-shaped {.fn run_nlme} result cannot be passed to Pharmpy search tools directly."
         ))
       }
@@ -336,13 +367,41 @@ call_pharmpy_tool <- function(
   ## Post-processing, tool-specific
   ## Save final model to file, and attach to output object
   if(stringr::str_detect(tool, "(.*search|amd)")) {
-    final_model <- update_parameters(res$final_model, res$final_results)
-    final_model_code <- final_model$code
-    writeLines(
-      final_model_code,
-      file.path(run_folder, glue::glue("final_{tool}.mod"))
-    )
-    attr(res, "final_model") <- final_model
+    ## A degenerate candidate fit can return an estimate outside its
+    ## parameter's bounds (nlmixr2 reports the unconstrained optimum, e.g. a
+    ## negative POP_CL for a structurally wrong candidate), which Pharmpy
+    ## rejects when it is written back as an initial estimate. That should not
+    ## throw away a search that otherwise completed, so fall back to the final
+    ## model with its original inits.
+    ## A search can complete without producing a final model at all; in that
+    ## case there is nothing to update or write, and `update_parameters(NULL)`
+    ## would only turn that into a confusing `writeLines(NULL)` error.
+    if(is.null(res$final_model)) {
+      if(verbose) {
+        cli::cli_alert_warning("{.val {tool}} returned no final model; nothing written.")
+      }
+      final_model <- NULL
+    } else {
+      final_model <- tryCatch(
+        update_parameters(res$final_model, res$final_results),
+        error = function(e) {
+          cli::cli_alert_warning(
+            "Could not update the final model with its estimates: {conditionMessage(e)}"
+          )
+          cli::cli_bullets(c(
+            i = "Returning the final model with its original initial estimates."
+          ))
+          res$final_model
+        }
+      )
+    }
+    if(!is.null(final_model)) {
+      writeLines(
+        final_model$code,
+        file.path(run_folder, glue::glue("final_{tool}.mod"))
+      )
+      attr(res, "final_model") <- final_model
+    }
   }
   if(tool == "simulation") {
     pharmpy_runfolders <- get_pharmpy_runfolders(

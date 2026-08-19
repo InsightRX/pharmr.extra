@@ -57,3 +57,62 @@ test_that("errors when folder exists and force is FALSE", {
     "Run folder.*exists.*Use `force` to overwrite"
   )
 })
+
+test_that("NULL force (the run_nlme default) means do not overwrite", {
+  tmp_dir <- withr::local_tempdir()
+  existing_folder <- file.path(tmp_dir, "existing_run")
+  dir.create(existing_folder)
+  writeLines("keep me", file.path(existing_folder, "run.lst"))
+
+  expect_error(
+    create_run_folder(id = "existing_run", path = tmp_dir, force = NULL, verbose = FALSE),
+    "Run folder.*exists.*Use `force` to overwrite"
+  )
+  ## and nothing was removed
+  expect_true(file.exists(file.path(existing_folder, "run.lst")))
+})
+
+test_that("force = TRUE empties an existing folder", {
+  tmp_dir <- withr::local_tempdir()
+  existing_folder <- file.path(tmp_dir, "existing_run")
+  dir.create(existing_folder)
+  writeLines("stale", file.path(existing_folder, "run.lst"))
+
+  out <- create_run_folder(id = "existing_run", path = tmp_dir, force = TRUE, verbose = FALSE)
+
+  expect_equal(out, existing_folder)
+  expect_false(file.exists(file.path(existing_folder, "run.lst")))
+})
+
+test_that("truthy non-logical force still overwrites (JSON/CLI round-trips)", {
+  for(val in list(1, "TRUE", "true")) {
+    tmp_dir <- withr::local_tempdir()
+    existing_folder <- file.path(tmp_dir, "existing_run")
+    dir.create(existing_folder)
+    writeLines("stale", file.path(existing_folder, "run.lst"))
+
+    out <- create_run_folder(id = "existing_run", path = tmp_dir,
+                             force = val, verbose = FALSE)
+
+    expect_equal(out, existing_folder)
+    expect_false(file.exists(file.path(existing_folder, "run.lst")))
+  }
+})
+
+test_that("falsy and unparseable force do not overwrite", {
+  for(val in list(0, "FALSE", "nonsense", character(0))) {
+    tmp_dir <- withr::local_tempdir()
+    existing_folder <- file.path(tmp_dir, "existing_run")
+    dir.create(existing_folder)
+    writeLines("keep me", file.path(existing_folder, "run.lst"))
+
+    expect_error(
+      suppressWarnings(
+        create_run_folder(id = "existing_run", path = tmp_dir,
+                          force = val, verbose = FALSE)
+      ),
+      "Run folder.*exists"
+    )
+    expect_true(file.exists(file.path(existing_folder, "run.lst")))
+  }
+})
