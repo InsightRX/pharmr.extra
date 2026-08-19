@@ -376,6 +376,9 @@
 - [`parse_psn_args()`](https://insightrx.github.io/pharmr.extra/reference/parse_psn_args.md)
   : Parse tool options specified in YAML into PsN commandline args
 
+- [`patch_pharmpy_nlmixr_results()`](https://insightrx.github.io/pharmr.extra/reference/patch_pharmpy_nlmixr_results.md)
+  : Patch Pharmpy's nlmixr execution backend
+
 - [`plot_bootstrap()`](https://insightrx.github.io/pharmr.extra/reference/plot_bootstrap.md)
   : Plot bootstrap parameter distributions
 

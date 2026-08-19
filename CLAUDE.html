@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9117</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9119</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -70,7 +70,7 @@
 <p><strong>Core layer</strong>: Functions call Python via <code>reticulate</code> (virtualenv at <code>~/.virtualenvs/r-reticulate</code>). The pharmr package handles the base Python bindings; this package adds orchestration on top.</p>
 <p><strong>Two model backends</strong>: NONMEM (via Pharmpy) and nlmixr2 (pure R). Key entry points: - <code><a href="reference/create_model.html">create_model()</a></code> — Builds a Pharmpy model object (main heavy function in <code>R/create_model.R</code>) - <code><a href="reference/run_nlme.html">run_nlme()</a></code> — Fits a model (preferred over deprecated <code><a href="reference/fit_model.html">fit_model()</a></code>) - <code><a href="reference/run_sim.html">run_sim()</a></code> / <code><a href="reference/run_simulation.html">run_simulation()</a></code> — Simulation utilities</p>
 <p><strong>Pharmpy API compatibility</strong>: Several functions handle differences between pharmpy v1.x and v2.0+ (e.g., <code>set_dv.R</code> uses <code>ColumnInfo</code> type detection). When touching dataset/datainfo manipulation, check both API paths.</p>
-<p><strong>Known bug workarounds</strong>: <code>R/read_modelfit_results.R</code> overrides <code><a href="https://rdrr.io/pkg/pharmr/man/read_modelfit_results.html" class="external-link">pharmr::read_modelfit_results()</a></code> with fixes for SAEM+IMP multi-step estimation failures. See the memory file for details on the four bugs patched there.</p>
+<p><strong>Known bug workarounds</strong>: <code>R/read_modelfit_results.R</code> overrides <code><a href="https://rdrr.io/pkg/pharmr/man/read_modelfit_results.html" class="external-link">pharmr::read_modelfit_results()</a></code> with fixes for SAEM+IMP multi-step estimation failures. See the memory file for details on the four bugs patched there. <code>R/patch_pharmpy_nlmixr.R</code> monkey-patches Pharmpy’s nlmixr backend (<code>pharmpy.tools.external.nlmixr.run</code>) so <code>bootstrap</code>/<code>modelsearch</code> and the other search tools work against nlmixr2 models; <code><a href="reference/call_pharmpy_tool.html">call_pharmpy_tool()</a></code> applies it automatically for nlmixr-format models.</p>
 </div>
 <div class="section level2">
 <h2 id="testing-conventions">Testing conventions<a class="anchor" aria-label="anchor" href="#testing-conventions"></a></h2>

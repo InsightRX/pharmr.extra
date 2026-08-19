@@ -63,6 +63,11 @@ paths.
 [`pharmr::read_modelfit_results()`](https://rdrr.io/pkg/pharmr/man/read_modelfit_results.html)
 with fixes for SAEM+IMP multi-step estimation failures. See the memory
 file for details on the four bugs patched there.
+`R/patch_pharmpy_nlmixr.R` monkey-patches Pharmpy’s nlmixr backend
+(`pharmpy.tools.external.nlmixr.run`) so `bootstrap`/`modelsearch` and
+the other search tools work against nlmixr2 models;
+[`call_pharmpy_tool()`](https://insightrx.github.io/pharmr.extra/reference/call_pharmpy_tool.md)
+applies it automatically for nlmixr-format models.
 
 ## Testing conventions
 

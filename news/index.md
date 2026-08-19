@@ -32,6 +32,65 @@
   `ruvsearch`) are unaffected. nlmixr2 fits get the same shape, keyed
   against the data they were actually fitted to.
 
+- [`call_pharmpy_tool()`](https://insightrx.github.io/pharmr.extra/reference/call_pharmpy_tool.md)
+  now works for `bootstrap` and `modelsearch` (and the other search
+  tools) against **nlmixr2** models (#121). Pharmpy’s nlmixr backend had
+  three bugs that made every candidate fit fail, so those workflows
+  aborted before returning results:
+
+  1.  `IndexingError: Too many indexers` — `parse_modelfit_results()`
+      indexes the thetas table with `get_thetas(model).names`, which is
+      a tuple in Pharmpy \>= 2.0, and pandas reads a tuple passed to
+      `.loc` as a multi-axis indexer.
+  2.  `ValueError: Length mismatch` — the same function indexes the
+      predictions by `DV != 0`, but nlmixr2 returns one row per
+      *observation record*, so any dataset with a zero-valued
+      observation (BLQ imputed to 0, a baseline sample) has too few
+      index labels.
+  3.  `cannot open file '.../<model>.csv'` — `execute_model()` writes
+      the candidate’s dataset under its datainfo name but generates an R
+      script that reads `<model name>.csv`; every `modelsearch`
+      candidate inherits a datainfo path from the input model, so no
+      candidate ever ran. These are patched in the Python session by the
+      new
+      [`patch_pharmpy_nlmixr_results()`](https://insightrx.github.io/pharmr.extra/reference/patch_pharmpy_nlmixr_results.md),
+      which
+      [`call_pharmpy_tool()`](https://insightrx.github.io/pharmr.extra/reference/call_pharmpy_tool.md)
+      applies automatically (best-effort) for nlmixr-format models. The
+      patch covers both the `pharmpy.tools.external.nlmixr.run` module
+      and the package-level `parse_modelfit_results` alias, so
+      `pharmpy.tools.read_modelfit_results()` and `bootstrap`’s results
+      parsing are fixed as well. It is idempotent and is a no-op on a
+      Pharmpy release that has fixed them.
+
+- nlmixr2 fits converted to Pharmpy-native `ModelfitResults` now carry
+  an empty `Log` instead of `None` (#121). Pharmpy tools summarize
+  errors across model entries with `len(res.log)` and no `None` check,
+  so `modelsearch` failed in post-processing with
+  `TypeError: object of type 'NoneType' has no len()`.
+
+- [`call_pharmpy_tool()`](https://insightrx.github.io/pharmr.extra/reference/call_pharmpy_tool.md)
+  no longer discards a completed search when the final model’s estimates
+  cannot be written back as initial estimates (#121). A degenerate
+  candidate fit can return an estimate outside its parameter’s bounds —
+  nlmixr2 reports the unconstrained optimum, e.g. a negative `POP_CL`
+  for a structurally wrong candidate — and Pharmpy rejects that with
+  `ValueError: Lower bound 0.0 cannot be greater than init`, which used
+  to abort `modelsearch` *after* the search itself had finished. The
+  tool result is now returned with a warning, with the final model
+  keeping its original initial estimates.
+
+- [`create_run_folder()`](https://insightrx.github.io/pharmr.extra/reference/create_run_folder.md)
+  no longer errors with `argument is of length zero` when `force` is
+  `NULL` — the default that
+  [`run_nlme()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme.md)
+  passes down. An unspecified `force` now means “do not overwrite”, so
+  re-running into an existing run folder gives the intended
+  `Run folder (...) exists. Use \`force\` to
+  overwrite.`message. Previously this made every second nlmixr2`run_nlme()`into the same`id`fail with an unrelated error. Non-logical truthy values (`1`,`“TRUE”\`,
+  e.g. round-tripped through JSON or a CLI) keep their previous meaning
+  and still overwrite.
+
 - `$TABLE` records written by
   [`add_table_to_model()`](https://insightrx.github.io/pharmr.extra/reference/add_table_to_model.md),
   [`add_default_output_tables()`](https://insightrx.github.io/pharmr.extra/reference/add_default_output_tables.md),
