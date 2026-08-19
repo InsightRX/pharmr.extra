@@ -45,7 +45,21 @@
 #' and if none work the unpatched call is made so the original Pharmpy error
 #' surfaces) — and (3) by wrapping the dataset writer so that, when it is
 #' handed a directory, it writes `<model name>.csv`: the name the generated R
-#' script actually reads.
+#' script actually reads, keeping the caller's `force` so a leftover file in a
+#' reused run folder still raises.
+#'
+#' Because upstream only accepts a mask whose row count matches the number of
+#' prediction rows, a mask that parses matched on count alone. If a *different*
+#' mask selects the same number of (different) rows, the choice is ambiguous
+#' and a `RuntimeWarning` is emitted rather than returning silently misaligned
+#' predictions.
+#'
+#' The patched `parse_modelfit_results` is installed both on
+#' `pharmpy.tools.external.nlmixr.run` and on the `pharmpy.tools.external.nlmixr`
+#' package alias — the latter is the binding
+#' `pharmpy.tools.read_modelfit_results()` resolves, so without it reading an
+#' nlmixr fit outside `execute_model()` stays broken. It also tolerates the
+#' `strict=` keyword that alias passes but `run.py` does not accept.
 #'
 #' Idempotent, and a no-op on a Pharmpy release that has fixed these bugs.
 #' Called automatically by [call_pharmpy_tool()] for nlmixr-format models.
@@ -96,7 +110,25 @@ if not getattr(_nlmixr_run, '_pharmr_extra_nlmixr_patched', False):
     # Rather than reimplementing the parser, hand it a model whose DV column
     # is 1 on observation records and 0 elsewhere: upstream's `DV != 0` mask
     # then selects exactly those rows, keeping the dataset's index labels.
+    import warnings as _pharmr_extra_warnings
+    import inspect as _pharmr_extra_inspect
+
     _pharmr_extra_orig_parse = _nlmixr_run.parse_modelfit_results
+
+    def _pharmr_extra_filter_kwargs(func, kwargs):
+        # `pharmpy.tools.external.results.parse_modelfit_results()` calls the
+        # backend as `(model, path, strict=strict)`, but run.py's own signature
+        # takes only `(model, path)` on some releases. Drop what it cannot take
+        # rather than turning the call into a TypeError.
+        if not kwargs:
+            return kwargs
+        try:
+            params = _pharmr_extra_inspect.signature(func).parameters
+        except (TypeError, ValueError):
+            return kwargs
+        if any(p.kind == p.VAR_KEYWORD for p in params.values()):
+            return kwargs
+        return dict((k, v) for k, v in kwargs.items() if k in params)
 
     def _pharmr_extra_obs_masks(df):
         masks = []
@@ -108,32 +140,74 @@ if not getattr(_nlmixr_run, '_pharmr_extra_nlmixr_patched', False):
             masks.append(df['EVID'] == 0)
         if has_mdv:
             masks.append(df['MDV'] == 0)
-        return masks
+        # Distinct masks only, most specific first.
+        out, seen = [], set()
+        for mask in masks:
+            key = mask.to_numpy().tobytes()
+            if key not in seen:
+                seen.add(key)
+                out.append(mask)
+        return out
 
     def _pharmr_extra_parse_modelfit_results(model, path, *args, **kwargs):
+        kwargs = _pharmr_extra_filter_kwargs(_pharmr_extra_orig_parse, kwargs)
         try:
             df = model.dataset
         except Exception:
             df = None
         if df is not None and 'DV' in df.columns:
-            seen = set()
-            for mask in _pharmr_extra_obs_masks(df):
-                key = mask.to_numpy().tobytes()
-                if key in seen:
-                    continue
-                seen.add(key)
+            masks = _pharmr_extra_obs_masks(df)
+            for i, mask in enumerate(masks):
                 fixed = df.copy()
                 fixed['DV'] = mask.astype(float)
                 try:
                     model_obs = model.replace(dataset=fixed)
-                    return _pharmr_extra_orig_parse(model_obs, path, *args, **kwargs)
+                    parsed = _pharmr_extra_orig_parse(
+                        model_obs, path, *args, **kwargs
+                    )
                 except Exception:
                     continue
+                # Upstream only accepts a mask whose row count equals the
+                # prediction row count, so a mask that parses matched on count.
+                # If a *different* mask selects the same number of rows, the
+                # count alone cannot tell them apart and the predictions may
+                # have been labelled with the wrong index -- say so instead of
+                # returning a silently misaligned result.
+                n = int(mask.sum())
+                rivals = [
+                    j for j, other in enumerate(masks)
+                    if j != i and int(other.sum()) == n
+                ]
+                if rivals:
+                    _pharmr_extra_warnings.warn(
+                        'Observation records could not be identified '
+                        'unambiguously: EVID/MDV select the same number of '
+                        'rows but different rows. Predictions were indexed '
+                        'with the most specific mask; check EVID/MDV in the '
+                        'dataset if predictions look misaligned.',
+                        RuntimeWarning,
+                    )
+                return parsed
         # No usable observation flag, or every mask was rejected: fall through
         # so the caller sees Pharmpy's own error rather than ours.
         return _pharmr_extra_orig_parse(model, path, *args, **kwargs)
 
     _nlmixr_run.parse_modelfit_results = _pharmr_extra_parse_modelfit_results
+
+    # `pharmpy/tools/external/nlmixr/__init__.py` does
+    # `from .run import parse_modelfit_results`, a *separate* binding, and that
+    # is the one `pharmpy.tools.external.results.parse_modelfit_results()`
+    # resolves -- the path taken by `pharmpy.tools.read_modelfit_results()` and
+    # by `bootstrap`'s results parsing. Patch it too, or reading an nlmixr fit
+    # outside `execute_model()` still hits the unpatched bugs.
+    try:
+        import pharmpy.tools.external.nlmixr as _nlmixr_pkg
+        if getattr(_nlmixr_pkg, 'parse_modelfit_results', None) is not None:
+            _nlmixr_pkg.parse_modelfit_results = (
+                _pharmr_extra_parse_modelfit_results
+            )
+    except ImportError:
+        pass
 
     # ── Bug 3: dataset written under a name the generated R script ─────────
     # does not read. `execute_model()` writes `<datainfo name>.csv` into the
@@ -146,10 +220,13 @@ if not getattr(_nlmixr_run, '_pharmr_extra_nlmixr_patched', False):
             if path is not None:
                 dest = _Path(path)
                 if dest.is_dir():
+                    # Only the *name* is wrong upstream; keep the caller's
+                    # `force`, so an unexpected leftover CSV in a reused run
+                    # folder still raises instead of being overwritten.
                     return orig(
                         model,
                         path=dest / '{}.csv'.format(model.name),
-                        force=True,
+                        force=force,
                         **kwargs
                     )
             return orig(model, path=path, force=force, **kwargs)

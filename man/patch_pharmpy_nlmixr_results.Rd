@@ -49,7 +49,21 @@ index labels preserved (observation records are identified from \code{EVID} /
 and if none work the unpatched call is made so the original Pharmpy error
 surfaces) — and (3) by wrapping the dataset writer so that, when it is
 handed a directory, it writes \verb{<model name>.csv}: the name the generated R
-script actually reads.
+script actually reads, keeping the caller's \code{force} so a leftover file in a
+reused run folder still raises.
+
+Because upstream only accepts a mask whose row count matches the number of
+prediction rows, a mask that parses matched on count alone. If a \emph{different}
+mask selects the same number of (different) rows, the choice is ambiguous
+and a \code{RuntimeWarning} is emitted rather than returning silently misaligned
+predictions.
+
+The patched \code{parse_modelfit_results} is installed both on
+\code{pharmpy.tools.external.nlmixr.run} and on the \code{pharmpy.tools.external.nlmixr}
+package alias — the latter is the binding
+\code{pharmpy.tools.read_modelfit_results()} resolves, so without it reading an
+nlmixr fit outside \code{execute_model()} stays broken. It also tolerates the
+\verb{strict=} keyword that alias passes but \code{run.py} does not accept.
 
 Idempotent, and a no-op on a Pharmpy release that has fixed these bugs.
 Called automatically by \code{\link[=call_pharmpy_tool]{call_pharmpy_tool()}} for nlmixr-format models.

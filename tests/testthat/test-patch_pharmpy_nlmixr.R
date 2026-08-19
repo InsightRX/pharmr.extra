@@ -71,6 +71,63 @@ test_that("dataset writer writes <model name>.csv into a directory", {
   expect_equal(dir(tmp_dir), "pheno.csv")
 })
 
+test_that("dataset writer keeps the caller's `force`", {
+  skip_if_pharmpy_nlmixr_not_available()
+  patch_pharmpy_nlmixr_results()
+
+  run <- reticulate::import("pharmpy.tools.external.nlmixr.run", convert = FALSE)
+  modeling <- reticulate::import("pharmpy.modeling", convert = FALSE)
+  model <- modeling$load_example_model("pheno")
+
+  writer <- if(reticulate::py_has_attr(run, "write_dataset")) {
+    run$write_dataset
+  } else {
+    run$write_csv
+  }
+
+  tmp_dir <- withr::local_tempdir()
+  writer(model, path = tmp_dir)
+  ## upstream's collision guard must survive the filename fix
+  expect_error(writer(model, path = tmp_dir), "exist")
+  expect_silent(writer(model, path = tmp_dir, force = TRUE))
+})
+
+test_that("the package-level alias is patched too, and tolerates `strict=`", {
+  skip_if_pharmpy_nlmixr_not_available()
+  patch_pharmpy_nlmixr_results()
+
+  ## `pharmpy/tools/external/nlmixr/__init__.py` does
+  ## `from .run import parse_modelfit_results` — a separate binding, and the
+  ## one `pharmpy.tools.read_modelfit_results()` resolves. Patching only
+  ## `run` leaves that path on the buggy implementation.
+  py <- reticulate::py_run_string("
+import pharmpy.tools.external.nlmixr as _pkg
+import pharmpy.tools.external.nlmixr.run as _run
+
+_has_alias = hasattr(_pkg, 'parse_modelfit_results')
+_alias_patched = (
+    getattr(_pkg, 'parse_modelfit_results', None)
+    is _run.parse_modelfit_results
+)
+", convert = TRUE)
+  skip_if_not(isTRUE(py$`_has_alias`), "no package-level alias in this Pharmpy")
+  expect_true(py$`_alias_patched`)
+
+  ## `pharmpy.tools.external.results.parse_modelfit_results()` calls the
+  ## backend as `(model, path, strict=strict)`; run.py's signature takes only
+  ## two arguments, so the wrapper has to drop what it cannot pass on.
+  run <- reticulate::import("pharmpy.tools.external.nlmixr.run", convert = TRUE)
+  modeling <- reticulate::import("pharmpy.modeling", convert = FALSE)
+  pathlib <- reticulate::import("pathlib", convert = FALSE)
+  model <- modeling$load_example_model("pheno")
+
+  expect_null(
+    run$parse_modelfit_results(
+      model, pathlib$Path(withr::local_tempdir()), strict = TRUE
+    )
+  )
+})
+
 test_that("parse_modelfit_results still returns None when there is no RDATA", {
   skip_if_pharmpy_nlmixr_not_available()
   patch_pharmpy_nlmixr_results()
