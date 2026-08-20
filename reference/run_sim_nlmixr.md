@@ -21,7 +21,8 @@ run_sim_nlmixr(
   add_pk_variables = FALSE,
   output_file = "simtab",
   seed = 12345,
-  verbose = TRUE
+  verbose = TRUE,
+  model_code = NULL
 )
 ```
 
@@ -87,6 +88,14 @@ run_sim_nlmixr(
 - verbose:
 
   verbose output?
+
+- model_code:
+
+  pre-rendered nlmixr2/rxode2 model code (character), used instead of
+  extracting it from `model`. This is what lets a simulation run in a
+  worker process: a Pharmpy `model` is a Python (reticulate) object and
+  cannot cross a process boundary, but its rendered code can. When
+  supplied, `model`/`fit` are not needed and `data` is required.
 
 ## Details
 

@@ -14,7 +14,8 @@ read_table_nm(
   skip = NULL,
   header = NULL,
   rm_duplicates = FALSE,
-  nonmem_tab = TRUE
+  nonmem_tab = TRUE,
+  subproblems = FALSE
 )
 ```
 
@@ -41,6 +42,16 @@ read_table_nm(
 
   logical value indicating to the function whether the file is a table
   or a nonmem additional output file.
+
+- subproblems:
+
+  keep the simulation subproblems apart. A table written by a
+  `$SIMULATION` record with `SUBPROBLEMS > 1` holds one block of rows
+  per subproblem, each introduced by a repeated `TABLE NO.` header. By
+  default those headers are discarded and the blocks are returned as one
+  undivided concatenation. With `subproblems = TRUE` the table is split
+  on them instead and a 1-based `.subproblem` column is added. Only
+  supported for a single `file` and `nonmem_tab = TRUE`.
 
 ## Value
 

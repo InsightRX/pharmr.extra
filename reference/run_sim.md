@@ -20,7 +20,10 @@ run_sim(
   output_file = "simtab",
   update_table = TRUE,
   seed = 12345,
-  verbose = TRUE
+  verbose = TRUE,
+  n_cores = 1,
+  uncertainty_engine = c("replicates", "nwpri"),
+  plev = 0.9999
 )
 ```
 
@@ -96,18 +99,19 @@ run_sim(
   `$COVARIANCE` typically covers all parameters, so all are resampled.
 
   This is the same idea as NONMEM's own `$PRIOR NWPRI` +
-  `$SIMULATION ... TRUE=PRIOR`, and the two are checked against each
-  other in `tests/testthat/test-run_sim-nwpri.R`. Aggregates agree
-  closely: over 1000 draws from the same fit, means and standard
-  deviations of the fixed effects match to within 0.3% and 3%, those of
-  the variance parameters to within 5% and 8%, and the resulting 90%
-  uncertainty interval on the predicted profile to within 7%. Two
-  differences are structural rather than numerical: NWPRI draws OMEGA
-  and SIGMA from (right-skewed) inverse-Wishart distributions whereas
-  the draws here come from a single truncated multivariate normal, and
-  NWPRI treats the THETA, OMEGA and SIGMA priors as independent blocks
-  whereas the draws here keep the THETA-OMEGA and THETA-SIGMA
-  covariances that `$COVARIANCE` reports.
+  `$SIMULATION ... TRUE=PRIOR`, which is available directly as
+  `uncertainty_engine = "nwpri"` (see below). The two are checked
+  against each other in `tests/testthat/test-run_sim-nwpri.R`.
+  Aggregates agree closely: over 1000 draws from the same fit, means and
+  standard deviations of the fixed effects match to within 0.3% and 3%,
+  those of the variance parameters to within 5% and 8%, and the
+  resulting 90% uncertainty interval on the predicted profile to within
+  7%. Two differences are structural rather than numerical: NWPRI draws
+  OMEGA and SIGMA from (right-skewed) inverse-Wishart distributions
+  whereas the draws here come from a single truncated multivariate
+  normal, and NWPRI treats the THETA, OMEGA and SIGMA priors as
+  independent blocks whereas the draws here keep the THETA-OMEGA and
+  THETA-SIGMA covariances that `$COVARIANCE` reports.
 
 - variables:
 
@@ -141,6 +145,73 @@ run_sim(
 
   verbose output?
 
+- n_cores:
+
+  number of processes to run uncertainty replicates on (default `1`,
+  i.e. sequential; unchanged behaviour). Values `> 1` spread the
+  `n_uncertainty` replicates over that many worker processes. For
+  `uncertainty_engine = "replicates"` this is supported for the
+  `nlmixr2` tool only; a NONMEM run warns and falls back to sequential.
+  Output is identical to a sequential run for the same `seed`, since
+  each replicate keeps its own derived seed (`seed + r`) and results are
+  reassembled by replicate index. For `uncertainty_engine = "nwpri"`
+  (NONMEM only) it sets how many NONMEM jobs the subproblems are split
+  over, one per worker process. NONMEM's own RNG produces the draws, so
+  *which* draws you get depends on how the subproblems were chunked: an
+  NWPRI run is only reproducible for a fixed `n_cores`. Note also that a
+  chunk that fails costs `n_uncertainty / n_cores` draws rather than
+  one. Ignored when no uncertainty is requested. The machine's cores are
+  divided over the workers (rxode2's solver threads are capped per
+  worker), so raising `n_cores` does not oversubscribe the CPU.
+
+- uncertainty_engine:
+
+  how `n_uncertainty` parameter uncertainty is propagated. Ignored when
+  no uncertainty is requested.
+
+  - `"replicates"` (default, unchanged behaviour) draws `n_uncertainty`
+    parameter sets from the fit's covariance matrix in R and runs one
+    simulation per draw. Works for both backends.
+
+  - `"nwpri"` (NONMEM only) hands the job to NONMEM: a `$PRIOR NWPRI`
+    record built from the fit (see
+    [`add_nwpri_prior()`](https://insightrx.github.io/pharmr.extra/reference/add_nwpri_prior.md))
+    plus `$SIMULATION ... TRUE=PRIOR`, so NONMEM draws a new parameter
+    vector per subproblem. That costs one NONMEM compile for the whole
+    set instead of one per draw, which for short simulations dominates
+    the run time, so it is much faster for large `n_uncertainty`. It
+    requires `n_iterations = 1`, because every NWPRI subproblem redraws
+    the parameters and so cannot repeat a draw.
+
+  The two are **not** statistically interchangeable. Over 1000 draws
+  from the same fit their means and standard deviations agree to within
+  a few percent (see `inst/reports/nwpri-validation.html`), but two
+  differences are structural rather than numerical: NWPRI draws OMEGA
+  and SIGMA from (right-skewed) inverse-Wishart distributions where
+  `"replicates"` draws every parameter from one truncated multivariate
+  normal, and NWPRI treats the THETA, OMEGA and SIGMA priors as
+  independent blocks and therefore discards the THETA-OMEGA and
+  THETA-SIGMA covariances that `$COVARIANCE` reports. Which is
+  preferable is a judgement call — the inverse-Wishart draw is arguably
+  better justified for variance parameters, joint sampling is the one
+  that keeps the full reported covariance — which is why this is a
+  switch rather than a silent optimisation.
+
+- plev:
+
+  `uncertainty_engine = "nwpri"` only: the probability mass the THETA
+  draws are truncated to, passed to
+  [`add_nwpri_prior()`](https://insightrx.github.io/pharmr.extra/reference/add_nwpri_prior.md).
+
 ## Value
 
-data.frame with simulation results
+data.frame with simulation results. When `n_uncertainty` is used, the
+result also carries `n_uncertainty_requested` and `n_uncertainty_kept`
+attributes: replicates that fail on the nlmixr2 backend are dropped with
+a warning, so these let a caller detect a short (and potentially biased)
+set of draws without parsing warnings. On the NONMEM backend a failing
+replicate aborts the run instead. Under `uncertainty_engine = "nwpri"` a
+failing *chunk* is dropped with a warning rather than aborting, and the
+same two attributes report how many draws survived — counted per regimen
+and reported for the worst one, since chunks are per regimen and the
+draws only pair across regimens where every regimen kept them.

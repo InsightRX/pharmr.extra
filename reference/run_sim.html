@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9120</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9126</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -57,7 +57,10 @@
 <span>  output_file <span class="op">=</span> <span class="st">"simtab"</span>,</span>
 <span>  update_table <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">12345</span>,</span>
-<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  n_cores <span class="op">=</span> <span class="fl">1</span>,</span>
+<span>  uncertainty_engine <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"replicates"</span>, <span class="st">"nwpri"</span><span class="op">)</span>,</span>
+<span>  plev <span class="op">=</span> <span class="fl">0.9999</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -127,8 +130,9 @@ held fixed. For full uncertainty on those, use a bootstrap
 (<code>nlmixr2est::bootstrapFit()</code>). NONMEM <code>$COVARIANCE</code> typically covers all
 parameters, so all are resampled.</p>
 <p>This is the same idea as NONMEM's own <code>$PRIOR NWPRI</code> +
-<code>$SIMULATION ... TRUE=PRIOR</code>, and the two are checked against each other in
-<code>tests/testthat/test-run_sim-nwpri.R</code>. Aggregates agree closely: over 1000
+<code>$SIMULATION ... TRUE=PRIOR</code>, which is available directly as
+<code>uncertainty_engine = "nwpri"</code> (see below). The two are checked against each
+other in <code>tests/testthat/test-run_sim-nwpri.R</code>. Aggregates agree closely: over 1000
 draws from the same fit, means and standard deviations of the fixed effects
 match to within 0.3% and 3%, those of the variance parameters to within 5%
 and 8%, and the resulting 90% uncertainty interval on the predicted profile
@@ -170,10 +174,69 @@ is returned back. If <code>FALSE</code>, the <code>add_pk_variables</code> argum
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
 <dd><p>verbose output?</p></dd>
 
+
+<dt id="arg-n-cores">n_cores<a class="anchor" aria-label="anchor" href="#arg-n-cores"></a></dt>
+<dd><p>number of processes to run uncertainty replicates on
+(default <code>1</code>, i.e. sequential; unchanged behaviour). Values <code>&gt; 1</code> spread the
+<code>n_uncertainty</code> replicates over that many worker processes. For
+<code>uncertainty_engine = "replicates"</code> this is supported for the <code>nlmixr2</code> tool
+only; a NONMEM run warns and falls back to sequential. Output is identical
+to a sequential run for the same <code>seed</code>, since each replicate keeps its own
+derived seed (<code>seed + r</code>) and results are reassembled by replicate index.
+For <code>uncertainty_engine = "nwpri"</code> (NONMEM only) it sets how many NONMEM
+jobs the subproblems are split over, one per worker process. NONMEM's own
+RNG produces the draws, so <em>which</em> draws you get depends on how the
+subproblems were chunked: an NWPRI run is only reproducible for a fixed
+<code>n_cores</code>. Note also that a chunk that fails costs <code>n_uncertainty / n_cores</code>
+draws rather than one. Ignored when no uncertainty is requested. The machine's cores are divided over the workers
+(rxode2's solver threads are capped per worker), so raising <code>n_cores</code> does
+not oversubscribe the CPU.</p></dd>
+
+
+<dt id="arg-uncertainty-engine">uncertainty_engine<a class="anchor" aria-label="anchor" href="#arg-uncertainty-engine"></a></dt>
+<dd><p>how <code>n_uncertainty</code> parameter uncertainty is
+propagated. Ignored when no uncertainty is requested.</p><ul><li><p><code>"replicates"</code> (default, unchanged behaviour) draws <code>n_uncertainty</code>
+parameter sets from the fit's covariance matrix in R and runs one
+simulation per draw. Works for both backends.</p></li>
+<li><p><code>"nwpri"</code> (NONMEM only) hands the job to NONMEM: a <code>$PRIOR NWPRI</code> record
+built from the fit (see <code><a href="add_nwpri_prior.html">add_nwpri_prior()</a></code>) plus
+<code>$SIMULATION ... TRUE=PRIOR</code>, so NONMEM draws a new parameter vector per
+subproblem. That costs one NONMEM compile for the whole set instead of
+one per draw, which for short simulations dominates the run time, so it
+is much faster for large <code>n_uncertainty</code>. It requires <code>n_iterations = 1</code>,
+because every NWPRI subproblem redraws the parameters and so cannot
+repeat a draw.</p></li>
+</ul><p>The two are <strong>not</strong> statistically interchangeable. Over 1000 draws from the
+same fit their means and standard deviations agree to within a few percent
+(see <code>inst/reports/nwpri-validation.html</code>), but two differences are
+structural rather than numerical: NWPRI draws OMEGA and SIGMA from
+(right-skewed) inverse-Wishart distributions where <code>"replicates"</code> draws
+every parameter from one truncated multivariate normal, and NWPRI treats the
+THETA, OMEGA and SIGMA priors as independent blocks and therefore discards
+the THETA-OMEGA and THETA-SIGMA covariances that <code>$COVARIANCE</code> reports.
+Which is preferable is a judgement call — the inverse-Wishart draw is
+arguably better justified for variance parameters, joint sampling is the one
+that keeps the full reported covariance — which is why this is a switch
+rather than a silent optimisation.</p></dd>
+
+
+<dt id="arg-plev">plev<a class="anchor" aria-label="anchor" href="#arg-plev"></a></dt>
+<dd><p><code>uncertainty_engine = "nwpri"</code> only: the probability mass the
+THETA draws are truncated to, passed to <code><a href="add_nwpri_prior.html">add_nwpri_prior()</a></code>.</p></dd>
+
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>data.frame with simulation results</p>
+    <p>data.frame with simulation results. When <code>n_uncertainty</code> is used,
+the result also carries <code>n_uncertainty_requested</code> and <code>n_uncertainty_kept</code>
+attributes: replicates that fail on the nlmixr2 backend are dropped with a
+warning, so these let a caller detect a short (and potentially biased) set
+of draws without parsing warnings. On the NONMEM backend a failing replicate
+aborts the run instead. Under <code>uncertainty_engine = "nwpri"</code> a failing
+<em>chunk</em> is dropped with a warning rather than aborting, and the same two
+attributes report how many draws survived — counted per regimen and
+reported for the worst one, since chunks are per regimen and the draws only
+pair across regimens where every regimen kept them.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

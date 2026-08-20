@@ -19,7 +19,7 @@ a single data.frame."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9120</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9126</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -65,7 +65,8 @@ a single <code>data.frame</code>.</p>
 <span>  skip <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  header <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  rm_duplicates <span class="op">=</span> <span class="cn">FALSE</span>,</span>
-<span>  nonmem_tab <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  nonmem_tab <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  subproblems <span class="op">=</span> <span class="cn">FALSE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -93,6 +94,16 @@ of the variables as its first line</p></dd>
 <dt id="arg-nonmem-tab">nonmem_tab<a class="anchor" aria-label="anchor" href="#arg-nonmem-tab"></a></dt>
 <dd><p>logical value indicating to the function whether the file is a
 table or a nonmem additional output file.</p></dd>
+
+
+<dt id="arg-subproblems">subproblems<a class="anchor" aria-label="anchor" href="#arg-subproblems"></a></dt>
+<dd><p>keep the simulation subproblems apart. A table written by
+a <code>$SIMULATION</code> record with <code>SUBPROBLEMS &gt; 1</code> holds one block of rows per
+subproblem, each introduced by a repeated <code>TABLE NO.</code> header. By default
+those headers are discarded and the blocks are returned as one undivided
+concatenation. With <code>subproblems = TRUE</code> the table is split on them instead
+and a 1-based <code>.subproblem</code> column is added. Only supported for a single
+<code>file</code> and <code>nonmem_tab = TRUE</code>.</p></dd>
 
 </dl></div>
     <div class="section level2">

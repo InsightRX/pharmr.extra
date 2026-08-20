@@ -11,6 +11,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/add_covariates_to_model.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/add_default_output_tables.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/add_metabolite_compartment.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/add_nwpri_prior.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/add_sir.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/add_table_to_model.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/as_pharmpy_model.html</loc></url>
@@ -98,6 +99,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_template_modelfile.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/get_tool_from_model.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/has_covariance_record.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/has_prior_record.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/import_pharmpy_model.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/import_pharmpy_results.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/index.html</loc></url>
@@ -153,6 +155,7 @@
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/set_iiv.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/set_residual_error.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/set_simulation_clean.html</loc></url>
+<url><loc>https://insightrx.github.io/pharmr.extra/reference/set_simulation_record.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/stack_encounters.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/strip_input_commas.html</loc></url>
 <url><loc>https://insightrx.github.io/pharmr.extra/reference/unquote_column_names.html</loc></url>

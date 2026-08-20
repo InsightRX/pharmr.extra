@@ -12,6 +12,11 @@
 - [`add_metabolite_compartment()`](https://insightrx.github.io/pharmr.extra/reference/add_metabolite_compartment.md)
   : Add a metabolite compartment, if requested
 
+- [`add_nwpri_prior()`](https://insightrx.github.io/pharmr.extra/reference/add_nwpri_prior.md)
+  :
+
+  Add a `$PRIOR NWPRI` record set to a NONMEM model
+
 - [`add_sir()`](https://insightrx.github.io/pharmr.extra/reference/add_sir.md)
   : Add SIR sampling in covariance step in Pharmpy model
 
@@ -303,6 +308,11 @@
 - [`has_covariance_record()`](https://insightrx.github.io/pharmr.extra/reference/has_covariance_record.md)
   : Does the Pharmpy NONMEM model object have a \$COV record?
 
+- [`has_prior_record()`](https://insightrx.github.io/pharmr.extra/reference/has_prior_record.md)
+  :
+
+  Does a NONMEM model (object or code) carry a `$PRIOR` record?
+
 - [`import_pharmpy_model()`](https://insightrx.github.io/pharmr.extra/reference/import_pharmpy_model.md)
   :
 
@@ -460,6 +470,11 @@
 
 - [`set_simulation_clean()`](https://insightrx.github.io/pharmr.extra/reference/set_simulation_clean.md)
   : Set model to be a simulation (only) model
+
+- [`set_simulation_record()`](https://insightrx.github.io/pharmr.extra/reference/set_simulation_record.md)
+  :
+
+  Set the `$SIMULATION` record of a NONMEM control stream
 
 - [`stack_encounters()`](https://insightrx.github.io/pharmr.extra/reference/stack_encounters.md)
   : Stack encounters when data from multiple encounters is available for

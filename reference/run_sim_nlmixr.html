@@ -13,7 +13,7 @@ requires the Python pyreadr package)."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9120</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9126</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -62,7 +62,8 @@ requires the Python <code>pyreadr</code> package).</p>
 <span>  add_pk_variables <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  output_file <span class="op">=</span> <span class="st">"simtab"</span>,</span>
 <span>  seed <span class="op">=</span> <span class="fl">12345</span>,</span>
-<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span></span>
+<span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  model_code <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -126,6 +127,14 @@ as the last dose in the simulation dataset divided by CL.</p></dd>
 
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
 <dd><p>verbose output?</p></dd>
+
+
+<dt id="arg-model-code">model_code<a class="anchor" aria-label="anchor" href="#arg-model-code"></a></dt>
+<dd><p>pre-rendered nlmixr2/rxode2 model code (character), used
+instead of extracting it from <code>model</code>. This is what lets a simulation run in
+a worker process: a Pharmpy <code>model</code> is a Python (reticulate) object and
+cannot cross a process boundary, but its rendered code can. When supplied,
+<code>model</code>/<code>fit</code> are not needed and <code>data</code> is required.</p></dd>
 
 </dl></div>
     <div class="section level2">
