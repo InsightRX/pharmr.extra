@@ -1,5 +1,26 @@
 # pharmr.extra (development version)
 
+* `run_sim(n_uncertainty = )` can now run its replicates in parallel, via
+  `n_cores` (#126). Replicates are independent — own parameter draw, own
+  derived seed (`seed + r`), combined only at the end — so they are spread over
+  PSOCK worker processes and reassembled by replicate index, which keeps the
+  output identical to a sequential run for the same seed. Only the
+  nlmixr2/rxode2 backend is parallelised: the NONMEM backend drives Pharmpy
+  through Python, which cannot be sent to a worker, and writes per-regimen run
+  folders that concurrent replicates would clobber; a NONMEM run warns and
+  falls back to sequential. The machine's cores are divided over the workers,
+  so a higher `n_cores` does not oversubscribe the CPU with rxode2 solver
+  threads.
+
+  Replicate failures are handled differently per backend. On nlmixr2 a failed
+  replicate is dropped with a warning and the rest of the run continues; the
+  result then carries `n_uncertainty_requested` and `n_uncertainty_kept`
+  attributes, since replicates that fail tend to be the extreme parameter
+  draws and a silently short set of draws would narrow any interval computed
+  over `.uncertainty`. On NONMEM a failed replicate aborts the run, as before:
+  those failures are typically systematic (licence, missing output table,
+  clobbered run folder) rather than specific to one draw.
+
 * The parameter-uncertainty sampling behind `run_sim(n_uncertainty = )` is now
   anchored against NONMEM's own uncertainty-simulation routine, `$PRIOR NWPRI`
   + `$SIMULATION ... TRUE=PRIOR`. Over 1000 draws from the same fit, means and

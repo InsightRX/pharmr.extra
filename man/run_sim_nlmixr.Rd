@@ -15,7 +15,8 @@ run_sim_nlmixr(
   add_pk_variables = FALSE,
   output_file = "simtab",
   seed = 12345,
-  verbose = TRUE
+  verbose = TRUE,
+  model_code = NULL
 )
 }
 \arguments{
@@ -54,6 +55,12 @@ as the last dose in the simulation dataset divided by CL.}
 \item{seed}{TODO}
 
 \item{verbose}{verbose output?}
+
+\item{model_code}{pre-rendered nlmixr2/rxode2 model code (character), used
+instead of extracting it from \code{model}. This is what lets a simulation run in
+a worker process: a Pharmpy \code{model} is a Python (reticulate) object and
+cannot cross a process boundary, but its rendered code can. When supplied,
+\code{model}/\code{fit} are not needed and \code{data} is required.}
 }
 \description{
 Internal companion to \code{\link[=run_sim]{run_sim()}}; called when the input model is a

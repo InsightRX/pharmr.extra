@@ -19,7 +19,8 @@ run_sim(
   output_file = "simtab",
   update_table = TRUE,
   seed = 12345,
-  verbose = TRUE
+  verbose = TRUE,
+  n_cores = 1
 )
 }
 \arguments{
@@ -100,9 +101,24 @@ is returned back. If \code{FALSE}, the \code{add_pk_variables} argument will be 
 \item{seed}{TODO}
 
 \item{verbose}{verbose output?}
+
+\item{n_cores}{number of processes to run uncertainty replicates on
+(default \code{1}, i.e. sequential; unchanged behaviour). Values \verb{> 1} spread the
+\code{n_uncertainty} replicates over that many worker processes and are
+supported for the \code{nlmixr2} tool only; a NONMEM run warns and falls back to
+sequential. Output is identical to a sequential run for the same \code{seed},
+since each replicate keeps its own derived seed (\code{seed + r}) and results are
+reassembled by replicate index. Ignored when no uncertainty is requested.
+The machine's cores are divided over the workers (rxode2's solver threads
+are capped per worker), so raising \code{n_cores} does not oversubscribe the CPU.}
 }
 \value{
-data.frame with simulation results
+data.frame with simulation results. When \code{n_uncertainty} is used,
+the result also carries \code{n_uncertainty_requested} and \code{n_uncertainty_kept}
+attributes: replicates that fail on the nlmixr2 backend are dropped with a
+warning, so these let a caller detect a short (and potentially biased) set
+of draws without parsing warnings. On the NONMEM backend a failing replicate
+aborts the run instead.
 }
 \description{
 Run simulations

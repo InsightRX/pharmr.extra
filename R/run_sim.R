@@ -61,8 +61,22 @@
 #' is forwarded to [run_nlme()] unset, so `run_nlme()`'s own default applies.
 #' @param output_file TODO
 #' @param seed TODO
+#' @param n_cores number of processes to run uncertainty replicates on
+#' (default `1`, i.e. sequential; unchanged behaviour). Values `> 1` spread the
+#' `n_uncertainty` replicates over that many worker processes and are
+#' supported for the `nlmixr2` tool only; a NONMEM run warns and falls back to
+#' sequential. Output is identical to a sequential run for the same `seed`,
+#' since each replicate keeps its own derived seed (`seed + r`) and results are
+#' reassembled by replicate index. Ignored when no uncertainty is requested.
+#' The machine's cores are divided over the workers (rxode2's solver threads
+#' are capped per worker), so raising `n_cores` does not oversubscribe the CPU.
 #'
-#' @returns data.frame with simulation results
+#' @returns data.frame with simulation results. When `n_uncertainty` is used,
+#' the result also carries `n_uncertainty_requested` and `n_uncertainty_kept`
+#' attributes: replicates that fail on the nlmixr2 backend are dropped with a
+#' warning, so these let a caller detect a short (and potentially biased) set
+#' of draws without parsing warnings. On the NONMEM backend a failing replicate
+#' aborts the run instead.
 #'
 #' @export
 run_sim <- function(
@@ -80,7 +94,11 @@ run_sim <- function(
     output_file = "simtab",
     update_table = TRUE,
     seed = 12345,
-    verbose = TRUE
+    verbose = TRUE,
+    ## New arguments go last: `verbose` was the final positional argument
+    ## before, and callers passing it positionally would otherwise silently
+    ## set `n_cores` instead.
+    n_cores = 1
 ) {
 
   ## parse arguments
@@ -121,6 +139,11 @@ run_sim <- function(
     cli::cli_abort("Unsupported simulation tool: {tool}.")
   }
 
+  ## Check `data` here rather than only inside the engine: parallel uncertainty
+  ## replicates never reach the engine in this process, so an unusable `data`
+  ## would otherwise surface as N worker failures instead of one clear message.
+  validate_sim_data(data)
+
   ## Validate uncertainty request. Treat NULL/0 as "no uncertainty" (point
   ## estimate). Sampling from the covariance matrix needs a `fit` object; a
   ## bare model carries no covariance.
@@ -132,7 +155,7 @@ run_sim <- function(
     ## later blow up in `seq_len()`.
     if(length(n_num) != 1 || is.na(n_num) || n_num < 0 ||
        n_num != round(n_num) || n_num > .Machine$integer.max) {
-      cli::cli_abort("`n_uncertainty` must be a non-negative integer (<= {.Machine$integer.max}) or NULL.")
+      cli::cli_abort("`n_uncertainty` must be a non-negative integer (<= {(.Machine$integer.max)}) or NULL.")
     }
     n_uncertainty <- as.integer(n_num)
     if(n_uncertainty == 0) n_uncertainty <- NULL
@@ -150,12 +173,15 @@ run_sim <- function(
   ## Engine: run one full simulation (all regimens, `n_iterations` subproblems)
   ## for a given model and seed. Captures the remaining arguments lexically.
   ## `model`/`seed` vary between uncertainty replicates.
-  run_sim_engine <- function(model, seed) {
+  run_sim_engine <- function(model, seed, verbose = TRUE) {
   input_data <- model$dataset
 
   ## Engine dispatch: nlmixr2 simulations go through rxode2::rxSolve()
   ## directly. Pharmpy-driven nlmixr simulation needs the same pyreadr
   ## dependency that blocks the fitter, and rxSolve avoids the round-trip.
+  ## Parallel uncertainty replicates bypass this engine and call
+  ## run_sim_nlmixr() from a worker (see make_nlmixr_replicate_fn()), so keep
+  ## the two argument lists in step.
   if(tool == "nlmixr2") {
     return(run_sim_nlmixr(
       fit = fit,
@@ -178,13 +204,7 @@ run_sim <- function(
     sim_data <- as.data.frame(input_data)
     sim_data[[".regimen"]] <- "original regimens"
   } else {
-    if(!inherits(data, "data.frame")) {
-      cli::cli_abort(
-        c("`data` must be a data.frame (typically the output of {.fn create_sim_dataset}).",
-          x = "Got an object of class {.cls {class(data)}}.",
-          i = "To build a simulation dataset from a file or model, use {.fn create_sim_dataset} first.")
-      )
-    }
+    validate_sim_data(data)
     sim_data <- data
     if(!".regimen" %in% names(sim_data)) {
       sim_data[[".regimen"]] <- "original regimens"
@@ -335,7 +355,7 @@ run_sim <- function(
 
   ## No uncertainty: single pass with point estimates (unchanged behaviour)
   if(is.null(n_uncertainty)) {
-    return(run_sim_engine(model, seed))
+    return(run_sim_engine(model, seed, verbose = verbose))
   }
 
   ## Uncertainty: draw `n_uncertainty` parameter sets from the covariance
@@ -374,33 +394,199 @@ run_sim <- function(
     ))
   }
 
-  out <- lapply(seq_len(n_uncertainty), function(r) {
-    if(verbose) cli::cli_alert_info("Uncertainty replicate {r}/{n_uncertainty}")
-    inits <- as.list(draws[r, , drop = FALSE])
-    m <- pharmr::set_initial_estimates(model, inits = inits)
-    ## Force nlmixr2 code to regenerate from the updated estimates: a stale
-    ## cached `nlmixr_code` attribute would otherwise make run_sim_nlmixr()
-    ## silently simulate the point estimates on every replicate.
-    attr(m, "nlmixr_code") <- NULL
-    ## distinct seed per draw so subproblem RNG differs between replicates
-    res <- run_sim_engine(m, seed + r)
+  ## Replicates are independent (own draw, own seed, combined only at the end),
+  ## so they can be spread over worker processes. Only the nlmixr2/rxode2
+  ## backend is parallelised: the NONMEM backend drives Pharmpy through Python
+  ## (not sendable to a worker) and writes per-regimen run folders that
+  ## concurrent replicates would clobber.
+  n_cores <- resolve_n_cores(n_cores)
+  if(n_cores > 1L && tool != "nlmixr2") {
+    cli::cli_warn(c(
+      "Parallel uncertainty replicates are supported for the {.val nlmixr2} tool only.",
+      i = "Running the {n_uncertainty} replicate{?s} sequentially."
+    ))
+    n_cores <- 1L
+  }
+
+  if(n_cores > 1L) {
+    ## Render every replicate's model here, in the parent: applying a draw is a
+    ## Pharmpy (Python) operation and the resulting model object cannot cross a
+    ## process boundary, but the nlmixr2 code it renders to (a string) can.
+    ## Regenerated rather than read from the cached `nlmixr_code` attribute,
+    ## which still holds the point estimates.
+    if(verbose) {
+      cli::cli_alert_info("Preparing {n_uncertainty} replicate model{?s}")
+    }
+    specs <- lapply(seq_len(n_uncertainty), function(r) {
+      m <- pharmr::set_initial_estimates(
+        model, inits = as.list(draws[r, , drop = FALSE])
+      )
+      list(index = r, code = make_nlmixr_saem_safe(m$code), seed = seed + r)
+    })
+    ## Resolve the dataset in the parent for the same reason (it is identical
+    ## across replicates, so this also avoids re-reading it per worker).
+    replicate_fn <- make_nlmixr_replicate_fn(
+      data = data %||% as.data.frame(model$dataset),
+      n_iterations = n_iterations,
+      variables = variables,
+      add_pk_variables = add_pk_variables,
+      output_file = output_file
+    )
+    if(verbose) {
+      cli::cli_alert_info(
+        "Running {n_uncertainty} uncertainty replicate{?s} on {n_cores} core{?s}"
+      )
+    }
+    replicates <- parallel_lapply(specs, replicate_fn, n_cores = n_cores)
+  } else {
+    pb <- NULL
+    if(verbose) {
+      pb <- cli::cli_progress_bar(
+        "Uncertainty replicates", total = n_uncertainty, .envir = environment()
+      )
+    }
+    replicates <- lapply(seq_len(n_uncertainty), function(r) {
+      res <- run_captured(r, function() {
+        inits <- as.list(draws[r, , drop = FALSE])
+        m <- pharmr::set_initial_estimates(model, inits = inits)
+        ## Force nlmixr2 code to regenerate from the updated estimates: a stale
+        ## cached `nlmixr_code` attribute would otherwise make run_sim_nlmixr()
+        ## silently simulate the point estimates on every replicate.
+        attr(m, "nlmixr_code") <- NULL
+        ## distinct seed per draw so subproblem RNG differs between replicates.
+        ## `verbose = FALSE` + `suppressMessages()`: the engine's per-regimen
+        ## alerts would tear down and redraw the progress bar on every
+        ## replicate, and the worker path silences them the same way.
+        suppressMessages(run_sim_engine(m, seed + r, verbose = FALSE))
+      })
+      if(tool == "nonmem" && inherits(res$result, "condition")) {
+        ## Pre-parallel behaviour, kept deliberately: NONMEM replicate failures
+        ## are typically systematic (licence, no output table, clobbered run
+        ## folder), so carrying on would burn the remaining replicates only to
+        ## return a silently truncated set of draws.
+        if(!is.null(pb)) cli::cli_progress_done(id = pb)
+        emit_replicate_warnings(r, res$warnings)
+        cli::cli_abort("Uncertainty replicate {r} failed.", parent = res$result)
+      }
+      ## Emit as we go: a sequential run of a slow backend should not stay
+      ## quiet about a misbehaving replicate until the last one has finished.
+      emit_replicate_warnings(r, res$warnings)
+      res$warnings <- list()
+      if(!is.null(pb)) cli::cli_progress_update(id = pb)
+      res
+    })
+    if(!is.null(pb)) cli::cli_progress_done(id = pb)
+  }
+
+  ## Assemble by replicate index (not by completion order) so `.uncertainty`
+  ## stays 1-based and ordered, and re-emit whatever the replicates raised:
+  ## worker processes have no console of their own.
+  out <- lapply(replicates, function(repl) {
+    emit_replicate_warnings(repl$index, repl$warnings)
+    res <- repl$result
+    if(inherits(res, "condition")) {
+      ## Drop the failed replicate rather than aborting the whole run.
+      msg <- conditionMessage(res)
+      cli::cli_warn("Uncertainty replicate {repl$index} failed ({msg}); omitted.")
+      return(NULL)
+    }
     if(is.null(res) || nrow(res) == 0) {
       ## Surface dropped replicates so a short result set is not mistaken for a
       ## complete `1:n_uncertainty` run.
       cli::cli_warn(
-        "Uncertainty replicate {r} produced no simulation output; omitted."
+        "Uncertainty replicate {repl$index} produced no simulation output; omitted."
       )
       return(NULL)
     }
-    res[[".uncertainty"]] <- r
+    res[[".uncertainty"]] <- repl$index
     res
   }) |>
     dplyr::bind_rows()
 
+  if(nrow(out) == 0) {
+    cli::cli_abort(c(
+      "All {n_uncertainty} uncertainty replicate{?s} failed; no simulation output.",
+      i = "See the warnings above for the individual failures."
+    ))
+  }
+
+  ## Record how many replicates actually survived, so callers can detect a
+  ## short result set programmatically instead of having to scrape warnings.
+  n_kept <- length(unique(out[[".uncertainty"]]))
+  attr(out, "n_uncertainty_requested") <- n_uncertainty
+  attr(out, "n_uncertainty_kept") <- n_kept
+  if(n_kept < n_uncertainty) {
+    cli::cli_warn(c(
+      "Only {n_kept} of {n_uncertainty} uncertainty replicate{?s} produced output.",
+      i = "Replicates that fail tend to be the extreme parameter draws, so \
+           intervals computed over {.field .uncertainty} may be too narrow.",
+      i = "The counts are on the result as the {.field n_uncertainty_kept} and \
+           {.field n_uncertainty_requested} attributes."
+    ))
+  }
   if(verbose) {
-    cli::cli_alert_success("Done ({n_uncertainty} uncertainty replicate{?s})")
+    cli::cli_alert_success("Done ({n_kept}/{n_uncertainty} uncertainty replicate{?s})")
   }
   out
+}
+
+#' Check that a supplied simulation dataset is usable
+#'
+#' @param data candidate simulation dataset; `NULL` means "use the dataset
+#' attached to the model" and is accepted.
+#'
+#' @returns `NULL`, invisibly. Called for its side effect of aborting.
+#' @noRd
+validate_sim_data <- function(data) {
+  if(!is.null(data) && !inherits(data, "data.frame")) {
+    cli::cli_abort(
+      c("`data` must be a data.frame (typically the output of {.fn create_sim_dataset}).",
+        x = "Got an object of class {.cls {class(data)}}.",
+        i = "To build a simulation dataset from a file or model, use {.fn create_sim_dataset} first.")
+    )
+  }
+  invisible(NULL)
+}
+
+#' Build the worker function for parallel nlmixr2 uncertainty replicates
+#'
+#' A factory rather than an inline closure: the closure is serialised to the
+#' worker together with its enclosing environment, and `run_sim()`'s own frame
+#' holds the Pharmpy `model`/`fit` (Python objects that must not be sent to a
+#' worker). Closing over this factory's frame instead keeps only plain R data.
+#'
+#' @param data resolved simulation dataset (identical for every replicate).
+#' @inheritParams run_sim
+#'
+#' @returns a function taking one replicate spec (`index`, `code`, `seed`) and
+#' returning the `run_captured()` envelope for it.
+#' @noRd
+make_nlmixr_replicate_fn <- function(
+    data,
+    n_iterations,
+    variables,
+    add_pk_variables,
+    output_file
+) {
+  force(data)
+  force(n_iterations)
+  force(variables)
+  force(add_pk_variables)
+  force(output_file)
+  function(spec) {
+    run_captured(spec$index, function() {
+      suppressMessages(run_sim_nlmixr(
+        data = data,
+        model_code = spec$code,
+        n_iterations = n_iterations,
+        variables = variables,
+        add_pk_variables = add_pk_variables,
+        output_file = output_file,
+        seed = spec$seed,
+        verbose = FALSE
+      ))
+    })
+  }
 }
 
 #' Sample parameter vectors from a fit's covariance matrix
