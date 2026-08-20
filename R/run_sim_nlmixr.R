@@ -57,11 +57,16 @@ run_sim_nlmixr <- function(
         cli::cli_abort("Could not resolve a model from the supplied `fit`.")
       }
     }
+    ## Only when we are going to use it: `resolve_nlmixr_data()` aborts on a
+    ## model with no dataset of any kind, which would turn a perfectly well
+    ## specified `run_sim(model = , data = )` into an error, and it converts the
+    ## whole dataset out of Python for a value the `data` branch below discards.
+    ##
     ## Not `model$dataset`: when the caller passed an explicit `data =` to
     ## run_nlme(), the fitted dataset lives on `attr(model, "original_data")`
     ## and `model$dataset` still points at whatever was attached at model-build
     ## time. resolve_nlmixr_data() prefers the former.
-    input_data <- resolve_nlmixr_data(model, NULL)
+    input_data <- if(is.null(data)) resolve_nlmixr_data(model, NULL) else NULL
   } else {
     if(is.null(data)) {
       cli::cli_abort("`data` is required when `model_code` is supplied.")
@@ -112,14 +117,8 @@ run_sim_nlmixr <- function(
     if(verbose) cli::cli_alert_info("Running simulation ({reg_label})")
     sim_data_regimen <- sim_data |>
       dplyr::filter(.data$.regimen == reg_label) |>
-      dplyr::select(-".regimen")
-    if("EVID" %in% names(sim_data_regimen)) {
-      sim_data_regimen <- sim_data_regimen |>
-        dplyr::arrange(.data$ID, .data$TIME, -.data$EVID)
-    } else {
-      sim_data_regimen <- sim_data_regimen |>
-        dplyr::arrange(.data$ID, .data$TIME)
-    }
+      dplyr::select(-".regimen") |>
+      sort_nlmixr_events()
 
     raw_sim <- rxode2::rxSolve(
       object = nlmixr_fn,
@@ -129,9 +128,16 @@ run_sim_nlmixr <- function(
     )
 
     ## Population prediction: the same events solved with the between-subject
-    ## random effects zeroed. Costs one extra single-replicate solve per
-    ## regimen, and is what makes prediction-corrected VPCs meaningful.
-    pop_pred <- solve_population_prediction(nlmixr_fn, sim_data_regimen)
+    ## random effects zeroed, which is what makes prediction-corrected VPCs
+    ## meaningful. Costs one extra single-replicate solve per regimen *per call*
+    ## — so `run_sim(n_uncertainty = )` pays it once per replicate as well.
+    ## Skipped where the model declares `PRED` itself, since shape_rxsolve_output()
+    ## keeps the model's own column and would throw this result away.
+    pop_pred <- if("PRED" %in% names(raw_sim)) {
+      NULL
+    } else {
+      solve_population_prediction(nlmixr_fn, sim_data_regimen)
+    }
 
     ## Reshape rxSolve output to the NONMEM-style sdtab columns expected
     ## by example code.
@@ -173,12 +179,16 @@ run_sim_nlmixr <- function(
 #' @param pop_pred optional numeric vector of population predictions for one
 #' simulation replicate (see [solve_population_prediction()]). `raw_sim` stacks
 #' `nsim` contiguous replicates in identical row order, so the vector is
-#' recycled across them. `NULL` (or a length that doesn't divide the output)
-#' falls back to reporting `IPRED` as `PRED`.
+#' recycled across them. `NULL` (or a length that isn't exactly one replicate's
+#' worth of rows) falls back to reporting `IPRED` as `PRED`.
 #'
 #' @noRd
 shape_rxsolve_output <- function(raw_sim, sim_data_regimen, pop_pred = NULL) {
   df <- as.data.frame(raw_sim)
+  ## How many replicates are stacked in `df`, taken from rxSolve's own marker
+  ## (absent for a single-replicate solve). Used to check `pop_pred` covers
+  ## exactly one replicate.
+  nsim <- if("sim.id" %in% names(df)) length(unique(df[["sim.id"]])) else 1L
   ## Pharmpy's nlmixr code typically declares `IPRED` directly in the
   ## model({}) block, so it appears in rxSolve output already. Drop
   ## rxSolve's auto-emitted `ipredSim` to avoid a duplicate name.
@@ -198,10 +208,13 @@ shape_rxsolve_output <- function(raw_sim, sim_data_regimen, pop_pred = NULL) {
   }
   ## PRED comes from a separate zero-random-effects solve (rxSolve cannot emit
   ## both in one call). Where that isn't available, report IPRED as a stand-in.
+  ## The vector has to be exactly one replicate's worth of rows: mere
+  ## divisibility would silently recycle a half-length (a dropped subject, a
+  ## different row set) against the wrong rows instead of falling back.
   if(!"PRED" %in% names(df)) {
     if(!is.null(pop_pred) && length(pop_pred) > 0 &&
-       nrow(df) %% length(pop_pred) == 0) {
-      df$PRED <- rep(pop_pred, times = nrow(df) / length(pop_pred))
+       length(pop_pred) * nsim == nrow(df)) {
+      df$PRED <- rep(pop_pred, times = nsim)
     } else if("IPRED" %in% names(df)) {
       df$PRED <- df$IPRED
     }
@@ -228,6 +241,47 @@ shape_rxsolve_output <- function(raw_sim, sim_data_regimen, pop_pred = NULL) {
     if("MDV" %in% names(df)) df$MDV[is.na(df$MDV)] <- 0L
   }
   df
+}
+
+#' Order an event table the way the nlmixr2 simulation solves it
+#'
+#' rxSolve returns its rows in event-table order, so anything that has to line
+#' up row-for-row with a solve (`obs` in an nlmixr2 VPC, say) must be put in
+#' this same order first. Doses sort ahead of observations at a shared
+#' timepoint, hence the descending `EVID`.
+#'
+#' @param events an event table (data.frame with at least `ID` and `TIME`).
+#'
+#' @returns `events`, reordered.
+#' @noRd
+sort_nlmixr_events <- function(events) {
+  if("EVID" %in% names(events)) {
+    dplyr::arrange(events, .data$ID, .data$TIME, -.data$EVID)
+  } else {
+    dplyr::arrange(events, .data$ID, .data$TIME)
+  }
+}
+
+#' Which rows of an event table a solve returns output for
+#'
+#' Dosing records (`EVID` 1 and 4) and resets (`EVID` 3) advance the system
+#' without producing a solved row; observations (`EVID` 0) and other-type
+#' events (`EVID` 2) each produce one. Datasets without `EVID` fall back to
+#' `MDV`, and then to "every row".
+#'
+#' Callers that need to align their own rows with a solve should use this
+#' rather than guessing at `MDV == 0`: observations flagged `MDV = 1` (BLQ
+#' handling and the like) are still solved, and `EVID = 2` records add rows
+#' that no `MDV` filter accounts for.
+#'
+#' @param events an event table.
+#'
+#' @returns logical vector, one element per row of `events`.
+#' @noRd
+nlmixr_solved_rows <- function(events) {
+  if("EVID" %in% names(events)) return(events$EVID %in% c(0, 2))
+  if("MDV" %in% names(events)) return(events$MDV == 0)
+  rep(TRUE, nrow(events))
 }
 
 #' Solve a model with the between-subject random effects zeroed

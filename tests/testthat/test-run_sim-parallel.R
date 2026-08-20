@@ -553,3 +553,15 @@ test_that("run_sim: parallel replicates get the fitted dataset, not the build on
   expect_equal(seen_data, fitted_data)
   expect_false(identical(as.data.frame(mod$dataset), fitted_data))
 })
+
+test_that("run_sim_nlmixr: `data` alone is enough, with no dataset on the model", {
+  skip_if_not_installed("rxode2")
+  ## A model carrying code but no dataset: resolving one would abort, yet the
+  ## caller supplied the simulation dataset outright, so nothing needs
+  ## resolving. (`nlmixr_code` stands in for the pharmpy round-trip.)
+  mod <- structure(list(dataset = NULL), nlmixr_code = .nlmixr_code(1))
+  out <- run_sim_nlmixr(model = mod, data = .rx_sim_dat(), seed = 7,
+                        verbose = FALSE)
+  expect_s3_class(out, "data.frame")
+  expect_true(nrow(out) > 0)
+})
