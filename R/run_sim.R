@@ -585,8 +585,15 @@ run_sim <- function(
     })
     ## Resolve the dataset in the parent for the same reason (it is identical
     ## across replicates, so this also avoids re-reading it per worker).
+    ## Through `resolve_nlmixr_data()`, exactly as the sequential path does via
+    ## run_sim_nlmixr(): the worker only ever sees `model_code` and this frame,
+    ## never the model, so `model$dataset` here would silently simulate the
+    ## model-build dataset whenever run_nlme() was given an explicit `data =`
+    ## (the fitted dataset lives on `attr(model, "original_data")`). That made
+    ## the same `run_sim()` call return different results at `n_cores > 1` than
+    ## at `n_cores = 1` — the #136 bug, on the path its fix missed.
     replicate_fn <- make_nlmixr_replicate_fn(
-      data = data %||% as.data.frame(model$dataset),
+      data = resolve_nlmixr_data(model, data),
       n_iterations = n_iterations,
       variables = variables,
       add_pk_variables = add_pk_variables,

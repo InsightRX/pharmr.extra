@@ -80,16 +80,18 @@ create_model_from_file <- function(
     if(is.null(dataset_file)) {
       dataset_file <- tempfile(pattern = "data", fileext = ".csv")
       write.csv(data, dataset_file, quote = F, row.names = F)
-      model <- model |>
-        pharmr::set_dataset(
-          path_or_df = dataset_file, datatype = "nonmem")
     }
     model_code <- model$code
     model_path <- tempfile(fileext = ".mod")
-    model_code <- change_nonmem_dataset(
-      model_code,
-      dataset_file
-    ) |>
+    ## Deliberately not using pharmr::set_dataset(datatype = "nonmem") here:
+    ## it rewrites $INPUT from the dataframe's columns and thereby discards the
+    ## DROP flags declared in the model file's original $INPUT. Pharmpy then
+    ## treats non-numeric DROP columns (e.g. date/time strings like
+    ## "08/12/2011", "9:00") as numeric and float-converts them, raising a
+    ## DatasetError. Instead sync $INPUT to the dataset columns ourselves,
+    ## carrying the original tokens (and their DROP flags) over. See #99/#101.
+    model_code <- sync_input_to_dataset(model_code, names(data)) |>
+      change_nonmem_dataset(dataset_file) |>
       fix_eta_dummy_bug()
     tryCatch({
       model <- pharmr::read_model_from_string(model_code)
@@ -128,4 +130,69 @@ fix_eta_dummy_bug <- function(model_code) {
     model_code <- stringr::str_replace_all(model_code, pattern, "ETA_DUMMY")
   }
   model_code
+}
+
+#' Align a model's `$INPUT` record with the columns of a dataset
+#'
+#' NONMEM reads datasets positionally, so re-pointing `$DATA` at a CSV written
+#' from a data.frame requires `$INPUT` to list that data.frame's columns in
+#' order. `pharmr::set_dataset(datatype = "nonmem")` does this by regenerating
+#' `$INPUT` from the column names alone, which silently drops any `DROP`
+#' (or `SKIP`) flags the model declared — after which pharmpy tries to
+#' float-convert non-numeric dropped columns and raises a `DatasetError`.
+#'
+#' This keeps the original token for every column the model already named
+#' (so `VISITDATE=DROP` stays `VISITDATE=DROP`), emits a bare `DROP` for
+#' pharmpy's placeholder names for anonymous dropped columns (`_DROP1`, ...),
+#' and appends any genuinely new column under its own name.
+#'
+#' @param code character string with NONMEM model code
+#' @param columns character vector of dataset column names, in dataset order
+#' @returns character string with model code
+#' @noRd
+sync_input_to_dataset <- function(code, columns) {
+  old_tokens <- unname(get_input_tokens(code))
+  if(length(old_tokens) == 0 || length(columns) == 0) return(code)
+  old_names <- vapply(old_tokens, input_token_name, character(1), USE.NAMES = FALSE)
+  is_anon_drop <- toupper(old_tokens) %in% c("DROP", "SKIP")
+  new_tokens <- vapply(seq_along(columns), function(i) {
+    column <- columns[i]
+    same_pos <- i <= length(old_tokens)
+    ## Column still sits where the model declared it: keep the token verbatim,
+    ## DROP flag, synonym and all.
+    if(same_pos && old_names[i] == column) return(old_tokens[i])
+    ## Pharmpy names anonymous `DROP` items `_DROP1`, `_DROP2`, ... in the
+    ## dataset it exposes; re-emit those as an anonymous DROP.
+    if(grepl("^_DROP[0-9]*$", column)) return("DROP")
+    ## Column moved: carry its original token over to the new position.
+    match_idx <- which(old_names == column)
+    if(length(match_idx) > 0) return(old_tokens[match_idx[1]])
+    ## No token names this column, but the model dropped whatever sat at this
+    ## position anonymously (e.g. `set_dv()` rewrites the old DV to `DROP`, so
+    ## the dataset still carries its original name). Keep it dropped rather
+    ## than re-introducing a name that may collide with another token.
+    if(same_pos && is_anon_drop[i]) return("DROP")
+    column
+  }, character(1), USE.NAMES = FALSE)
+  if(identical(new_tokens, old_tokens)) return(code)
+  rewrite_input_tokens(code, function(tokens) new_tokens)
+}
+
+#' Column name referred to by a single `$INPUT` item
+#'
+#' Handles the plain (`WT`), labelled (`DV=CONC`, where pharmpy names the
+#' column after the synonym) and both DROP spellings NONMEM accepts
+#' (`VISITDATE=DROP` and `DROP=VISITDATE`).
+#'
+#' @param token character string, a single `$INPUT` item
+#' @returns character string
+#' @noRd
+input_token_name <- function(token) {
+  parts <- strsplit(token, "=", fixed = TRUE)[[1]]
+  if(length(parts) < 2) return(parts[1])
+  ## `LABEL=SYNONYM`: pharmpy names the dataset column after the synonym
+  ## (`DV=CONC` -> `CONC`), except when either side is the DROP/SKIP keyword.
+  if(toupper(parts[2]) %in% c("DROP", "SKIP")) return(parts[1])
+  if(toupper(parts[1]) %in% c("DROP", "SKIP")) return(parts[2])
+  parts[2]
 }

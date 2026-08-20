@@ -559,3 +559,66 @@ test_that("run_sim: `data` is validated before replicates are dispatched", {
     "must be a data.frame"
   )
 })
+
+test_that("run_sim: parallel replicates get the fitted dataset, not the build one", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- make_model_without_cov()
+  ## What `run_nlme(model, data = )` leaves behind: the dataset the model was
+  ## fitted to sits on the attribute, while `model$dataset` still points at
+  ## whatever was attached at model-build time (#136).
+  fitted_data <- .sim_dat()
+  fitted_data$MARKER <- 1
+  attr(mod, "original_data") <- fitted_data
+  fake_fit <- list(
+    parameter_estimates = c(POP_CL = 1, POP_V = 10),
+    covariance_matrix   = diag(2)
+  )
+
+  seen_data <- NULL
+  local_mocked_bindings(
+    ## The dataset is resolved in the parent and closed over by the worker
+    ## function; capture it there rather than running an actual replicate.
+    make_nlmixr_replicate_fn = function(data, ...) {
+      seen_data <<- data
+      function(spec) {
+        run_captured(spec$index, function() data.frame(ID = 1, TIME = 1, DV = 1))
+      }
+    },
+    parallel_lapply = function(x, fn, n_cores, ...) lapply(x, fn),
+    sample_uncertainty_parameters =
+      function(model, parameter_estimates, covariance_matrix, n, seed) {
+        as.data.frame(matrix(rep(seq_len(n), 2), ncol = 2,
+                             dimnames = list(NULL, c("POP_CL", "POP_V"))))
+      },
+    .package = "pharmr.extra"
+  )
+  local_mocked_bindings(
+    set_initial_estimates = function(model, inits) model,
+    .package = "pharmr"
+  )
+
+  suppressWarnings(run_sim(
+    fit = fake_fit, model = mod, tool = "nlmixr2",
+    n_uncertainty = 2, n_cores = 2, verbose = FALSE
+  ))
+
+  ## Same resolution the sequential path performs inside run_sim_nlmixr(), so
+  ## `n_cores` cannot change which dataset is simulated.
+  expect_equal(seen_data, fitted_data)
+  expect_false(identical(as.data.frame(mod$dataset), fitted_data))
+})
+
+test_that("run_sim_nlmixr: `data` alone is enough, with no dataset on the model", {
+  skip_if_not_installed("rxode2")
+  ## A model carrying code but no dataset: resolving one would abort, yet the
+  ## caller supplied the simulation dataset outright, so nothing needs
+  ## resolving. (`nlmixr_code` stands in for the pharmpy round-trip.)
+  mod <- structure(list(dataset = NULL), nlmixr_code = .nlmixr_code(1))
+  out <- run_sim_nlmixr(model = mod, data = .rx_sim_dat(), seed = 7,
+                        verbose = FALSE)
+  expect_s3_class(out, "data.frame")
+  expect_true(nrow(out) > 0)
+})

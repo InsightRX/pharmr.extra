@@ -77,14 +77,19 @@ create_vpc_data <- function(
 ) {
   check_table_formats(id_format)
 
-  ## Which of the NONMEM-only arguments the caller actually set. Only used to
+  ## Which of the NONMEM-only arguments carry a non-default value. Only used to
   ## warn on the nlmixr branch, where none of them apply — checked here because
-  ## `missing()` stops being meaningful once the arguments are reassigned.
+  ## the arguments are reassigned further down.
+  ##
+  ## Compared against the defaults rather than tested with `missing()`: a
+  ## wrapper that forwards its arguments explicitly (`use_pharmpy =
+  ## use_pharmpy`) passes them whether or not its own caller set them, so
+  ## `missing()` would warn about arguments left entirely at their defaults.
   nonmem_only_set <- c(
-    id = !missing(id),
-    use_pharmpy = !missing(use_pharmpy),
-    fix_input_heuristic = !missing(fix_input_heuristic),
-    id_format = !missing(id_format)
+    id = !is.null(id),
+    use_pharmpy = !isTRUE(use_pharmpy),
+    fix_input_heuristic = !isTRUE(fix_input_heuristic),
+    id_format = !identical(id_format, "sF11.0")
   )
 
   ## ---- Resolve model & dispatch nlmixr branch via the original code path ----
@@ -767,9 +772,11 @@ replace_inits_in_text <- function(text, queue, init_in_paren) {
 #' are produced via [run_sim()] (which dispatches to rxode2's `rxSolve`
 #' for nlmixr2 models).
 #'
-#' `obs` and `sim` are built from the *same* resolved dataset, which is what
-#' keeps their row sets aligned — the two must not each go looking for a
-#' dataset of their own (see issue #136).
+#' `obs` and `sim` are built from the *same* resolved dataset — the two must
+#' not each go looking for a dataset of their own (see issue #136) — and `obs`
+#' is put in solve order and reduced to the solved rows with the same helpers
+#' the simulation uses, so the two line up record for record and not merely in
+#' count.
 #'
 #' @noRd
 create_vpc_data_nlmixr <- function(
@@ -821,8 +828,15 @@ create_vpc_data_nlmixr <- function(
       dplyr::ungroup() |>
       as.data.frame()
   }
-  obs_all <- obs
-  obs <- obs[obs$MDV == 0, , drop = FALSE]
+  ## Put the rows in solve order and keep the ones the solve returns output
+  ## for, using the same two rules the simulation itself applies
+  ## (`sort_nlmixr_events()` / `nlmixr_solved_rows()`). Deriving `obs` from the
+  ## predicate rather than guessing at `MDV == 0` is what makes the row set
+  ## right for datasets carrying `EVID = 2` records or MDV-flagged
+  ## observations; ordering it the same way is what makes `obs[i]` and the
+  ## simulated rows describe the same record rather than merely count the same.
+  obs_all <- sort_nlmixr_events(obs)
+  obs <- obs_all[nlmixr_solved_rows(obs_all), , drop = FALSE]
 
   ## Run n simulations against that same dataset — passed explicitly rather
   ## than left to run_sim_nlmixr()'s own dataset lookup, so obs and sim cannot
@@ -839,26 +853,22 @@ create_vpc_data_nlmixr <- function(
     verbose = FALSE
   )
 
-  ## rxSolve returns the solved (non-dosing) rows of the event table, once per
-  ## replicate. Where `obs` doesn't line up with that row set — datasets that
-  ## flag observations with MDV = 1, for BLQ handling say, are the usual cause
-  ## — select observations by EVID instead before giving up, so an obs/sim pair
-  ## describing different rows is never returned silently.
-  ## Exactly `n` simulated rows per observed row — not merely a multiple of
-  ## them, which a one-row `obs` would satisfy by accident.
+  ## rxSolve returns the solved rows of the event table, once per replicate, so
+  ## `obs` (selected by the same predicate, above) should account for exactly
+  ## `n` simulated rows each — not merely a multiple of them, which a one-row
+  ## `obs` would satisfy by accident. A mismatch here means the solve dropped or
+  ## added rows relative to the event table (ADDL/SS expansion, a subject the
+  ## solver could not integrate), which no re-selection on this side can repair:
+  ## fail rather than return an obs/sim pair describing different records.
   if(nrow(obs) == 0 || nrow(sim) != n * nrow(obs)) {
-    alt <- obs_all[obs_all$EVID == 0, , drop = FALSE]
-    if(nrow(alt) > 0 && nrow(sim) == n * nrow(alt)) {
-      obs <- alt
-    } else {
-      cli::cli_abort(c(
-        "The simulated and observed datasets don't line up for the VPC.",
-        x = "Got {nrow(sim)} simulated row{?s} for {nrow(obs)} observed row{?s} \\
-             and {n} replicate{?s}; expected {n * nrow(obs)}.",
-        i = "Check {.field EVID} / {.field MDV} in the dataset: the simulation \\
-             returns one row per non-dosing record."
-      ))
-    }
+    cli::cli_abort(c(
+      "The simulated and observed datasets don't line up for the VPC.",
+      x = "Got {nrow(sim)} simulated row{?s} for {nrow(obs)} observed row{?s} \\
+           and {n} replicate{?s}; expected {n * nrow(obs)}.",
+      i = "The simulation returns one row per solved record ({.field EVID} 0 or \\
+           2); check {.field EVID} in the dataset, and whether it relies on \\
+           {.field ADDL} / {.field SS} record expansion."
+    ))
   }
 
   ## Optional column carry-over from obs to sim
