@@ -69,7 +69,10 @@ call_psn <- function(
       )
     )
   })
-  cli::cli_process_done()
+  ## No `cli_process_done()` here: this function never opens a status bar
+  ## (it uses `cli_alert_info()`), and a bare `cli_process_done()` closes
+  ## whatever status *is* on cli's stack -- including a caller's progress
+  ## bar, which then errors on teardown. See issue #137.
   if(length(res) == 1 && is.numeric(res)) {
     if(res == 127) {
       cli::cli_abort("PsN {tool} was not found. Make sure PsN is installed in your environment and on the path.")

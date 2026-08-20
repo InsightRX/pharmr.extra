@@ -1,5 +1,23 @@
 # pharmr.extra (development version)
 
+* `run_sim(n_uncertainty = )` on the sequential replicate path no longer dies
+  in its progress bar under `Rscript` (#137). `cli` builds progress bars on
+  top of its status-bar stack, and `call_nmfe()` called `cli_process_done()`
+  even when `verbose = FALSE` had opened no status bar of its own — so every
+  replicate closed `run_sim()`'s progress bar instead. `cli` then indexed the
+  emptied stack and threw `subscript out of bounds` from the bar's deferred
+  teardown, turning a completed simulation into an error and returning nothing
+  to the caller. The unbalanced closes are fixed (`call_nmfe()`,
+  `attach_fit_info()` for sim models, and a stray one in `call_psn()` that had
+  no matching start at all), every remaining `cli_process_done()` now closes
+  its own bar by id, and `run_sim()` drives its progress bar defensively so a
+  stray close anywhere else can no longer fail a finished run.
+
+* `call_nmfe(check_only = TRUE)` no longer leaks its status bar on the early
+  return, and its `on.exit()` no longer discards `cli`'s own deferred cleanup.
+  With `verbose = TRUE`, a control stream NM-TRAN rejects now closes that bar
+  as failed rather than printing a success message before returning `FALSE`.
+
 * `create_vpc_data()` on an nlmixr2 model no longer ignores `data` and `seed`
   (#136). `data` was dropped on the way to the nlmixr branch, so the model's
   own dataset was used regardless; `seed` was never forwarded, leaving the

@@ -207,3 +207,21 @@ emit_replicate_warnings <- function(index, warnings,
   }
   invisible(NULL)
 }
+
+#' Run a `cli` progress-bar call without letting it fail the caller
+#'
+#' `cli` builds progress bars on top of its status-bar stack, so an unbalanced
+#' `cli::cli_process_done()` in any code that runs while a bar is open pops the
+#' bar's own entry off that stack. `cli` then indexes the emptied stack and
+#' throws `subscript out of bounds` on the bar's next update or on its
+#' teardown — after the real work has already finished. A progress bar is
+#' cosmetic, so swallow its errors rather than lose a completed run to one.
+#' See issue #137.
+#'
+#' @param expr a `cli` progress-bar call, evaluated lazily inside the handler.
+#'
+#' @returns the value of `expr`, or `NULL` (invisibly) if it errored.
+#' @noRd
+progress_try <- function(expr) {
+  tryCatch(expr, error = function(e) invisible(NULL))
+}

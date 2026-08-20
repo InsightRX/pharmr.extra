@@ -87,3 +87,56 @@ make_model_without_cov <- function() {
     regimen_label = "original regimens"
   )
 }
+
+
+## ---------------------------------------------------------------------------
+## cli status-bar helpers (issue #137)
+##
+## cli implements progress bars on top of its status-bar stack, so a
+## `cli_process_done()` that has no matching `cli_process_start()` silently
+## closes whatever *is* on that stack -- including a caller's progress bar.
+## cli then indexes the emptied stack and throws "subscript out of bounds" on
+## the bar's next update or on its teardown, after the work has finished.
+## These helpers let tests assert the stack is left as it was found.
+## ---------------------------------------------------------------------------
+
+## Number of open cli status bars. Uses cli internals, so skip rather than fail
+## if they move.
+.cli_status_depth <- function() {
+  app <- tryCatch(cli:::default_app(), error = function(e) NULL)
+  if(is.null(app)) testthat::skip("cli status-bar internals not available")
+  length(app$status_bar)
+}
+
+## Open a status bar to stand in for a caller's progress bar, and close it when
+## the calling test finishes. Returns the depth of the stack while it is open.
+local_cli_outer_status <- function(.local_envir = parent.frame()) {
+  id <- cli::cli_process_start("outer", .auto_close = FALSE)
+  withr::defer(
+    suppressWarnings(try(cli::cli_process_done(id = id), silent = TRUE)),
+    envir = .local_envir
+  )
+  .cli_status_depth()
+}
+
+## Make cli render progress bars immediately and on every update. The failure
+## in issue #137 only happens once a bar has actually been shown, and cli only
+## shows one after `cli.progress_show_after` seconds *and* on a timer tick, so
+## both have to be forced for a test to reach that code path.
+local_cli_progress_forced <- function(.local_envir = parent.frame()) {
+  ## Both internals are resolved defensively: if a future cli renames either,
+  ## the test has to skip rather than error out.
+  clienv <- tryCatch(cli:::clienv, error = function(e) NULL)
+  tick_set <- tryCatch(cli:::cli_tick_set, error = function(e) NULL)
+  if(!is.environment(clienv) || !is.function(tick_set)) {
+    testthat::skip("cli progress internals not available")
+  }
+  withr::local_options(
+    list(cli.progress_show_after = 0, cli.dynamic = FALSE, cli.ansi = FALSE),
+    .local_envir = .local_envir
+  )
+  old_tick <- clienv$tick_time
+  tick_set(tick_time = 1)
+  withr::defer(tick_set(tick_time = old_tick), envir = .local_envir)
+  invisible(NULL)
+}

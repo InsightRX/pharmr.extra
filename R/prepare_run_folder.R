@@ -35,6 +35,12 @@ prepare_run_folder <- function(
   ## NONMEM reads by column position, so the header names don't matter.
   original_data <- attr(model, "original_data")
 
+  ## Every branch below opens exactly one status bar when `verbose`; keep its
+  ## id so the close pairs with *that* bar. A bare `cli_process_done()` pops
+  ## whatever is on cli's stack, i.e. a caller's progress bar if this function
+  ## ever gained a path that does not open one. See issue #137.
+  proc <- NULL
+
   if(!is.null(data)) {
     if(inherits(data, "character")) {
       if(!file.exists(data)) {
@@ -48,11 +54,11 @@ prepare_run_folder <- function(
         ## $DATA record untouched. The file is not modified (so no quoted-header
         ## rewrite); the user is responsible for the dataset being NONMEM-ready
         ## and for $DATA already pointing at it correctly.
-        if(verbose) cli::cli_process_start("Using dataset in existing location (not copying into run folder, $DATA left unchanged)")
+        if(verbose) proc <- cli::cli_process_start("Using dataset in existing location (not copying into run folder, $DATA left unchanged)")
         dataset_path <- normalizePath(data, mustWork = TRUE)
         update_data_record <- FALSE
       } else {
-        if(verbose) cli::cli_process_start("Copying dataset")
+        if(verbose) proc <- cli::cli_process_start("Copying dataset")
         if(!isTRUE(file.copy(from = data, to = dataset_path))) {
           cli::cli_abort("Failed to copy dataset from {.path {data}} to {.path {dataset_path}}.")
         }
@@ -74,7 +80,7 @@ prepare_run_folder <- function(
           "i" = "An in-memory data frame was supplied via {.arg data}; copying it into the run folder and updating $DATA instead."
         ))
       }
-      if(verbose) cli::cli_process_start("Checking, cleaning, and copying dataset")
+      if(verbose) proc <- cli::cli_process_start("Checking, cleaning, and copying dataset")
       data <- unquote_column_names(data)
       if(isTRUE(auto_stack_encounters)) {
         data <- stack_encounters(
@@ -94,7 +100,7 @@ prepare_run_folder <- function(
     ## run folder.
     dataset_file <- if(!copy_dataset) get_dataset_path_from_model(model) else NULL
     if(!is.null(dataset_file)) {
-      if (verbose) cli::cli_process_start("Using dataset from model's $DATA record (not copying into run folder, $DATA left unchanged)")
+      if (verbose) proc <- cli::cli_process_start("Using dataset from model's $DATA record (not copying into run folder, $DATA left unchanged)")
       dataset_path <- normalizePath(dataset_file, mustWork = TRUE)
       update_data_record <- FALSE
     } else {
@@ -104,7 +110,7 @@ prepare_run_folder <- function(
           "i" = "Only the model's original (in-memory) dataset is available; copying it into the run folder and updating $DATA instead."
         ))
       }
-      if (verbose) cli::cli_process_start("Copying dataset (original column names)")
+      if (verbose) proc <- cli::cli_process_start("Copying dataset (original column names)")
       original_data <- unquote_column_names(original_data)
       write.csv(original_data, file = dataset_path, quote = FALSE, row.names = FALSE)
     }
@@ -118,11 +124,11 @@ prepare_run_folder <- function(
       if (!copy_dataset) {
         ## Dataset already referenced by $DATA and present on disk: leave both
         ## the file and the $DATA record untouched.
-        if (verbose) cli::cli_process_start("Using dataset from model's $DATA record (not copying into run folder, $DATA left unchanged)")
+        if (verbose) proc <- cli::cli_process_start("Using dataset from model's $DATA record (not copying into run folder, $DATA left unchanged)")
         dataset_path <- normalizePath(dataset_file, mustWork = TRUE)
         update_data_record <- FALSE
       } else {
-        if (verbose) cli::cli_process_start("Copying dataset from model's $DATA record")
+        if (verbose) proc <- cli::cli_process_start("Copying dataset from model's $DATA record")
         if (!isTRUE(file.copy(from = dataset_file, to = dataset_path))) {
           cli::cli_abort("Failed to copy dataset from {.path {dataset_file}} to {.path {dataset_path}}.")
         }
@@ -134,7 +140,7 @@ prepare_run_folder <- function(
           "i" = "The model's $DATA record does not point to an existing file; falling back to the in-memory {.code model$dataset}, copying it into the run folder and updating $DATA."
         ))
       }
-      if (verbose) cli::cli_process_start("Copying dataset from model object")
+      if (verbose) proc <- cli::cli_process_start("Copying dataset from model object")
       write.csv(model$dataset, file = dataset_path, quote = FALSE, row.names = FALSE)
     } else {
       cli::cli_abort("No dataset could be resolved: `model$dataset` is NULL and no existing file was found from the model's $DATA record.")
@@ -155,7 +161,7 @@ prepare_run_folder <- function(
     )
   }
   writeLines(model_code, model_path)
-  if(verbose) cli::cli_process_done()
+  if(!is.null(proc)) cli::cli_process_done(id = proc)
 
   list(
     model = model,

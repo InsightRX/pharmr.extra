@@ -374,11 +374,12 @@ run_nlme <- function(
     )
   } else {
     ## Read results using Pharmpy and return
-    if(verbose) cli::cli_process_start("Parsing results from run")
+    parse_proc <- NULL
+    if(verbose) parse_proc <- cli::cli_process_start("Parsing results from run")
     fit <- pharmr.extra::read_modelfit_results( ## pharmr.extra drop-in replacement. Original has bug with reading SIR results
       file.path(obj$fit_folder, obj$model_file)
     )
-    if(verbose) cli::cli_process_done()
+    if(!is.null(parse_proc)) cli::cli_process_done(id = parse_proc)
     if(is.null(fit)) {
       if(verbose) {
         if(!console) {
@@ -443,7 +444,8 @@ run_nlme <- function(
 
     ## save fit summary (fit info and parameter estimates) as JSON
     if(save_summary) {
-      if(verbose) cli::cli_process_start("Saving fit results to file")
+      save_proc <- NULL
+      if(verbose) save_proc <- cli::cli_process_start("Saving fit results to file")
       fit_summ <- create_modelfit_info_table(fit)
       txt_summ <- knitr::kable(fit_summ, row.names = FALSE, format = "simple")
       writeLines(
@@ -456,7 +458,7 @@ run_nlme <- function(
         resolve_output_file(paste0(id, "_fit_parameters.csv"), path),
         quote=F, row.names=F
       )
-      if(verbose) cli::cli_process_done()
+      if(!is.null(save_proc)) cli::cli_process_done(id = save_proc)
     }
   }
 
@@ -545,8 +547,13 @@ call_nmfe <- function(
   # Transform folder path to absolute path
   path <- normalizePath(path, mustWork = TRUE)
 
+  ## Keep the status-bar id: `cli_process_done()` without one closes whatever
+  ## status happens to be on cli's stack, which -- when `verbose = FALSE` and
+  ## no status was opened here at all -- is the caller's progress bar. cli then
+  ## errors on that bar's next update or on its teardown. See issue #137.
+  nmfe_proc <- NULL
   if(verbose) {
-    cli::cli_process_start(
+    nmfe_proc <- cli::cli_process_start(
       paste0("Starting NONMEM (nmfe) run in ", path),
       on_exit = "failed"
     )
@@ -561,9 +568,9 @@ call_nmfe <- function(
     stderr <- file.path(path, "stderr")
   }
   curr_dir <- getwd()
-  on.exit({
-    setwd(curr_dir)
-  })
+  ## `add = TRUE`: a bare `on.exit()` would replace the deferred handler that
+  ## `cli_process_start()` registered on this frame, leaking the status bar.
+  on.exit(setwd(curr_dir), add = TRUE)
   setwd(path)
   if(check_only) {
     nmtran <- get_nmtran_from_nmfe(nmfe)
@@ -583,6 +590,15 @@ call_nmfe <- function(
     )
     has_no_error <- !any(stringr::str_detect(cons, "AN ERROR WAS FOUND"))
     attr(has_no_error, "message") <- cons
+    if(!is.null(nmfe_proc)) {
+      ## Close the bar to match the outcome we are about to return: a control
+      ## stream NM-TRAN rejects must not print a success message.
+      if(has_no_error) {
+        cli::cli_process_done(id = nmfe_proc)
+      } else {
+        cli::cli_process_failed(id = nmfe_proc)
+      }
+    }
     return(has_no_error)
   } else {
     nmfe_args <- c(model_file, output_file)
@@ -600,7 +616,7 @@ call_nmfe <- function(
       stderr = stderr,
     )
   }
-  cli::cli_process_done()
+  if(!is.null(nmfe_proc)) cli::cli_process_done(id = nmfe_proc)
 }
 
 #' Get the location of NM-TRAN based on the location of nmfe
