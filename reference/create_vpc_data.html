@@ -98,7 +98,9 @@ character vector of NONMEM model code, or a path to a <code>.mod</code> file.</p
 
 <dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
 <dd><p>Path to the NONMEM-ready CSV. Optional; if missing, the
-function reads <code>$DATA</code> from the model code.</p></dd>
+function reads <code>$DATA</code> from the model code. For nlmixr2 models a
+<code>data.frame</code> is accepted too, and the default is the dataset the model
+was fitted against.</p></dd>
 
 
 <dt id="arg-parameters">parameters<a class="anchor" aria-label="anchor" href="#arg-parameters"></a></dt>
@@ -120,12 +122,15 @@ dataset to keep in the output.</p></dd>
 
 
 <dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
-<dd><p>run id used as folder name. Defaults to a random name.</p></dd>
+<dd><p>run id used as folder name. Defaults to a random name. NONMEM
+models only; ignored (with a warning) for nlmixr2 models, which run
+through <code><a href="https://nlmixr2.github.io/rxode2/reference/rxSolve.html" class="external-link">rxode2::rxSolve()</a></code> and create no run folder.</p></dd>
 
 
 <dt id="arg-use-pharmpy">use_pharmpy<a class="anchor" aria-label="anchor" href="#arg-use-pharmpy"></a></dt>
 <dd><p>retained for backward compatibility; controls whether
-<code>PRED</code>/<code>TAD</code> are transferred from obs to sim during post-processing.</p></dd>
+<code>PRED</code>/<code>TAD</code> are transferred from obs to sim during post-processing.
+NONMEM models only; ignored (with a warning) for nlmixr2 models.</p></dd>
 
 
 <dt id="arg-fix-input-heuristic">fix_input_heuristic<a class="anchor" aria-label="anchor" href="#arg-fix-input-heuristic"></a></dt>
@@ -134,7 +139,8 @@ dataset to keep in the output.</p></dd>
 headers, and rebind <code>TIME</code> -&gt; <code>TAFD</code> and (for log-transform-both-sides
 models) <code>DV</code> -&gt; <code>LNDV</code>. Set to FALSE to leave <code>$INPUT</code> untouched. The
 LTBS detection only scans the <code>$ERROR</code> record (not the whole model) so
-a <code>LOG()</code> call in a covariate transform doesn't trigger a false swap.</p></dd>
+a <code>LOG()</code> call in a covariate transform doesn't trigger a false swap.
+NONMEM models only; ignored (with a warning) for nlmixr2 models.</p></dd>
 
 
 <dt id="arg-seed">seed<a class="anchor" aria-label="anchor" href="#arg-seed"></a></dt>
@@ -150,12 +156,24 @@ sets the output format of the <code>ID</code> column only. Defaults to <code>sF1
 integer subject IDs of up to 10 digits are written in full instead of
 being truncated by NONMEM's default (~6 significant digits). All other
 columns keep NONMEM's default format. <code>NULL</code> uses the NONMEM default for
-<code>ID</code> too.</p></dd>
+<code>ID</code> too. NONMEM models only; ignored (with a warning) for nlmixr2 models.</p></dd>
 
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
     <p>list with <code>obs</code> and <code>sim</code> data frames.</p>
+    </div>
+    <div class="section level2">
+    <h2 id="nlmixr-models">nlmixr2 models<a class="anchor" aria-label="anchor" href="#nlmixr-models"></a></h2>
+
+
+<p>Pharmpy models in nlmixr format are routed to an rxode2-based path
+(<code><a href="https://nlmixr2.github.io/rxode2/reference/rxSolve.html" class="external-link">rxode2::rxSolve()</a></code>) instead of NONMEM. <code>fit</code>, <code>model</code>, <code>data</code>,
+<code>parameters</code>, <code>keep_columns</code>, <code>n</code>, <code>seed</code> and <code>verbose</code> all apply there;
+the remaining arguments are NONMEM-specific and warn if set. <code>sim$PRED</code> is
+a genuine population prediction (a second solve with the between-subject
+random effects zeroed), except on rxode2 versions without <code>zeroRe()</code>, where
+it falls back to <code>IPRED</code>.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

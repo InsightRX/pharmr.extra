@@ -2,6 +2,46 @@
 
 ## pharmr.extra (development version)
 
+- [`create_vpc_data()`](https://insightrx.github.io/pharmr.extra/reference/create_vpc_data.md)
+  on an nlmixr2 model no longer ignores `data` and `seed` (#136). `data`
+  was dropped on the way to the nlmixr branch, so the model’s own
+  dataset was used regardless; `seed` was never forwarded, leaving the
+  simulation pinned to
+  [`run_sim_nlmixr()`](https://insightrx.github.io/pharmr.extra/reference/run_sim_nlmixr.md)’s
+  fixed default — every VPC of a given fit came back bit-identical, and
+  passing a seed changed nothing. A `NULL` seed now draws one per call,
+  as documented and as the NONMEM branch already did.
+
+- [`create_vpc_data()`](https://insightrx.github.io/pharmr.extra/reference/create_vpc_data.md)
+  on an nlmixr2 model could return an `obs`/`sim` pair built from
+  different datasets (#136). `obs` preferred the dataset actually fitted
+  (`attr(model, "original_data")`, set by
+  [`run_nlme()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme.md)
+  when an explicit `data` was given) while the simulation read
+  `model$dataset` — a fit-then-VPC with `data =` could hand back 3
+  subjects of observations against 32 of simulations, with nothing
+  raised. Both sides now resolve the dataset once, together, and a
+  row-count check fails loudly rather than silently.
+  [`run_sim_nlmixr()`](https://insightrx.github.io/pharmr.extra/reference/run_sim_nlmixr.md)
+  had the same blind spot and now also honours the fitted dataset.
+
+- `PRED` for nlmixr2 simulations is now a real population prediction,
+  from a second solve with the between-subject random effects zeroed
+  ([`rxode2::zeroRe()`](https://nlmixr2.github.io/rxode2/reference/zeroRe.html)),
+  rather than a copy of `IPRED` (#136). Affects
+  [`run_sim()`](https://insightrx.github.io/pharmr.extra/reference/run_sim.md)
+  and
+  [`create_vpc_data()`](https://insightrx.github.io/pharmr.extra/reference/create_vpc_data.md);
+  prediction-corrected VPCs off the nlmixr2 path were not correcting for
+  anything. Costs one extra single-replicate solve per regimen. On
+  rxode2 versions without `zeroRe()`, or if that solve fails, `PRED`
+  still falls back to `IPRED`.
+
+- [`create_vpc_data()`](https://insightrx.github.io/pharmr.extra/reference/create_vpc_data.md)
+  now warns when a NONMEM-only argument (`id`, `id_format`,
+  `use_pharmpy`, `fix_input_heuristic`) is passed for an nlmixr2 model,
+  instead of dropping it without comment.
+
 - **Breaking-ish:** `run_sim(n_uncertainty = )` now defaults to
   `uncertainty_engine = "auto"`, which uses **NWPRI** wherever it
   applies — NONMEM, with `n_iterations = 1` — and `"replicates"`

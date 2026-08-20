@@ -104,5 +104,9 @@ output (`ID`, `TIME`, `DV`, `IPRED`, `PRED`, `EVID`, plus declared
 variables and a `regimen_label` column), so downstream example code that
 plots simulation results works unchanged.
 
-Limitation: `PRED` is reported as `IPRED` (no separate population
-prediction); rxSolve does not produce both in a single call.
+`PRED` is the population prediction, obtained from a second solve with
+the between-subject random effects zeroed
+([`rxode2::zeroRe()`](https://nlmixr2.github.io/rxode2/reference/zeroRe.html))
+— rxSolve cannot emit `IPRED` and `PRED` in one call. If that solve is
+unavailable (older rxode2 without `zeroRe()`) or fails, `PRED` falls
+back to `IPRED`.

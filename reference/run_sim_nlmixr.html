@@ -143,8 +143,10 @@ cannot cross a process boundary, but its rendered code can. When supplied,
 output (<code>ID</code>, <code>TIME</code>, <code>DV</code>, <code>IPRED</code>, <code>PRED</code>, <code>EVID</code>, plus declared
 variables and a <code>regimen_label</code> column), so downstream example code
 that plots simulation results works unchanged.</p>
-<p>Limitation: <code>PRED</code> is reported as <code>IPRED</code> (no separate population
-prediction); rxSolve does not produce both in a single call.</p>
+<p><code>PRED</code> is the population prediction, obtained from a second solve with the
+between-subject random effects zeroed (<code><a href="https://nlmixr2.github.io/rxode2/reference/zeroRe.html" class="external-link">rxode2::zeroRe()</a></code>) — rxSolve cannot
+emit <code>IPRED</code> and <code>PRED</code> in one call. If that solve is unavailable (older
+rxode2 without <code>zeroRe()</code>) or fails, <code>PRED</code> falls back to <code>IPRED</code>.</p>
     </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>

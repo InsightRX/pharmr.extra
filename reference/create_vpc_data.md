@@ -48,7 +48,9 @@ create_vpc_data(
 - data:
 
   Path to the NONMEM-ready CSV. Optional; if missing, the function reads
-  `$DATA` from the model code.
+  `$DATA` from the model code. For nlmixr2 models a `data.frame` is
+  accepted too, and the default is the dataset the model was fitted
+  against.
 
 - parameters:
 
@@ -70,12 +72,16 @@ create_vpc_data(
 
 - id:
 
-  run id used as folder name. Defaults to a random name.
+  run id used as folder name. Defaults to a random name. NONMEM models
+  only; ignored (with a warning) for nlmixr2 models, which run through
+  [`rxode2::rxSolve()`](https://nlmixr2.github.io/rxode2/reference/rxSolve.html)
+  and create no run folder.
 
 - use_pharmpy:
 
   retained for backward compatibility; controls whether `PRED`/`TAD` are
-  transferred from obs to sim during post-processing.
+  transferred from obs to sim during post-processing. NONMEM models
+  only; ignored (with a warning) for nlmixr2 models.
 
 - fix_input_heuristic:
 
@@ -85,7 +91,8 @@ create_vpc_data(
   `TIME` -\> `TAFD` and (for log-transform-both-sides models) `DV` -\>
   `LNDV`. Set to FALSE to leave `$INPUT` untouched. The LTBS detection
   only scans the `$ERROR` record (not the whole model) so a `LOG()` call
-  in a covariate transform doesn't trigger a false swap.
+  in a covariate transform doesn't trigger a false swap. NONMEM models
+  only; ignored (with a warning) for nlmixr2 models.
 
 - seed:
 
@@ -101,8 +108,20 @@ create_vpc_data(
   integer subject IDs of up to 10 digits are written in full instead of
   being truncated by NONMEM's default (~6 significant digits). All other
   columns keep NONMEM's default format. `NULL` uses the NONMEM default
-  for `ID` too.
+  for `ID` too. NONMEM models only; ignored (with a warning) for nlmixr2
+  models.
 
 ## Value
 
 list with `obs` and `sim` data frames.
+
+## nlmixr2 models
+
+Pharmpy models in nlmixr format are routed to an rxode2-based path
+([`rxode2::rxSolve()`](https://nlmixr2.github.io/rxode2/reference/rxSolve.html))
+instead of NONMEM. `fit`, `model`, `data`, `parameters`, `keep_columns`,
+`n`, `seed` and `verbose` all apply there; the remaining arguments are
+NONMEM-specific and warn if set. `sim$PRED` is a genuine population
+prediction (a second solve with the between-subject random effects
+zeroed), except on rxode2 versions without `zeroRe()`, where it falls
+back to `IPRED`.
