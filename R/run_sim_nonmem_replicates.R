@@ -155,38 +155,36 @@ build_nonmem_sim_model <- function(
     add_table_to_model(table_variables, file = output_file, reload_dataset = FALSE)
 }
 
-#' Prepare one run folder per replicate and regimen
+#' Prepare what every replicate's run folder is built from
 #'
-#' The prepare half: everything that needs Pharmpy happens here, in the parent.
-#' Each replicate gets its draw applied, is turned into a simulation model, and
-#' is written out (control stream + dataset) into
-#' `<path>/<id>/uncertainty_<r>/regimen_<i>` by [prepare_run_folder()] — the
-#' same function [run_nlme()] uses, so the run folder is laid out exactly as a
-#' normal run's.
+#' The draw-independent half of the prepare step: the per-regimen datasets
+#' (written once and copied into every run folder) and the simulation model the
+#' draws are applied to. Split out from [prepare_nonmem_replicate_spec()] so the
+#' sequential path can prepare its replicates one at a time. Preparing all of
+#' them up front costs a run folder plus a full copy of the simulation dataset
+#' per replicate per regimen on disk before the first NONMEM starts, which the
+#' parallel path needs -- the specs are what travels to the workers -- but a
+#' path that consumes them strictly in order does not.
 #'
-#' Preparing everything up front also fails fast: an unwritable path or a model
-#' Pharmpy cannot render is one error before any NONMEM starts, rather than
-#' `n_uncertainty` worker failures.
+#' The caller owns the temporary per-regimen datasets: `unlink()` the
+#' `dataset_files` element once the last replicate has been prepared.
 #'
 #' @param model the Pharmpy model to simulate (point estimates; the draws are
-#' applied here).
-#' @param draws data.frame of parameter draws, one row per replicate.
+#' applied per replicate, by [prepare_nonmem_replicate_spec()]).
+#' @param draws data.frame of parameter draws, used here only to check that its
+#' columns name parameters the rendered simulation model still has.
 #' @param regimens the output of [resolve_sim_regimens()].
-#' @param id base run id.
-#' @param path folder the run id is created under.
 #' @inheritParams build_nonmem_sim_model
 #'
-#' @returns a list with one spec per replicate: `index`, `table_names` (the
-#' `$TABLE` files to read back) and `regimens` (per regimen: `label`, `folder`,
-#' `model_file`, `output_file`, `regimen_for_pk`). Plain R data only — the
-#' specs are what travels to the worker processes.
+#' @returns a list with `sim_model` (the simulation model the draws go into),
+#' `regimens` (as passed, plus a `file` per regimen), `table_names` (the
+#' `$TABLE` files to read back) and `dataset_files` (the temporary CSVs the
+#' caller has to clean up).
 #' @noRd
-prepare_nonmem_replicate_specs <- function(
+prepare_nonmem_replicate_context <- function(
     model,
     draws,
     regimens,
-    id,
-    path,
     seed,
     n_iterations,
     update_table = TRUE,
@@ -203,8 +201,6 @@ prepare_nonmem_replicate_specs <- function(
     write.csv(reg$data, reg$file, quote = FALSE, row.names = FALSE)
     reg
   })
-  on.exit(unlink(vapply(regimens, function(reg) reg$file, character(1))),
-          add = TRUE)
 
   ## Simulation model first, draw second -- the reverse of the order the
   ## sequential engine used to apply them. The two commute (the draw rewrites
@@ -220,7 +216,7 @@ prepare_nonmem_replicate_specs <- function(
     update_table = update_table,
     variables    = variables,
     output_file  = output_file,
-    verbose      = FALSE
+    verbose      = verbose
   )
 
   ## Which tables to read back. Taken from the rendered control stream rather
@@ -236,33 +232,145 @@ prepare_nonmem_replicate_specs <- function(
     ))
   }
 
-  lapply(seq_len(nrow(draws)), function(r) {
-    draw_model <- pharmr::set_initial_estimates(
-      sim_model, inits = as.list(draws[r, , drop = FALSE])
+  check_draws_against_model(sim_model, draws)
+
+  list(
+    sim_model     = sim_model,
+    regimens      = regimens,
+    table_names   = table_names,
+    dataset_files = vapply(regimens, function(reg) reg$file, character(1))
+  )
+}
+
+#' Check that the draws name parameters the simulation model still has
+#'
+#' The draws are applied to the *rendered* simulation model, while their names
+#' come from the fit of the model that was rendered. Values are unaffected by
+#' that ordering, but names are not guaranteed to be: a parameter named through
+#' the Pharmpy API without a matching `$THETA`/`$OMEGA` comment in the control
+#' stream comes back from the round trip under a different name, and
+#' `pharmr::set_initial_estimates()` would then reject every draw. One explained
+#' error before any run folder is written beats `n_uncertainty` unexplained
+#' ones.
+#'
+#' @param sim_model the rendered simulation model.
+#' @param draws data.frame of parameter draws.
+#'
+#' @returns `NULL`, invisibly. Called for its side effect of aborting.
+#' @noRd
+check_draws_against_model <- function(sim_model, draws) {
+  known <- unlist(sim_model$parameters$names)
+  unknown <- setdiff(names(draws), known)
+  if(length(unknown) == 0) return(invisible(NULL))
+  cli::cli_abort(c(
+    "Sampled parameter{?s} {.val {unknown}} {?is/are} not in the simulation model.",
+    i = "The simulation model is the fitted model re-read from its control \\
+         stream; parameter names assigned through the Pharmpy API do not \\
+         always survive that round trip.",
+    i = "Model parameters: {.val {known}}"
+  ))
+}
+
+#' Prepare one replicate's run folders
+#'
+#' The draw-dependent half of the prepare step, and the only part that needs
+#' Pharmpy per replicate: the draw is applied to the context's simulation model
+#' and the result is written out (control stream + dataset) into
+#' `<path>/<id>/uncertainty_<r>/regimen_<i>` by [prepare_run_folder()] -- the
+#' same function [run_nlme()] uses, so the run folder is laid out exactly as a
+#' normal run's.
+#'
+#' @param ctx the output of [prepare_nonmem_replicate_context()].
+#' @param draw one row of the draws data.frame.
+#' @param index 1-based replicate index.
+#' @param id base run id.
+#' @param path folder the run id is created under.
+#'
+#' @returns one replicate spec: `index`, `table_names` (the `$TABLE` files to
+#' read back) and `regimens` (per regimen: `label`, `folder`, `model_file`,
+#' `output_file`, `regimen_for_pk`). Plain R data only -- the specs are what
+#' travels to the worker processes.
+#' @noRd
+prepare_nonmem_replicate_spec <- function(ctx, draw, index, id, path) {
+  draw_model <- pharmr::set_initial_estimates(
+    ctx$sim_model, inits = as.list(draw)
+  )
+
+  reg_specs <- lapply(ctx$regimens, function(reg) {
+    obj <- prepare_run_folder(
+      id = file.path(id, paste0("uncertainty_", index),
+                     paste0("regimen_", reg$index)),
+      model = draw_model,
+      path = path,
+      data = reg$file,
+      force = TRUE,
+      auto_stack_encounters = FALSE,
+      copy_dataset = TRUE,
+      ## Quiet whatever the caller's `verbose`: this runs once per replicate
+      ## per regimen, and the run folder it would report on is bookkeeping of
+      ## the uncertainty run rather than something the caller asked for.
+      verbose = FALSE
     )
+    list(
+      label          = reg$label,
+      folder         = normalizePath(obj$fit_folder, mustWork = TRUE),
+      model_file     = obj$model_file,
+      output_file    = obj$output_file,
+      regimen_for_pk = reg$regimen_for_pk
+    )
+  })
 
-    reg_specs <- lapply(regimens, function(reg) {
-      obj <- prepare_run_folder(
-        id = file.path(id, paste0("uncertainty_", r),
-                       paste0("regimen_", reg$index)),
-        model = draw_model,
-        path = path,
-        data = reg$file,
-        force = TRUE,
-        auto_stack_encounters = FALSE,
-        copy_dataset = TRUE,
-        verbose = FALSE
-      )
-      list(
-        label          = reg$label,
-        folder         = normalizePath(obj$fit_folder, mustWork = TRUE),
-        model_file     = obj$model_file,
-        output_file    = obj$output_file,
-        regimen_for_pk = reg$regimen_for_pk
-      )
-    })
+  list(index = index, table_names = ctx$table_names, regimens = reg_specs)
+}
 
-    list(index = r, table_names = table_names, regimens = reg_specs)
+#' Prepare a run folder per replicate and regimen, all of them up front
+#'
+#' [prepare_nonmem_replicate_context()] followed by one
+#' [prepare_nonmem_replicate_spec()] per draw: what the parallel path needs,
+#' the specs having to exist before they can be handed to the workers.
+#'
+#' Preparing everything up front also fails fast: an unwritable path or a model
+#' Pharmpy cannot render is one error before any NONMEM starts, rather than
+#' `n_uncertainty` worker failures.
+#'
+#' @inheritParams prepare_nonmem_replicate_context
+#' @param id base run id.
+#' @param path folder the run id is created under.
+#'
+#' @returns a list with one spec per draw, as
+#' [prepare_nonmem_replicate_spec()] returns them.
+#' @noRd
+prepare_nonmem_replicate_specs <- function(
+    model,
+    draws,
+    regimens,
+    id,
+    path,
+    seed,
+    n_iterations,
+    update_table = TRUE,
+    variables = NULL,
+    output_file = "simtab",
+    verbose = TRUE
+) {
+  ctx <- prepare_nonmem_replicate_context(
+    model        = model,
+    draws        = draws,
+    regimens     = regimens,
+    seed         = seed,
+    n_iterations = n_iterations,
+    update_table = update_table,
+    variables    = variables,
+    output_file  = output_file,
+    verbose      = verbose
+  )
+  on.exit(unlink(ctx$dataset_files), add = TRUE)
+
+  lapply(seq_len(nrow(draws)), function(r) {
+    prepare_nonmem_replicate_spec(
+      ctx = ctx, draw = draws[r, , drop = FALSE], index = r,
+      id = id, path = path
+    )
   })
 }
 
@@ -334,6 +442,13 @@ make_nonmem_replicate_fn <- function(
 #' @returns the first output table, as a data.frame.
 #' @noRd
 run_nonmem_sim_folder <- function(spec, nmfe, table_names, clean = TRUE) {
+  ## A prepared run folder can be executed more than once: parallel_lapply()
+  ## retries, and falls back to running sequentially after a cluster failure
+  ## (#134), over folders a failed attempt may already have written tables
+  ## into. Clear them first, so a rerun whose NONMEM fails silently aborts on
+  ## the missing table below instead of returning the previous attempt's.
+  unlink(file.path(spec$folder, table_names))
+
   call_nmfe(
     model_file  = spec$model_file,
     output_file = spec$output_file,

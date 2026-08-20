@@ -497,6 +497,12 @@ run_sim <- function(
     seed = seed
   )
 
+  ## Everything below counts replicates off the draws that came back rather
+  ## than off `n_uncertainty`: the two agree, but only the draws index `draws`,
+  ## and a short set is worth surviving as a warned-about short result rather
+  ## than as a subscript error.
+  n_replicates <- nrow(draws)
+
   ## Warn (once, regardless of `verbose`) about estimated parameters the
   ## covariance matrix does not cover: these are held at their point estimates,
   ## so their uncertainty is not propagated. Common for nlmixr2 fits, whose
@@ -545,15 +551,10 @@ run_sim <- function(
     ## through the Pharmpy configuration.
     nmfe <- get_nmfe_location(verbose = verbose)
     regimens <- resolve_sim_regimens(data, model$dataset, verbose = verbose)
-    if(verbose) {
-      cli::cli_alert_info("Preparing {n_uncertainty} replicate run folder{?s}")
-    }
-    specs <- prepare_nonmem_replicate_specs(
+    ctx <- prepare_nonmem_replicate_context(
       model        = model,
       draws        = draws,
       regimens     = regimens,
-      id           = id,
-      path         = path %||% getwd(),
       ## The *same* seed for every replicate, deliberately: see the note on
       ## common random numbers at the top of this block.
       seed         = seed,
@@ -563,6 +564,23 @@ run_sim <- function(
       output_file  = output_file,
       verbose      = verbose
     )
+    on.exit(unlink(ctx$dataset_files), add = TRUE)
+    prepare_spec <- function(r) {
+      prepare_nonmem_replicate_spec(
+        ctx = ctx, draw = draws[r, , drop = FALSE], index = r,
+        id = id, path = path %||% getwd()
+      )
+    }
+    ## Only the workers need every spec to exist before the first run: each one
+    ## is a run folder plus a full copy of the simulation dataset per regimen,
+    ## so a few hundred draws is a lot of scratch to write up front. The
+    ## sequential path below prepares each replicate right before running it.
+    if(n_cores > 1L) {
+      if(verbose) {
+        cli::cli_alert_info("Preparing {n_replicates} replicate run folder{?s}")
+      }
+      specs <- lapply(seq_len(n_replicates), prepare_spec)
+    }
     replicate_fn <- make_nonmem_replicate_fn(
       nmfe             = nmfe,
       update_table     = update_table,
@@ -575,9 +593,9 @@ run_sim <- function(
     ## Regenerated rather than read from the cached `nlmixr_code` attribute,
     ## which still holds the point estimates.
     if(verbose) {
-      cli::cli_alert_info("Preparing {n_uncertainty} replicate model{?s}")
+      cli::cli_alert_info("Preparing {n_replicates} replicate model{?s}")
     }
-    specs <- lapply(seq_len(n_uncertainty), function(r) {
+    specs <- lapply(seq_len(n_replicates), function(r) {
       m <- pharmr::set_initial_estimates(
         model, inits = as.list(draws[r, , drop = FALSE])
       )
@@ -604,7 +622,7 @@ run_sim <- function(
   if(n_cores > 1L) {
     if(verbose) {
       cli::cli_alert_info(
-        "Running {n_uncertainty} uncertainty replicate{?s} on {n_cores} core{?s}"
+        "Running {n_replicates} uncertainty replicate{?s} on {n_cores} core{?s}"
       )
     }
     replicates <- parallel_lapply(specs, replicate_fn, n_cores = n_cores)
@@ -626,7 +644,7 @@ run_sim <- function(
       ## finished simulation into an error and returning nothing to the caller.
       ## The bar is cosmetic; it must never be able to fail the run. See #137.
       pb <- progress_try(cli::cli_progress_bar(
-        "Uncertainty replicates", total = n_uncertainty,
+        "Uncertainty replicates", total = n_replicates,
         .auto_close = FALSE, .envir = environment()
       ))
       ## Backstop for the paths that leave this frame without reaching the
@@ -638,11 +656,12 @@ run_sim <- function(
         on.exit(progress_try(cli::cli_progress_done(id = pb)), add = TRUE)
       }
     }
-    replicates <- lapply(seq_len(n_uncertainty), function(r) {
-      ## The NONMEM replicates are already prepared, so run one exactly as a
-      ## worker would; only the nlmixr2 backend still builds its replicate here.
+    replicates <- lapply(seq_len(n_replicates), function(r) {
+      ## Prepare this NONMEM replicate's run folders, then run it exactly as a
+      ## worker would; only the nlmixr2 backend builds its replicate model
+      ## inside the captured call.
       res <- if(tool == "nonmem") {
-        replicate_fn(specs[[r]])
+        replicate_fn(prepare_spec(r))
       } else {
         run_captured(r, function() {
           inits <- as.list(draws[r, , drop = FALSE])

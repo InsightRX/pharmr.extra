@@ -130,6 +130,44 @@ test_that("run_nonmem_sim_folder surfaces a simulation that wrote no table", {
   )
 })
 
+test_that("run_nonmem_sim_folder ignores a previous attempt's table", {
+  spec <- .prepared_regimen()
+  ## A prepared folder can be run twice -- parallel_lapply() retries, and falls
+  ## back to sequential after a cluster failure (#134) -- so a table from the
+  ## attempt that failed can be sitting there when the rerun starts.
+  .nmfe_writing()(model_file = "run.mod", output_file = "run.lst",
+                  path = spec$folder)
+  writeLines("AN ERROR WAS FOUND IN THE CONTROL STATEMENTS",
+             file.path(spec$folder, "run.lst"))
+  local_mocked_bindings(call_nmfe = function(...) invisible(NULL),
+                        .package = "pharmr.extra")
+
+  ## The rerun writes nothing, so this must fail rather than hand the stale
+  ## table back as this replicate's simulation output.
+  expect_error(
+    run_nonmem_sim_folder(spec, nmfe = "/nonexistent/nmfe",
+                          table_names = "simtab"),
+    class = "pharmr_extra_sim_failed"
+  )
+})
+
+test_that("check_draws_against_model rejects draws the model cannot take", {
+  ## Only the parameter names are read, so a stand-in stands in.
+  sim_model <- list(parameters = list(names = list("POP_CL", "POP_V")))
+
+  expect_silent(
+    check_draws_against_model(sim_model, data.frame(POP_CL = 1, POP_V = 10))
+  )
+  ## The draws are named from the fit, the model from its rendered control
+  ## stream; a name that does not survive that round trip would otherwise make
+  ## every replicate fail inside set_initial_estimates().
+  expect_error(
+    check_draws_against_model(sim_model,
+                              data.frame(POP_CL = 1, THETA_3 = 2)),
+    "THETA_3"
+  )
+})
+
 test_that("a NONMEM replicate runs every regimen and labels the output", {
   spec <- list(
     index = 2, table_names = "simtab",
@@ -274,4 +312,39 @@ test_that("prepare_nonmem_replicate_specs applies each draw to its replicate", {
   expect_match(code[[1]], "11")
   expect_match(code[[2]], "22")
   expect_false(identical(code[[1]], code[[2]]))
+})
+
+
+test_that("a replicate can be prepared on its own, without the others", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  path <- withr::local_tempdir()
+
+  mod <- make_model_without_cov()
+  draws <- data.frame(POP_CL = c(1, 2, 3), POP_V = c(10, 20, 30))
+  ctx <- prepare_nonmem_replicate_context(
+    model = mod,
+    draws = draws,
+    regimens = resolve_sim_regimens(.sim_dat(), input_data = NULL,
+                                    verbose = FALSE),
+    seed = 1234,
+    n_iterations = 1,
+    verbose = FALSE
+  )
+  withr::defer(unlink(ctx$dataset_files))
+
+  spec <- prepare_nonmem_replicate_spec(
+    ctx = ctx, draw = draws[2, , drop = FALSE], index = 2,
+    id = "sim_lazy", path = path
+  )
+
+  expect_equal(spec$index, 2)
+  expect_equal(spec$table_names, ctx$table_names)
+  expect_true(dir.exists(spec$regimens[[1]]$folder))
+  expect_match(spec$regimens[[1]]$folder, "uncertainty_2/regimen_1$")
+  ## and only that replicate: the sequential path prepares each one right
+  ## before it runs, so a long run does not write n_uncertainty run folders
+  ## (each with its own copy of the dataset) before the first NONMEM starts
+  expect_false(dir.exists(file.path(path, "sim_lazy", "uncertainty_1")))
+  expect_false(dir.exists(file.path(path, "sim_lazy", "uncertainty_3")))
 })
