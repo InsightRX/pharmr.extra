@@ -2,6 +2,31 @@
 
 ## pharmr.extra (development version)
 
+- The parameter-uncertainty sampling behind `run_sim(n_uncertainty = )`
+  is now anchored against NONMEM’s own uncertainty-simulation routine,
+  `$PRIOR NWPRI`
+
+  - `$SIMULATION ... TRUE=PRIOR`. Over 1000 draws from the same fit,
+    means and standard deviations of the fixed effects agree to within
+    0.3% and 2.4%, those of the variance parameters to within 4.4% and
+    7.3%, and the resulting 90% uncertainty interval on the predicted
+    profile to within 6.3%. The two remaining differences are structural
+    and are asserted explicitly by the tests rather than absorbed into
+    loose tolerances: NWPRI draws OMEGA and SIGMA from right-skewed
+    inverse-Wishart distributions where we use a single truncated
+    multivariate normal, and NWPRI treats the THETA, OMEGA and SIGMA
+    priors as independent blocks, discarding the THETA-OMEGA and
+    THETA-SIGMA covariances that `$COVARIANCE` reports and that our
+    draws keep.
+
+  The NONMEM side is generated once and frozen as a fixture
+  (`tests/testthat/fixtures/_create-nwpri-anchor.R` regenerates it
+  inside the `pmx` container), so `tests/testthat/test-run_sim-nwpri.R`
+  needs Pharmpy but not NONMEM and runs in CI. A write-up of the
+  comparison, including why we sample from the covariance matrix
+  ourselves instead of delegating to NWPRI, is in
+  `inst/reports/nwpri-validation.html`.
+
 - [`run_nlme()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme.md)
   fits now return a `residuals` element that can be joined to the
   dataset (#120). Pharmpy returns residuals indexed by dataset row label

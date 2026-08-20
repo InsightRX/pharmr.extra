@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9119</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9120</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -125,7 +125,19 @@ covariance step reports uncertainty only for the population fixed effects,
 so residual and random-effect variance parameters (SIGMA, OMEGA/IIV) are
 held fixed. For full uncertainty on those, use a bootstrap
 (<code>nlmixr2est::bootstrapFit()</code>). NONMEM <code>$COVARIANCE</code> typically covers all
-parameters, so all are resampled.</p></dd>
+parameters, so all are resampled.</p>
+<p>This is the same idea as NONMEM's own <code>$PRIOR NWPRI</code> +
+<code>$SIMULATION ... TRUE=PRIOR</code>, and the two are checked against each other in
+<code>tests/testthat/test-run_sim-nwpri.R</code>. Aggregates agree closely: over 1000
+draws from the same fit, means and standard deviations of the fixed effects
+match to within 0.3% and 3%, those of the variance parameters to within 5%
+and 8%, and the resulting 90% uncertainty interval on the predicted profile
+to within 7%. Two differences are structural rather than numerical: NWPRI
+draws OMEGA and SIGMA from (right-skewed) inverse-Wishart distributions
+whereas the draws here come from a single truncated multivariate normal, and
+NWPRI treats the THETA, OMEGA and SIGMA priors as independent blocks whereas
+the draws here keep the THETA-OMEGA and THETA-SIGMA covariances that
+<code>$COVARIANCE</code> reports.</p></dd>
 
 
 <dt id="arg-variables">variables<a class="anchor" aria-label="anchor" href="#arg-variables"></a></dt>
