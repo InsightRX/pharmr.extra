@@ -22,7 +22,7 @@ run_sim(
   seed = 12345,
   verbose = TRUE,
   n_cores = 1,
-  uncertainty_engine = c("replicates", "nwpri"),
+  uncertainty_engine = c("auto", "replicates", "nwpri"),
   plev = 0.9999
 )
 ```
@@ -108,7 +108,8 @@ run_sim(
   re-simulating a fresh set of subjects each time. Use `n_iterations` if
   you want extra random variability *within* a replicate. Note this
   holds for `uncertainty_engine = "replicates"` only — see
-  `uncertainty_engine` below for why NWPRI cannot do it.
+  `uncertainty_engine` below for why NWPRI cannot do it, and why it is
+  nonetheless the default.
 
   This is the same idea as NONMEM's own `$PRIOR NWPRI` +
   `$SIMULATION ... TRUE=PRIOR`, which is available directly as
@@ -181,9 +182,15 @@ run_sim(
   how `n_uncertainty` parameter uncertainty is propagated. Ignored when
   no uncertainty is requested.
 
-  - `"replicates"` (default, unchanged behaviour) draws `n_uncertainty`
-    parameter sets from the fit's covariance matrix in R and runs one
-    simulation per draw. Works for both backends.
+  - `"auto"` (default) uses `"nwpri"` where it applies — NONMEM, with
+    `n_iterations = 1` — and `"replicates"` everywhere else. Naming an
+    engine explicitly errors rather than falling back, so an explicit
+    request is never silently overridden; `"auto"` announces which one
+    it picked under `verbose`.
+
+  - `"replicates"` draws `n_uncertainty` parameter sets from the fit's
+    covariance matrix in R and runs one simulation per draw. Works for
+    both backends.
 
   - `"nwpri"` (NONMEM only) hands the job to NONMEM: a `$PRIOR NWPRI`
     record built from the fit (see
@@ -215,8 +222,19 @@ run_sim(
   THETA-SIGMA covariances that `$COVARIANCE` reports. Which is
   preferable is a judgement call — the inverse-Wishart draw is arguably
   better justified for variance parameters, joint sampling is the one
-  that keeps the full reported covariance — which is why this is a
-  switch rather than a silent optimisation.
+  that keeps the full reported covariance — which is why this stays a
+  switch rather than becoming an implementation detail.
+
+  A third difference matters for uncertainty intervals specifically:
+  NWPRI cannot hold the simulated individuals fixed across draws, where
+  `"replicates"` does (see `n_uncertainty` above, and issue \#131). An
+  NWPRI interval over `.uncertainty` therefore also carries the
+  Monte-Carlo noise of re-simulating the subjects. That noise shrinks as
+  the simulation dataset and `n_uncertainty` grow, which is the regime
+  the speed difference makes practical, so NWPRI is nonetheless the
+  default. Use `uncertainty_engine = "replicates"` when a clean
+  separation matters more than run time — small simulation datasets and
+  few draws being the case to watch.
 
 - plev:
 

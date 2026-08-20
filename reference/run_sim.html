@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9127</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9128</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -59,7 +59,7 @@
 <span>  seed <span class="op">=</span> <span class="fl">12345</span>,</span>
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  n_cores <span class="op">=</span> <span class="fl">1</span>,</span>
-<span>  uncertainty_engine <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"replicates"</span>, <span class="st">"nwpri"</span><span class="op">)</span>,</span>
+<span>  uncertainty_engine <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"auto"</span>, <span class="st">"replicates"</span>, <span class="st">"nwpri"</span><span class="op">)</span>,</span>
 <span>  plev <span class="op">=</span> <span class="fl">0.9999</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -138,7 +138,8 @@ different seed per replicate the spread across replicates would also contain
 the Monte-Carlo noise of re-simulating a fresh set of subjects each time.
 Use <code>n_iterations</code> if you want extra random variability <em>within</em> a
 replicate. Note this holds for <code>uncertainty_engine = "replicates"</code> only —
-see <code>uncertainty_engine</code> below for why NWPRI cannot do it.</p>
+see <code>uncertainty_engine</code> below for why NWPRI cannot do it, and why it is
+nonetheless the default.</p>
 <p>This is the same idea as NONMEM's own <code>$PRIOR NWPRI</code> +
 <code>$SIMULATION ... TRUE=PRIOR</code>, which is available directly as
 <code>uncertainty_engine = "nwpri"</code> (see below). The two are checked against each
@@ -205,9 +206,14 @@ not oversubscribe the CPU.</p></dd>
 
 <dt id="arg-uncertainty-engine">uncertainty_engine<a class="anchor" aria-label="anchor" href="#arg-uncertainty-engine"></a></dt>
 <dd><p>how <code>n_uncertainty</code> parameter uncertainty is
-propagated. Ignored when no uncertainty is requested.</p><ul><li><p><code>"replicates"</code> (default, unchanged behaviour) draws <code>n_uncertainty</code>
-parameter sets from the fit's covariance matrix in R and runs one
-simulation per draw. Works for both backends.</p></li>
+propagated. Ignored when no uncertainty is requested.</p><ul><li><p><code>"auto"</code> (default) uses <code>"nwpri"</code> where it applies — NONMEM, with
+<code>n_iterations = 1</code> — and <code>"replicates"</code> everywhere else. Naming an engine
+explicitly errors rather than falling back, so an explicit request is
+never silently overridden; <code>"auto"</code> announces which one it picked under
+<code>verbose</code>.</p></li>
+<li><p><code>"replicates"</code> draws <code>n_uncertainty</code> parameter sets from the fit's
+covariance matrix in R and runs one simulation per draw. Works for both
+backends.</p></li>
 <li><p><code>"nwpri"</code> (NONMEM only) hands the job to NONMEM: a <code>$PRIOR NWPRI</code> record
 built from the fit (see <code><a href="add_nwpri_prior.html">add_nwpri_prior()</a></code>) plus
 <code>$SIMULATION ... TRUE=PRIOR</code>, so NONMEM draws a new parameter vector per
@@ -234,8 +240,18 @@ THETA, OMEGA and SIGMA priors as independent blocks and therefore discards
 the THETA-OMEGA and THETA-SIGMA covariances that <code>$COVARIANCE</code> reports.
 Which is preferable is a judgement call — the inverse-Wishart draw is
 arguably better justified for variance parameters, joint sampling is the one
-that keeps the full reported covariance — which is why this is a switch
-rather than a silent optimisation.</p></dd>
+that keeps the full reported covariance — which is why this stays a switch
+rather than becoming an implementation detail.</p>
+<p>A third difference matters for uncertainty intervals specifically: NWPRI
+cannot hold the simulated individuals fixed across draws, where
+<code>"replicates"</code> does (see <code>n_uncertainty</code> above, and issue #131). An NWPRI
+interval over <code>.uncertainty</code> therefore also carries the Monte-Carlo noise of
+re-simulating the subjects. That noise shrinks as the simulation dataset and
+<code>n_uncertainty</code> grow, which is the regime the speed difference makes
+practical, so NWPRI is nonetheless the default. Use
+<code>uncertainty_engine = "replicates"</code> when a clean separation matters more
+than run time — small simulation datasets and few draws being the case to
+watch.</p></dd>
 
 
 <dt id="arg-plev">plev<a class="anchor" aria-label="anchor" href="#arg-plev"></a></dt>
