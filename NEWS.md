@@ -1,5 +1,42 @@
 # pharmr.extra (development version)
 
+* `run_sim(n_uncertainty = , n_cores > 1)` now simulates the same dataset the
+  sequential path does (#136). The fix for #136 routed dataset resolution
+  through `resolve_nlmixr_data()` — which prefers the fitted dataset on
+  `attr(model, "original_data")` over `model$dataset` — but the parallel
+  uncertainty branch of `run_sim()` still resolved its own dataset as
+  `model$dataset`. After `run_nlme(model, data = )`, the same `run_sim()` call
+  therefore simulated the model-build dataset at `n_cores > 1` and the fitted
+  dataset at `n_cores = 1`.
+
+* `create_vpc_data()` on the nlmixr2 path now derives `obs` from the records
+  the solve actually returns output for — `EVID` 0 *and* `EVID` 2 — and puts
+  them in the order the solve returns them (#136). Datasets carrying
+  other-type event records used to match neither of the two candidate
+  observation sets and aborted with "don't line up", and an unsorted input
+  dataset could pass the row-count check while pairing each observation with a
+  simulated row for a different record: the simulation sorts its event table
+  before solving, `obs` did not.
+
+* `run_sim_nlmixr()` no longer resolves the model's dataset when the caller
+  supplied `data`. A model with no dataset attached aborted with "No dataset
+  available for nlmixr2 fit" even though nothing needed resolving, and every
+  other call paid a full dataset conversion out of Python for a value it
+  discarded.
+
+* `PRED` for nlmixr2 simulations falls back to `IPRED` unless the population
+  prediction covers exactly one replicate's rows; the previous check accepted
+  any length that divided the stacked output, which could recycle a short
+  vector against the wrong rows. The extra zeroed solve behind `PRED` is also
+  skipped for models that declare `PRED` themselves, where its result was
+  discarded. Note that it costs one solve per regimen *per call*, so
+  `run_sim(n_uncertainty = )` pays it once per replicate — the note in the
+  previous release said "per regimen" without that qualification.
+
+* `create_vpc_data()`'s NONMEM-only-argument warning now compares against the
+  defaults instead of using `missing()`, so a wrapper that forwards every
+  argument explicitly no longer warns about arguments left at their defaults.
+
 * `run_sim(n_uncertainty = )` on the sequential replicate path no longer dies
   in its progress bar under `Rscript` (#137). `cli` builds progress bars on
   top of its status-bar stack, and `call_nmfe()` called `cli_process_done()`

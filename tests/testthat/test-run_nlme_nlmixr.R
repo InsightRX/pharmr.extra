@@ -313,4 +313,90 @@ test_that("create_vpc_data: forwards data/seed and warns on NONMEM-only args", {
     "NONMEM-only"
   )
   expect_silent(create_vpc_data(model = mod_nl, verbose = FALSE))
+  ## Forwarding the arguments at their defaults is not "setting" them: a
+  ## wrapper that passes everything through explicitly must not warn.
+  expect_silent(create_vpc_data(
+    model = mod_nl, id = NULL, use_pharmpy = TRUE, fix_input_heuristic = TRUE,
+    id_format = "sF11.0", verbose = FALSE
+  ))
+})
+
+# ── Event-table helpers ────────────────────────────────────────────────────
+
+test_that("nlmixr_solved_rows: observations and other-type events, not doses", {
+  ev <- data.frame(EVID = c(0, 1, 2, 3, 4))
+  expect_equal(nlmixr_solved_rows(ev), c(TRUE, FALSE, TRUE, FALSE, FALSE))
+  ## no EVID: fall back to MDV, then to every row
+  expect_equal(nlmixr_solved_rows(data.frame(MDV = c(0, 1))), c(TRUE, FALSE))
+  expect_equal(nlmixr_solved_rows(data.frame(TIME = c(0, 1))), c(TRUE, TRUE))
+})
+
+test_that("sort_nlmixr_events: by ID and TIME, doses first within a timepoint", {
+  ev <- data.frame(ID = c(2, 1, 1), TIME = c(0, 1, 1), EVID = c(1, 0, 1))
+  expect_equal(sort_nlmixr_events(ev)$ID, c(1, 1, 2))
+  expect_equal(sort_nlmixr_events(ev)$EVID, c(1, 0, 1))
+  ## without EVID, ID/TIME alone
+  ev2 <- data.frame(ID = c(2, 1), TIME = c(0, 5))
+  expect_equal(sort_nlmixr_events(ev2)$ID, c(1, 2))
+})
+
+test_that("shape_rxsolve_output: rejects a pop_pred that only divides the output", {
+  ## 4 rows over 2 replicates is 2 rows per replicate; a length-1 vector
+  ## divides 4 but is not one replicate's worth, so PRED must fall back to
+  ## IPRED rather than recycle against the wrong rows.
+  raw <- data.frame(
+    sim.id = c(1, 1, 2, 2),
+    id = c(1, 2, 1, 2), time = 1,
+    ipredSim = c(7, 9, 6, 10), sim = c(7.1, 9.1, 6.1, 10.1)
+  )
+  src <- data.frame(ID = c(1, 2), TIME = c(1, 1), EVID = c(0, 0), MDV = c(0, 0))
+  expect_equal(shape_rxsolve_output(raw, src, pop_pred = 8)$PRED, c(7, 9, 6, 10))
+})
+
+# ── create_vpc_data(): obs/sim row alignment (#136) ─────────────────────────
+
+test_that("create_vpc_data_nlmixr: EVID = 2 records count as solved rows", {
+  ## rxSolve returns output for other-type events as well as observations, so
+  ## obs has to include them: selecting on MDV or on EVID == 0 alone leaves the
+  ## counts short and the VPC aborts on a perfectly ordinary dataset.
+  d <- data.frame(
+    ID = 1, TIME = c(0, 1, 2, 3), DV = c(0, 5, 0, 4),
+    EVID = c(1, 0, 2, 0), MDV = c(1, 0, 1, 0), AMT = c(100, 0, 0, 0)
+  )
+  local_mocked_bindings(
+    run_sim_nlmixr = function(data, n_iterations, ...) {
+      solved <- data[data$EVID %in% c(0, 2), c("ID", "TIME"), drop = FALSE]
+      out <- solved[rep(seq_len(nrow(solved)), n_iterations), , drop = FALSE]
+      out$DV <- seq_len(nrow(out))
+      out
+    },
+    .package = "pharmr.extra"
+  )
+  out <- create_vpc_data_nlmixr(model = "unused", data = d, n = 2, verbose = FALSE)
+  expect_equal(out$obs$TIME, c(1, 2, 3))
+  expect_equal(nrow(out$sim), 6)
+})
+
+test_that("create_vpc_data_nlmixr: obs is put in the order the solve returns", {
+  ## The simulation sorts its event table before solving, so an unsorted input
+  ## dataset would otherwise pair obs[i] with a simulated row for a different
+  ## record — a mismatch equal row counts cannot detect.
+  d <- data.frame(
+    ID = c(2, 1, 2, 1), TIME = c(1, 1, 0, 0), DV = c(6, 5, 0, 0),
+    EVID = c(0, 0, 1, 1), MDV = c(0, 0, 1, 1), AMT = c(0, 0, 100, 100)
+  )
+  local_mocked_bindings(
+    run_sim_nlmixr = function(data, n_iterations, ...) {
+      ## what the real one does: sort, solve, return the solved rows
+      solved <- sort_nlmixr_events(data)
+      solved <- solved[solved$EVID %in% c(0, 2), c("ID", "TIME"), drop = FALSE]
+      solved$DV <- seq_len(nrow(solved))
+      solved
+    },
+    .package = "pharmr.extra"
+  )
+  out <- create_vpc_data_nlmixr(model = "unused", data = d, n = 1, verbose = FALSE)
+  expect_equal(out$obs$ID, c(1, 2))
+  expect_equal(out$obs$TIME, c(1, 1))
+  expect_equal(out$sim$ID, out$obs$ID)
 })
