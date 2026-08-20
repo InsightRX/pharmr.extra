@@ -2,6 +2,29 @@
 
 ## pharmr.extra (development version)
 
+- `run_sim(n_uncertainty = )` with `uncertainty_engine = "replicates"`
+  (the default) now simulates **every replicate with the same `seed`**
+  instead of a per-replicate `seed + r` (#131). Both backends build ETAs
+  and residuals by scaling standard normal deviates, so a shared seed
+  means every draw sees the same underlying deviates and the only thing
+  varying between replicates is the parameter vector — the
+  common-random-numbers setup a confidence interval on a simulated
+  percentile needs. Previously the spread across `.uncertainty` also
+  contained the Monte-Carlo noise of re-simulating a fresh set of
+  subjects for every draw, which inflated the interval. Use
+  `n_iterations` if you want fresh random variability *within* a
+  replicate. Sequential and parallel (`n_cores > 1`) runs are affected
+  equally.
+
+  This does **not** extend to `uncertainty_engine = "nwpri"`, and
+  cannot: NONMEM continues its random sources from subproblem to
+  subproblem and offers no option to rewind them, so each NWPRI draw
+  necessarily re-simulates its own ETAs and residuals. NWPRI uncertainty
+  intervals therefore still carry that noise; make the simulation
+  dataset large enough that it is small, or use `"replicates"` when the
+  separation matters. This is now documented on
+  [`run_sim()`](https://insightrx.github.io/pharmr.extra/reference/run_sim.md).
+
 - [`run_sim()`](https://insightrx.github.io/pharmr.extra/reference/run_sim.md)
   gains a second parameter-uncertainty engine, selected with
   `uncertainty_engine = "nwpri"` (#130). Instead of drawing

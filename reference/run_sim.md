@@ -98,6 +98,18 @@ run_sim(
   those, use a bootstrap (`nlmixr2est::bootstrapFit()`). NONMEM
   `$COVARIANCE` typically covers all parameters, so all are resampled.
 
+  Every replicate is simulated with the **same** `seed` (common random
+  numbers), so the sequence of standard normal deviates behind the
+  simulated ETAs and residuals is identical across draws and the only
+  thing that varies between replicates is the parameter vector. This is
+  what makes a percentile computed per replicate a clean estimate of
+  parameter uncertainty; with a different seed per replicate the spread
+  across replicates would also contain the Monte-Carlo noise of
+  re-simulating a fresh set of subjects each time. Use `n_iterations` if
+  you want extra random variability *within* a replicate. Note this
+  holds for `uncertainty_engine = "replicates"` only — see
+  `uncertainty_engine` below for why NWPRI cannot do it.
+
   This is the same idea as NONMEM's own `$PRIOR NWPRI` +
   `$SIMULATION ... TRUE=PRIOR`, which is available directly as
   `uncertainty_engine = "nwpri"` (see below). The two are checked
@@ -153,7 +165,7 @@ run_sim(
   `uncertainty_engine = "replicates"` this is supported for the
   `nlmixr2` tool only; a NONMEM run warns and falls back to sequential.
   Output is identical to a sequential run for the same `seed`, since
-  each replicate keeps its own derived seed (`seed + r`) and results are
+  every replicate is run with the same `seed` and results are
   reassembled by replicate index. For `uncertainty_engine = "nwpri"`
   (NONMEM only) it sets how many NONMEM jobs the subproblems are split
   over, one per worker process. NONMEM's own RNG produces the draws, so
@@ -182,6 +194,15 @@ run_sim(
     the run time, so it is much faster for large `n_uncertainty`. It
     requires `n_iterations = 1`, because every NWPRI subproblem redraws
     the parameters and so cannot repeat a draw.
+
+  `"nwpri"` cannot give you common random numbers across draws. NONMEM
+  continues its random sources from subproblem to subproblem and offers
+  no way to rewind them, so each subproblem simulates a *different* set
+  of ETAs and residuals in addition to a different parameter vector.
+  Uncertainty intervals computed over `.uncertainty` from an NWPRI run
+  therefore also contain the Monte-Carlo noise of re-simulating the
+  subjects; make the simulation dataset large enough that this noise is
+  small, or use `"replicates"` when a clean separation matters.
 
   The two are **not** statistically interchangeable. Over 1000 draws
   from the same fit their means and standard deviations agree to within

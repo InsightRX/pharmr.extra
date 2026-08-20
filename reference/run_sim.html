@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9126</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9127</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -129,6 +129,16 @@ so residual and random-effect variance parameters (SIGMA, OMEGA/IIV) are
 held fixed. For full uncertainty on those, use a bootstrap
 (<code>nlmixr2est::bootstrapFit()</code>). NONMEM <code>$COVARIANCE</code> typically covers all
 parameters, so all are resampled.</p>
+<p>Every replicate is simulated with the <strong>same</strong> <code>seed</code> (common random
+numbers), so the sequence of standard normal deviates behind the simulated
+ETAs and residuals is identical across draws and the only thing that varies
+between replicates is the parameter vector. This is what makes a percentile
+computed per replicate a clean estimate of parameter uncertainty; with a
+different seed per replicate the spread across replicates would also contain
+the Monte-Carlo noise of re-simulating a fresh set of subjects each time.
+Use <code>n_iterations</code> if you want extra random variability <em>within</em> a
+replicate. Note this holds for <code>uncertainty_engine = "replicates"</code> only —
+see <code>uncertainty_engine</code> below for why NWPRI cannot do it.</p>
 <p>This is the same idea as NONMEM's own <code>$PRIOR NWPRI</code> +
 <code>$SIMULATION ... TRUE=PRIOR</code>, which is available directly as
 <code>uncertainty_engine = "nwpri"</code> (see below). The two are checked against each
@@ -181,8 +191,8 @@ is returned back. If <code>FALSE</code>, the <code>add_pk_variables</code> argum
 <code>n_uncertainty</code> replicates over that many worker processes. For
 <code>uncertainty_engine = "replicates"</code> this is supported for the <code>nlmixr2</code> tool
 only; a NONMEM run warns and falls back to sequential. Output is identical
-to a sequential run for the same <code>seed</code>, since each replicate keeps its own
-derived seed (<code>seed + r</code>) and results are reassembled by replicate index.
+to a sequential run for the same <code>seed</code>, since every replicate is run with
+the same <code>seed</code> and results are reassembled by replicate index.
 For <code>uncertainty_engine = "nwpri"</code> (NONMEM only) it sets how many NONMEM
 jobs the subproblems are split over, one per worker process. NONMEM's own
 RNG produces the draws, so <em>which</em> draws you get depends on how the
@@ -206,7 +216,15 @@ one per draw, which for short simulations dominates the run time, so it
 is much faster for large <code>n_uncertainty</code>. It requires <code>n_iterations = 1</code>,
 because every NWPRI subproblem redraws the parameters and so cannot
 repeat a draw.</p></li>
-</ul><p>The two are <strong>not</strong> statistically interchangeable. Over 1000 draws from the
+</ul><p><code>"nwpri"</code> cannot give you common random numbers across draws. NONMEM
+continues its random sources from subproblem to subproblem and offers no way
+to rewind them, so each subproblem simulates a <em>different</em> set of ETAs and
+residuals in addition to a different parameter vector. Uncertainty intervals
+computed over <code>.uncertainty</code> from an NWPRI run therefore also contain the
+Monte-Carlo noise of re-simulating the subjects; make the simulation dataset
+large enough that this noise is small, or use <code>"replicates"</code> when a clean
+separation matters.</p>
+<p>The two are <strong>not</strong> statistically interchangeable. Over 1000 draws from the
 same fit their means and standard deviations agree to within a few percent
 (see <code>inst/reports/nwpri-validation.html</code>), but two differences are
 structural rather than numerical: NWPRI draws OMEGA and SIGMA from
