@@ -16,22 +16,28 @@
 #' @param model Either a Pharmpy model object (its `$code` is read), a
 #'   character vector of NONMEM model code, or a path to a `.mod` file.
 #' @param data Path to the NONMEM-ready CSV. Optional; if missing, the
-#'   function reads `$DATA` from the model code.
+#'   function reads `$DATA` from the model code. For nlmixr2 models a
+#'   `data.frame` is accepted too, and the default is the dataset the model
+#'   was fitted against.
 #' @param parameters Named list of parameter inits, e.g.
 #'   `list(THETA_1 = 0.23, OMEGA_1_1 = 0.097, SIGMA_1_1 = 1)`. Optional.
 #' @param keep_columns character vector of column names in the original
 #'   dataset to keep in the output.
 #' @param n number of simulation iterations.
-#' @param id run id used as folder name. Defaults to a random name.
+#' @param id run id used as folder name. Defaults to a random name. NONMEM
+#'   models only; ignored (with a warning) for nlmixr2 models, which run
+#'   through [rxode2::rxSolve()] and create no run folder.
 #' @param verbose verbose output?
 #' @param use_pharmpy retained for backward compatibility; controls whether
 #'   `PRED`/`TAD` are transferred from obs to sim during post-processing.
+#'   NONMEM models only; ignored (with a warning) for nlmixr2 models.
 #' @param fix_input_heuristic If TRUE (default), detect the common
 #'   `pharmr::set_dataset()` side-effect that rewrites `$INPUT` to the CSV
 #'   headers, and rebind `TIME` -> `TAFD` and (for log-transform-both-sides
 #'   models) `DV` -> `LNDV`. Set to FALSE to leave `$INPUT` untouched. The
 #'   LTBS detection only scans the `$ERROR` record (not the whole model) so
 #'   a `LOG()` call in a covariate transform doesn't trigger a false swap.
+#'   NONMEM models only; ignored (with a warning) for nlmixr2 models.
 #' @param seed integer seed passed to the simulation step. Default `NULL`
 #'   draws a random seed per call (so repeated `create_vpc_data()` calls
 #'   in one session aren't pinned to identical draws); supply a value for
@@ -41,9 +47,18 @@
 #'   integer subject IDs of up to 10 digits are written in full instead of
 #'   being truncated by NONMEM's default (~6 significant digits). All other
 #'   columns keep NONMEM's default format. `NULL` uses the NONMEM default for
-#'   `ID` too.
+#'   `ID` too. NONMEM models only; ignored (with a warning) for nlmixr2 models.
 #'
 #' @returns list with `obs` and `sim` data frames.
+#'
+#' @section nlmixr2 models:
+#' Pharmpy models in nlmixr format are routed to an rxode2-based path
+#' ([rxode2::rxSolve()]) instead of NONMEM. `fit`, `model`, `data`,
+#' `parameters`, `keep_columns`, `n`, `seed` and `verbose` all apply there;
+#' the remaining arguments are NONMEM-specific and warn if set. `sim$PRED` is
+#' a genuine population prediction (a second solve with the between-subject
+#' random effects zeroed), except on rxode2 versions without `zeroRe()`, where
+#' it falls back to `IPRED`.
 #'
 #' @export
 create_vpc_data <- function(
@@ -62,6 +77,16 @@ create_vpc_data <- function(
 ) {
   check_table_formats(id_format)
 
+  ## Which of the NONMEM-only arguments the caller actually set. Only used to
+  ## warn on the nlmixr branch, where none of them apply — checked here because
+  ## `missing()` stops being meaningful once the arguments are reassigned.
+  nonmem_only_set <- c(
+    id = !missing(id),
+    use_pharmpy = !missing(use_pharmpy),
+    fix_input_heuristic = !missing(fix_input_heuristic),
+    id_format = !missing(id_format)
+  )
+
   ## ---- Resolve model & dispatch nlmixr branch via the original code path ----
   caller_supplied_model <- !is.null(model)
   if(is.null(model)) {
@@ -72,12 +97,22 @@ create_vpc_data <- function(
   }
   if(inherits(model, "pharmpy.model.model.Model") &&
      identical(get_tool_from_model(model), "nlmixr")) {
+    if(any(nonmem_only_set)) {
+      ignored <- names(nonmem_only_set)[nonmem_only_set]
+      cli::cli_warn(c(
+        "Ignoring NONMEM-only argument{?s} {.arg {ignored}} for an nlmixr2 model.",
+        i = "nlmixr2 VPCs are built with {.fn rxode2::rxSolve}, so there is no \\
+             NONMEM control stream or run folder to act on."
+      ))
+    }
     return(create_vpc_data_nlmixr(
       fit = fit,
       model = if(caller_supplied_model) model else NULL,
+      data = data,
       parameters = parameters,
       keep_columns = keep_columns,
       n = n,
+      seed = seed,
       verbose = verbose
     ))
   }
@@ -732,13 +767,19 @@ replace_inits_in_text <- function(text, queue, init_in_paren) {
 #' are produced via [run_sim()] (which dispatches to rxode2's `rxSolve`
 #' for nlmixr2 models).
 #'
+#' `obs` and `sim` are built from the *same* resolved dataset, which is what
+#' keeps their row sets aligned — the two must not each go looking for a
+#' dataset of their own (see issue #136).
+#'
 #' @noRd
 create_vpc_data_nlmixr <- function(
   fit = NULL,
   model = NULL,
+  data = NULL,
   parameters = NULL,
   keep_columns = c(),
   n = 100,
+  seed = NULL,
   verbose = FALSE
 ) {
   if(is.null(model)) {
@@ -757,16 +798,17 @@ create_vpc_data_nlmixr <- function(
     model <- pharmr::set_initial_estimates(model, inits = as.list(fit$parameter_estimates))
   }
 
-  ## Prefer an explicitly-attached input dataset (set by run_nlme_nlmixr
-  ## when `data` was supplied) over `model$dataset`, which may not have
-  ## been refreshed.
-  data <- as.data.frame(attr(model, "original_data") %||% model$dataset)
+  ## Resolve the dataset once: explicit `data`, then the dataset actually
+  ## fitted (attached by run_nlme_nlmixr() when `data` was supplied), then
+  ## `model$dataset`. The same frame is handed to the simulation below, so
+  ## `obs` and `sim` cannot end up describing different subjects.
+  vpc_data <- resolve_nlmixr_data(model, data)
 
-  ## Build obs from the model dataset. Compute TAD on the full event log
+  ## Build obs from that dataset. Compute TAD on the full event log
   ## (dose rows are needed to derive last_dose_time), then restrict to
   ## observation rows so the row-set matches what rxSolve returns and
   ## downstream VPC alignment between obs and sim is preserved.
-  obs <- data
+  obs <- vpc_data
   if(!"EVID" %in% names(obs)) obs$EVID <- 0L
   if(!"MDV" %in% names(obs)) obs$MDV <- ifelse(obs$EVID == 0, 0L, 1L)
   if(is.null(obs$TAD)) {
@@ -779,18 +821,45 @@ create_vpc_data_nlmixr <- function(
       dplyr::ungroup() |>
       as.data.frame()
   }
+  obs_all <- obs
   obs <- obs[obs$MDV == 0, , drop = FALSE]
 
-  ## Run n simulations against the same dataset; reuse run_sim() so the
-  ## engine dispatch lives in one place.
+  ## Run n simulations against that same dataset — passed explicitly rather
+  ## than left to run_sim_nlmixr()'s own dataset lookup, so obs and sim cannot
+  ## diverge. A NULL seed draws a fresh one per call, matching the NONMEM
+  ## branch (a fixed default would pin every VPC of a fit to identical draws).
   if(verbose) cli::cli_alert_info("Running {n} simulations for VPC")
+  if(is.null(seed)) seed <- sample.int(.Machine$integer.max, 1)
   sim <- run_sim_nlmixr(
     fit = fit,
-    data = NULL,        # use model dataset
+    data = vpc_data,
     model = model,
     n_iterations = n,
+    seed = seed,
     verbose = FALSE
   )
+
+  ## rxSolve returns the solved (non-dosing) rows of the event table, once per
+  ## replicate. Where `obs` doesn't line up with that row set — datasets that
+  ## flag observations with MDV = 1, for BLQ handling say, are the usual cause
+  ## — select observations by EVID instead before giving up, so an obs/sim pair
+  ## describing different rows is never returned silently.
+  ## Exactly `n` simulated rows per observed row — not merely a multiple of
+  ## them, which a one-row `obs` would satisfy by accident.
+  if(nrow(obs) == 0 || nrow(sim) != n * nrow(obs)) {
+    alt <- obs_all[obs_all$EVID == 0, , drop = FALSE]
+    if(nrow(alt) > 0 && nrow(sim) == n * nrow(alt)) {
+      obs <- alt
+    } else {
+      cli::cli_abort(c(
+        "The simulated and observed datasets don't line up for the VPC.",
+        x = "Got {nrow(sim)} simulated row{?s} for {nrow(obs)} observed row{?s} \\
+             and {n} replicate{?s}; expected {n * nrow(obs)}.",
+        i = "Check {.field EVID} / {.field MDV} in the dataset: the simulation \\
+             returns one row per non-dosing record."
+      ))
+    }
+  }
 
   ## Optional column carry-over from obs to sim
   for(col in keep_columns) {
