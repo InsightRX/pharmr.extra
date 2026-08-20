@@ -157,3 +157,69 @@ test_that("errors when file does not exist", {
     "No file not found"
   )
 })
+
+## Subproblem-aware reading (#130) --------------------------------------------
+##
+## A `$SIMULATION` record with SUBPROBLEMS > 1 writes one block of rows per
+## subproblem, each opened by a repeated `TABLE NO.` header. The default reader
+## drops those headers along with the rest of the non-numeric rows, which is
+## fine until something needs the boundaries — the NWPRI uncertainty engine
+## does, because the subproblem index *is* the `.uncertainty` index.
+
+test_that("read_table_nm splits on TABLE NO. when asked", {
+  tab <- read_table_nm(test_path("fixtures", "simtab_subproblems"),
+                       subproblems = TRUE)
+
+  expect_equal(names(tab), c("ID", "TIME", "DV", "PRED", "CL", ".subproblem"))
+  expect_equal(nrow(tab), 12)
+  expect_type(tab$.subproblem, "integer")
+  expect_equal(sort(unique(tab$.subproblem)), 1:3)
+  expect_equal(as.integer(table(tab$.subproblem)), c(4L, 4L, 4L))
+
+  ## Each subproblem carries its own parameter draw, which is exactly the
+  ## information the default reader throws away.
+  expect_equal(
+    vapply(split(tab$CL, tab$.subproblem), unique, numeric(1)),
+    c("1" = 5.1, "2" = 4.6, "3" = 5.9)
+  )
+  ## the rows themselves are read the same way as always
+  expect_equal(tab$DV[tab$.subproblem == 2], c(0, 5.5, 0, 5.1))
+})
+
+test_that("read_table_nm keeps the default behaviour of dropping the headers", {
+  plain <- suppressWarnings(suppressMessages(
+    read_table_nm(test_path("fixtures", "simtab_subproblems"))
+  ))
+  ## Same rows, no way to tell the subproblems apart.
+  expect_equal(nrow(plain), 12)
+  expect_false(".subproblem" %in% names(plain))
+})
+
+test_that("read_table_nm handles tables that repeat the column header", {
+  tab <- read_table_nm(test_path("fixtures", "simtab_subproblems_repeated_header"),
+                       subproblems = TRUE)
+  expect_equal(names(tab), c("ID", "TIME", "DV", ".subproblem"))
+  expect_equal(nrow(tab), 4)
+  expect_equal(tab$.subproblem, c(1L, 1L, 2L, 2L))
+  expect_equal(tab$DV, c(0, 4.8, 0, 5.5))
+})
+
+test_that("subproblem reading rejects inputs it cannot handle", {
+  f <- test_path("fixtures", "simtab_subproblems")
+  expect_error(read_table_nm(f, subproblems = TRUE, nonmem_tab = FALSE),
+               "NONMEM output tables")
+  expect_error(read_table_nm(c(f, f), subproblems = TRUE),
+               "a single table file")
+
+  empty <- withr::local_tempfile()
+  writeLines(character(0), empty)
+  expect_error(read_table_nm(empty, subproblems = TRUE), "empty")
+
+  headerless <- withr::local_tempfile()
+  writeLines(c("TABLE NO.  1", " 1.0 2.0"), headerless)
+  expect_error(read_table_nm(headerless, subproblems = TRUE), "No column header")
+
+  mismatched <- withr::local_tempfile()
+  writeLines(c("TABLE NO.  1", " ID TIME DV", " 1.0 2.0"), mismatched)
+  expect_error(read_table_nm(mismatched, subproblems = TRUE), "column name")
+})
