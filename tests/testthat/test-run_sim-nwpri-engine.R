@@ -1,8 +1,11 @@
 # NWPRI uncertainty engine: chunking, seeds and collection (#130) -------------
 #
-# Everything here is pure R or runs against a mocked-out `call_nmfe()`, so it
-# needs neither NONMEM nor pharmpy. The record construction the engine feeds on
-# is covered in `test-add_nwpri_prior.R`.
+# The chunking, seed, collection and draw-counting tests are pure R or run
+# against a mocked-out `call_nmfe()`, so they need neither NONMEM nor pharmpy.
+# The end-to-end section at the bottom of the file does: it is gated on
+# `skip_if_nonmem_not_available()` (pharmpy config) and `skip_if_nmfe_not_available()`.
+# The record construction the engine feeds on is covered in
+# `test-add_nwpri_prior.R`.
 
 # Chunking ---------------------------------------------------------------------
 

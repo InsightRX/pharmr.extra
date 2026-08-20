@@ -1,7 +1,7 @@
 #' Set model to be a simulation (only) model
 #'
 #' This function is a drop-in replacement of the Pharmpy `set_simulation()`
-#' function. The pharmr function works fine in many instances, but in some
+#' function. The Pharmpy function works fine in many instances, but in some
 #' cases it modifies the variable declarations (e.g. redeclares variables in $PK
 #' that are declared in $DES, which can lead to invalid models that are not
 #' accepted by NONMEM).
