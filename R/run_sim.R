@@ -81,8 +81,11 @@ run_sim <- function(
     output_file = "simtab",
     update_table = TRUE,
     seed = 12345,
-    n_cores = 1,
-    verbose = TRUE
+    verbose = TRUE,
+    ## New arguments go last: `verbose` was the final positional argument
+    ## before, and callers passing it positionally would otherwise silently
+    ## set `n_cores` instead.
+    n_cores = 1
 ) {
 
   ## parse arguments

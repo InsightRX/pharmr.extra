@@ -19,8 +19,8 @@ run_sim(
   output_file = "simtab",
   update_table = TRUE,
   seed = 12345,
-  n_cores = 1,
-  verbose = TRUE
+  verbose = TRUE,
+  n_cores = 1
 )
 }
 \arguments{
@@ -87,6 +87,8 @@ is returned back. If \code{FALSE}, the \code{add_pk_variables} argument will be 
 
 \item{seed}{TODO}
 
+\item{verbose}{verbose output?}
+
 \item{n_cores}{number of processes to run uncertainty replicates on
 (default \code{1}, i.e. sequential; unchanged behaviour). Values \verb{> 1} spread the
 \code{n_uncertainty} replicates over that many worker processes and are
@@ -96,8 +98,6 @@ since each replicate keeps its own derived seed (\code{seed + r}) and results ar
 reassembled by replicate index. Ignored when no uncertainty is requested.
 The machine's cores are divided over the workers (rxode2's solver threads
 are capped per worker), so raising \code{n_cores} does not oversubscribe the CPU.}
-
-\item{verbose}{verbose output?}
 }
 \value{
 data.frame with simulation results. When \code{n_uncertainty} is used,
