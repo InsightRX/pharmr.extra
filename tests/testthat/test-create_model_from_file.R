@@ -261,3 +261,115 @@ test_that("strip_input_commas leaves commas in a leading comment untouched", {
   expect_true(grepl("; PK model, final", out, fixed = TRUE))
   expect_true(grepl("$INPUT ID  TIME  DV", out, fixed = TRUE))
 })
+
+test_that("preserves non-numeric DROP columns when data is a data.frame (#101)", {
+  local_pharmr.extra_options()
+
+  dat <- data.frame(
+    ID = c(1, 1, 1, 2, 2, 2),
+    TIME = c(0, 1, 2, 0, 1, 2),
+    AMT = c(100, 0, 0, 100, 0, 0),
+    DV = c(0, 10, 5, 0, 12, 6),
+    MDV = c(1, 0, 0, 1, 0, 0),
+    # Non-numeric date/time-of-day columns NONMEM ignores via $INPUT DROP.
+    # These crash if the dataset round-trip rewrites $INPUT and loses the
+    # DROP flags, because pharmpy then tries to float-convert them.
+    VISITDATE = c("08/12/2011", "08/13/2011", "08/14/2011",
+                  "09/01/2011", "09/02/2011", "09/03/2011"),
+    CLOCK = c("9:00", "10:00", "11:00", "9:00", "10:00", "11:00")
+  )
+  model_code <- paste(
+    "$PROBLEM Test",
+    "$INPUT ID TIME AMT DV MDV VISITDATE=DROP CLOCK=DROP",
+    "$DATA DUMMYPATH IGNORE=@",
+    "$SUBROUTINE ADVAN1 TRANS2",
+    "$PK",
+    "CL=THETA(1)*EXP(ETA(1))",
+    "V=THETA(2)",
+    "S1=V",
+    "$ERROR",
+    "Y=F+F*EPS(1)",
+    "$THETA (0,1)",
+    "$THETA (0,10)",
+    "$OMEGA 0.1",
+    "$SIGMA 0.1",
+    "$ESTIMATION METHOD=1",
+    sep = "\n"
+  )
+  tmp_mod <- tempfile(fileext = ".mod")
+  writeLines(model_code, tmp_mod)
+
+  model <- expect_no_error(create_model_from_file(tmp_mod, data = dat))
+
+  # $INPUT (and its DROP flags) must survive untouched:
+  expect_true(grepl("VISITDATE=DROP", model$code, fixed = TRUE))
+  expect_true(grepl("CLOCK=DROP", model$code, fixed = TRUE))
+  # $DATA points at the temp CSV, not DUMMYPATH:
+  expect_false(grepl("DUMMYPATH", model$code, fixed = TRUE))
+  # Dataset is materializable and keeps the non-numeric columns intact:
+  expect_false(is.null(model$dataset))
+  expect_true(all(c("VISITDATE", "CLOCK") %in% names(model$dataset)))
+})
+
+test_that("sync_input_to_dataset preserves DROP flags and appends new columns", {
+  code <- paste(
+    "$PROBLEM Test",
+    "$INPUT ID TIME AMT DV MDV VISITDATE=DROP",
+    "$DATA data.csv IGNORE=@",
+    sep = "\n"
+  )
+  out <- sync_input_to_dataset(
+    code, c("ID", "TIME", "AMT", "DV", "MDV", "VISITDATE", "WT")
+  )
+  expect_equal(
+    get_input_tokens(out),
+    c("ID", "TIME", "AMT", "DV", "MDV", "VISITDATE=DROP", "WT")
+  )
+  # Other records are untouched:
+  expect_true(grepl("$DATA data.csv IGNORE=@", out, fixed = TRUE))
+})
+
+test_that("sync_input_to_dataset follows dataset column order", {
+  code <- "$PROBLEM Test\n$INPUT ID TIME DV CLOCK=DROP AMT\n$DATA data.csv"
+  out <- sync_input_to_dataset(code, c("ID", "CLOCK", "TIME", "AMT", "DV"))
+  expect_equal(
+    get_input_tokens(out), c("ID", "CLOCK=DROP", "TIME", "AMT", "DV")
+  )
+})
+
+test_that("sync_input_to_dataset handles anonymous DROP and DROP=<col>", {
+  code <- "$PROBLEM Test\n$INPUT ID TIME DV DROP DROP=CLOCK\n$DATA data.csv"
+  out <- sync_input_to_dataset(code, c("ID", "TIME", "DV", "_DROP1", "CLOCK"))
+  expect_equal(
+    get_input_tokens(out), c("ID", "TIME", "DV", "DROP", "DROP=CLOCK")
+  )
+})
+
+test_that("sync_input_to_dataset is a no-op without $INPUT or columns", {
+  code <- "$PROBLEM Test\n$DATA data.csv"
+  expect_equal(sync_input_to_dataset(code, c("ID", "TIME")), code)
+  code_with_input <- "$PROBLEM Test\n$INPUT ID TIME DV\n$DATA data.csv"
+  expect_equal(sync_input_to_dataset(code_with_input, character(0)),
+               code_with_input)
+})
+
+test_that("sync_input_to_dataset keeps labelled columns and anonymous DROPs in place", {
+  # $INPUT as set_dv() leaves it: old DV demoted to an anonymous DROP, new DV
+  # declared as a synonym. The dataset still carries the original `DV` name.
+  code <- "$PROBLEM Test\n$INPUT ID TIME DROP AMT EVID MDV DV=CONC\n$DATA data.csv"
+  out <- sync_input_to_dataset(
+    code, c("ID", "TIME", "DV", "AMT", "EVID", "MDV", "CONC")
+  )
+  expect_equal(
+    get_input_tokens(out),
+    c("ID", "TIME", "DROP", "AMT", "EVID", "MDV", "DV=CONC")
+  )
+})
+
+test_that("input_token_name resolves plain, labelled and DROP tokens", {
+  expect_equal(input_token_name("WT"), "WT")
+  expect_equal(input_token_name("DV=CONC"), "CONC")
+  expect_equal(input_token_name("VISITDATE=DROP"), "VISITDATE")
+  expect_equal(input_token_name("DROP=VISITDATE"), "VISITDATE")
+  expect_equal(input_token_name("CLOCK=SKIP"), "CLOCK")
+})
