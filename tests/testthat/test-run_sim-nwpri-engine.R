@@ -32,6 +32,26 @@ test_that("nwpri_chunk_sizes never asks for more chunks than draws", {
   expect_length(nwpri_chunk_sizes(1, 16), 1L)
 })
 
+test_that("nwpri_worker_count keeps chunks worth their worker process", {
+  ## Starting a worker costs more than the subproblems a small chunk saves, so
+  ## below NWPRI_MIN_DRAWS_PER_CHUNK draws per chunk it stays in one job (#134).
+  expect_equal(nwpri_worker_count(10, 4), 1L)
+  expect_equal(nwpri_worker_count(49, 4), 1L)
+  expect_equal(nwpri_worker_count(50, 4), 1L)
+  expect_equal(nwpri_worker_count(100, 4), 2L)
+  expect_equal(nwpri_worker_count(200, 4), 4L)
+  ## `n_cores` stays a ceiling, not a target
+  expect_equal(nwpri_worker_count(1000, 4), 4L)
+  expect_equal(nwpri_worker_count(1000, 1), 1L)
+  expect_type(nwpri_worker_count(200, 4), "integer")
+})
+
+test_that("nwpri_worker_count validates its input", {
+  expect_error(nwpri_worker_count(0, 2), "positive integer")
+  expect_error(nwpri_worker_count(-1, 2), "positive integer")
+  expect_error(nwpri_worker_count(10, 0), "Number of NWPRI chunks must be a positive integer")
+})
+
 test_that("nwpri_chunk_sizes validates its input", {
   expect_error(nwpri_chunk_sizes(0, 2), "positive integer")
   expect_error(nwpri_chunk_sizes(-1, 2), "positive integer")
@@ -200,8 +220,10 @@ test_that("run_nwpri_regimen chunks the draws over its own run folders", {
   ## PSOCK workers would write the log into their own copy of `log_env`.
   mockery::stub(run_nwpri_regimen, "parallel_lapply",
                 function(X, FUN, n_cores = 1L) lapply(X, FUN))
+  ## Well above NWPRI_MIN_DRAWS_PER_CHUNK * 4, so all four chunks are worth
+  ## their worker and the split really happens (#134).
   out <- run_nwpri_regimen(
-    sim_code = code, dataset = dataset, n_uncertainty = 10, seed = 500,
+    sim_code = code, dataset = dataset, n_uncertainty = 200, seed = 500,
     folder = folder, output_file = "simtab", nmfe = "fake-nmfe",
     n_cores = 4, force = FALSE, verbose = FALSE
   )
@@ -211,13 +233,13 @@ test_that("run_nwpri_regimen chunks the draws over its own run folders", {
   expect_setdiff_empty(paste0("uncertainty_chunk_", 1:4), list.dirs(folder, full.names = FALSE))
 
   ## `.uncertainty` runs 1..n over the chunks, in order.
-  expect_equal(sort(unique(out$.uncertainty)), 1:10)
-  expect_equal(nrow(out), 20)
-  expect_equal(attr(out, "n_uncertainty_kept"), 10)
+  expect_equal(sort(unique(out$.uncertainty)), 1:200)
+  expect_equal(nrow(out), 400)
+  expect_equal(attr(out, "n_uncertainty_kept"), 200)
 
   ## Each chunk got its own seed and its share of the subproblems, and nothing
   ## else about the control stream changed.
-  sizes <- nwpri_chunk_sizes(10, 4)
+  sizes <- nwpri_chunk_sizes(200, 4)
   seeds <- nwpri_chunk_seeds(500, 4)
   for (k in 1:4) {
     mod <- log_env$mods[[as.character(k)]]
@@ -245,7 +267,7 @@ test_that("run_nwpri_regimen gives every chunk its own copy of the dataset", {
                 function(X, FUN, n_cores = 1L) lapply(X, FUN))
   run_nwpri_regimen(
     sim_code = "$PROBLEM t\n$DATA data.csv IGNORE=@\n$THETA (0,1)",
-    dataset = dataset, n_uncertainty = 4, seed = 1,
+    dataset = dataset, n_uncertainty = 100, seed = 1,
     folder = folder, output_file = "simtab", nmfe = "fake-nmfe",
     n_cores = 2, force = FALSE, verbose = FALSE
   )
@@ -288,7 +310,7 @@ test_that("nwpri_draws_kept falls back to the whole table without regimen labels
   expect_equal(nwpri_draws_kept(data.frame(.uncertainty = c(1, 1, 2))), 2L)
 })
 
-test_that("run_nwpri_regimen chunks by n_cores rather than the draw count", {
+test_that("run_nwpri_regimen keeps a run in one job when chunking would not pay", {
   folder <- withr::local_tempdir()
   log_env <- new.env(parent = emptyenv())
   log_env$mods <- list()
@@ -309,6 +331,19 @@ test_that("run_nwpri_regimen chunks by n_cores rather than the draw count", {
   expect_match(grep("^\\$SIM", log_env$mods[["1"]], value = TRUE),
                "SUBPROBLEMS=6")
   expect_equal(sort(unique(out$.uncertainty)), 1:6)
+
+  ## Same with cores to spare: six draws are not worth four worker processes,
+  ## so they stay in a single job (#134).
+  log_env$mods <- list()
+  out4 <- run_nwpri_regimen(
+    sim_code = code, dataset = dataset, n_uncertainty = 6, seed = 1,
+    folder = folder, output_file = "simtab", nmfe = "fake-nmfe",
+    n_cores = 4, force = TRUE, verbose = FALSE
+  )
+  expect_length(log_env$mods, 1)
+  expect_match(grep("^\\$SIM", log_env$mods[["1"]], value = TRUE),
+               "SUBPROBLEMS=6")
+  expect_equal(sort(unique(out4$.uncertainty)), 1:6)
 })
 
 test_that("run_nwpri_regimen refuses to reuse an existing chunk folder", {
