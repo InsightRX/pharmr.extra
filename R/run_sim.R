@@ -34,8 +34,9 @@
 #' parameters, so all are resampled.
 #'
 #' This is the same idea as NONMEM's own `$PRIOR NWPRI` +
-#' `$SIMULATION ... TRUE=PRIOR`, and the two are checked against each other in
-#' `tests/testthat/test-run_sim-nwpri.R`. Aggregates agree closely: over 1000
+#' `$SIMULATION ... TRUE=PRIOR`, which is available directly as
+#' `uncertainty_engine = "nwpri"` (see below). The two are checked against each
+#' other in `tests/testthat/test-run_sim-nwpri.R`. Aggregates agree closely: over 1000
 #' draws from the same fit, means and standard deviations of the fixed effects
 #' match to within 0.3% and 3%, those of the variance parameters to within 5%
 #' and 8%, and the resulting 90% uncertainty interval on the predicted profile
@@ -63,20 +64,60 @@
 #' @param seed TODO
 #' @param n_cores number of processes to run uncertainty replicates on
 #' (default `1`, i.e. sequential; unchanged behaviour). Values `> 1` spread the
-#' `n_uncertainty` replicates over that many worker processes and are
-#' supported for the `nlmixr2` tool only; a NONMEM run warns and falls back to
-#' sequential. Output is identical to a sequential run for the same `seed`,
-#' since each replicate keeps its own derived seed (`seed + r`) and results are
-#' reassembled by replicate index. Ignored when no uncertainty is requested.
-#' The machine's cores are divided over the workers (rxode2's solver threads
-#' are capped per worker), so raising `n_cores` does not oversubscribe the CPU.
+#' `n_uncertainty` replicates over that many worker processes. For
+#' `uncertainty_engine = "replicates"` this is supported for the `nlmixr2` tool
+#' only; a NONMEM run warns and falls back to sequential. Output is identical
+#' to a sequential run for the same `seed`, since each replicate keeps its own
+#' derived seed (`seed + r`) and results are reassembled by replicate index.
+#' For `uncertainty_engine = "nwpri"` (NONMEM only) it sets how many worker
+#' processes the `n_chunks` NONMEM jobs are spread over. Ignored when no
+#' uncertainty is requested. The machine's cores are divided over the workers
+#' (rxode2's solver threads are capped per worker), so raising `n_cores` does
+#' not oversubscribe the CPU.
+#' @param uncertainty_engine how `n_uncertainty` parameter uncertainty is
+#' propagated. Ignored when no uncertainty is requested.
+#'
+#' * `"replicates"` (default, unchanged behaviour) draws `n_uncertainty`
+#'   parameter sets from the fit's covariance matrix in R and runs one
+#'   simulation per draw. Works for both backends.
+#' * `"nwpri"` (NONMEM only) hands the job to NONMEM: a `$PRIOR NWPRI` record
+#'   built from the fit (see [add_nwpri_prior()]) plus
+#'   `$SIMULATION ... TRUE=PRIOR`, so NONMEM draws a new parameter vector per
+#'   subproblem. That costs one NONMEM compile for the whole set instead of
+#'   one per draw, which for short simulations dominates the run time, so it
+#'   is much faster for large `n_uncertainty`. It requires `n_iterations = 1`,
+#'   because every NWPRI subproblem redraws the parameters and so cannot
+#'   repeat a draw.
+#'
+#' The two are **not** statistically interchangeable. Over 1000 draws from the
+#' same fit their means and standard deviations agree to within a few percent
+#' (see `inst/reports/nwpri-validation.html`), but two differences are
+#' structural rather than numerical: NWPRI draws OMEGA and SIGMA from
+#' (right-skewed) inverse-Wishart distributions where `"replicates"` draws
+#' every parameter from one truncated multivariate normal, and NWPRI treats the
+#' THETA, OMEGA and SIGMA priors as independent blocks and therefore discards
+#' the THETA-OMEGA and THETA-SIGMA covariances that `$COVARIANCE` reports.
+#' Which is preferable is a judgement call — the inverse-Wishart draw is
+#' arguably better justified for variance parameters, joint sampling is the one
+#' that keeps the full reported covariance — which is why this is a switch
+#' rather than a silent optimisation.
+#' @param n_chunks `uncertainty_engine = "nwpri"` only: number of NONMEM jobs
+#' the subproblems are split over. Defaults to `n_cores`. NONMEM's own RNG
+#' produces the draws, so *which* draws you get depends on how the subproblems
+#' were chunked: set `n_chunks` explicitly to keep a run reproducible across
+#' machines with different core counts. Note also that a chunk that fails costs
+#' `n_uncertainty / n_chunks` draws rather than one.
+#' @param plev `uncertainty_engine = "nwpri"` only: the probability mass the
+#' THETA draws are truncated to, passed to [add_nwpri_prior()].
 #'
 #' @returns data.frame with simulation results. When `n_uncertainty` is used,
 #' the result also carries `n_uncertainty_requested` and `n_uncertainty_kept`
 #' attributes: replicates that fail on the nlmixr2 backend are dropped with a
 #' warning, so these let a caller detect a short (and potentially biased) set
 #' of draws without parsing warnings. On the NONMEM backend a failing replicate
-#' aborts the run instead.
+#' aborts the run instead. Under `uncertainty_engine = "nwpri"` a failing
+#' *chunk* is dropped with a warning rather than aborting, and the same two
+#' attributes report how many draws survived.
 #'
 #' @export
 run_sim <- function(
@@ -98,7 +139,10 @@ run_sim <- function(
     ## New arguments go last: `verbose` was the final positional argument
     ## before, and callers passing it positionally would otherwise silently
     ## set `n_cores` instead.
-    n_cores = 1
+    n_cores = 1,
+    uncertainty_engine = c("replicates", "nwpri"),
+    n_chunks = NULL,
+    plev = 0.9999
 ) {
 
   ## parse arguments
@@ -166,6 +210,30 @@ run_sim <- function(
       cli::cli_abort(c(
         "`n_uncertainty` simulation needs a `fit` object with a covariance matrix.",
         i = "Run the model with a {.code $COVARIANCE} step (or SIR) so parameter uncertainty can be sampled."
+      ))
+    }
+  }
+
+  ## Which uncertainty engine. Only meaningful when uncertainty was asked for,
+  ## so an engine set on a point-estimate run is simply unused.
+  uncertainty_engine <- match.arg(uncertainty_engine)
+  use_nwpri <- !is.null(n_uncertainty) && uncertainty_engine == "nwpri"
+  if(use_nwpri) {
+    if(tool != "nonmem") {
+      cli::cli_abort(c(
+        "{.code uncertainty_engine = \"nwpri\"} is a NONMEM feature.",
+        x = "This simulation runs in {.val {tool}}.",
+        i = "Use {.code uncertainty_engine = \"replicates\"} instead."
+      ))
+    }
+    if(n_iterations != 1) {
+      cli::cli_abort(c(
+        "{.code uncertainty_engine = \"nwpri\"} requires {.code n_iterations = 1}.",
+        x = "Got {.code n_iterations = {n_iterations}}.",
+        i = "NONMEM redraws the parameters for every {.code $SIMULATION} \\
+             subproblem under {.code TRUE=PRIOR}, so a subproblem cannot repeat \\
+             a draw with fresh residual variability; raise {.arg n_uncertainty} \\
+             instead."
       ))
     }
   }
@@ -281,6 +349,29 @@ run_sim <- function(
     ## Run simulation
     if(verbose) cli::cli_alert_info("Running simulation ({reg_label})")
 
+    ## NWPRI engine: NONMEM draws the parameters itself, so there is no
+    ## per-replicate model to build and no run_nlme() call — the finished
+    ## control stream is chunked over its own run folders instead.
+    if(use_nwpri) {
+      comb[[reg_label]] <- run_nwpri_regimen_tables(
+        sim_model        = sim_model,
+        sim_data_regimen = sim_data_regimen,
+        reg_label        = reg_label,
+        id               = id_i,
+        path             = path %||% getwd(),
+        n_uncertainty    = n_uncertainty,
+        n_chunks         = nwpri_n_chunks,
+        seed             = seed,
+        nmfe             = nwpri_nmfe,
+        update_table     = update_table,
+        add_pk_variables = add_pk_variables,
+        n_cores          = n_cores,
+        force            = TRUE,
+        verbose          = verbose
+      )
+      next
+    }
+
     ## sim_data_regimen. Forward `path` only when set, so run_nlme()'s own
     ## default applies otherwise (decoupled from any getwd() default here).
     nlme_args <- list(
@@ -358,6 +449,35 @@ run_sim <- function(
     return(run_sim_engine(model, seed, verbose = verbose))
   }
 
+  n_cores <- resolve_n_cores(n_cores)
+
+  ## NWPRI engine: build the prior once, then let the regimen loop chunk it.
+  ## Unlike the replicate loop below this *is* parallelised for NONMEM — the
+  ## workers only write a control stream and call nmfe, they never touch
+  ## Pharmpy — so `nmfe` is resolved here, in the parent, while Python is still
+  ## reachable.
+  if(use_nwpri) {
+    nwpri_n_chunks <- resolve_n_chunks(n_chunks, n_cores)
+    nwpri_nmfe <- get_nmfe_location(verbose = verbose)
+    if(verbose) {
+      cli::cli_alert_info(
+        "Building {.code $PRIOR NWPRI} record from the fit's covariance matrix"
+      )
+    }
+    model <- add_nwpri_prior(model, fit, plev = plev)
+    out <- run_sim_engine(model, seed, verbose = verbose)
+    if(nrow(out) == 0 || !".uncertainty" %in% names(out)) {
+      cli::cli_abort("The NWPRI simulation produced no uncertainty draws.")
+    }
+    n_kept <- length(unique(out[[".uncertainty"]]))
+    attr(out, "n_uncertainty_requested") <- n_uncertainty
+    attr(out, "n_uncertainty_kept") <- n_kept
+    if(verbose) {
+      cli::cli_alert_success("Done ({n_kept}/{n_uncertainty} NWPRI draw{?s})")
+    }
+    return(out)
+  }
+
   ## Uncertainty: draw `n_uncertainty` parameter sets from the covariance
   ## matrix and run one simulation per draw, each with updated
   ## thetas/omegas/sigmas and tagged with a 1-based `.uncertainty` index.
@@ -399,7 +519,6 @@ run_sim <- function(
   ## backend is parallelised: the NONMEM backend drives Pharmpy through Python
   ## (not sendable to a worker) and writes per-regimen run folders that
   ## concurrent replicates would clobber.
-  n_cores <- resolve_n_cores(n_cores)
   if(n_cores > 1L && tool != "nlmixr2") {
     cli::cli_warn(c(
       "Parallel uncertainty replicates are supported for the {.val nlmixr2} tool only.",

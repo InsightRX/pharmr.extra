@@ -20,7 +20,10 @@ run_sim(
   update_table = TRUE,
   seed = 12345,
   verbose = TRUE,
-  n_cores = 1
+  n_cores = 1,
+  uncertainty_engine = c("replicates", "nwpri"),
+  n_chunks = NULL,
+  plev = 0.9999
 )
 }
 \arguments{
@@ -71,8 +74,9 @@ held fixed. For full uncertainty on those, use a bootstrap
 parameters, so all are resampled.
 
 This is the same idea as NONMEM's own \verb{$PRIOR NWPRI} +
-\verb{$SIMULATION ... TRUE=PRIOR}, and the two are checked against each other in
-\code{tests/testthat/test-run_sim-nwpri.R}. Aggregates agree closely: over 1000
+\verb{$SIMULATION ... TRUE=PRIOR}, which is available directly as
+\code{uncertainty_engine = "nwpri"} (see below). The two are checked against each
+other in \code{tests/testthat/test-run_sim-nwpri.R}. Aggregates agree closely: over 1000
 draws from the same fit, means and standard deviations of the fixed effects
 match to within 0.3\% and 3\%, those of the variance parameters to within 5\%
 and 8\%, and the resulting 90\% uncertainty interval on the predicted profile
@@ -104,13 +108,55 @@ is returned back. If \code{FALSE}, the \code{add_pk_variables} argument will be 
 
 \item{n_cores}{number of processes to run uncertainty replicates on
 (default \code{1}, i.e. sequential; unchanged behaviour). Values \verb{> 1} spread the
-\code{n_uncertainty} replicates over that many worker processes and are
-supported for the \code{nlmixr2} tool only; a NONMEM run warns and falls back to
-sequential. Output is identical to a sequential run for the same \code{seed},
-since each replicate keeps its own derived seed (\code{seed + r}) and results are
-reassembled by replicate index. Ignored when no uncertainty is requested.
-The machine's cores are divided over the workers (rxode2's solver threads
-are capped per worker), so raising \code{n_cores} does not oversubscribe the CPU.}
+\code{n_uncertainty} replicates over that many worker processes. For
+\code{uncertainty_engine = "replicates"} this is supported for the \code{nlmixr2} tool
+only; a NONMEM run warns and falls back to sequential. Output is identical
+to a sequential run for the same \code{seed}, since each replicate keeps its own
+derived seed (\code{seed + r}) and results are reassembled by replicate index.
+For \code{uncertainty_engine = "nwpri"} (NONMEM only) it sets how many worker
+processes the \code{n_chunks} NONMEM jobs are spread over. Ignored when no
+uncertainty is requested. The machine's cores are divided over the workers
+(rxode2's solver threads are capped per worker), so raising \code{n_cores} does
+not oversubscribe the CPU.}
+
+\item{uncertainty_engine}{how \code{n_uncertainty} parameter uncertainty is
+propagated. Ignored when no uncertainty is requested.
+\itemize{
+\item \code{"replicates"} (default, unchanged behaviour) draws \code{n_uncertainty}
+parameter sets from the fit's covariance matrix in R and runs one
+simulation per draw. Works for both backends.
+\item \code{"nwpri"} (NONMEM only) hands the job to NONMEM: a \verb{$PRIOR NWPRI} record
+built from the fit (see \code{\link[=add_nwpri_prior]{add_nwpri_prior()}}) plus
+\verb{$SIMULATION ... TRUE=PRIOR}, so NONMEM draws a new parameter vector per
+subproblem. That costs one NONMEM compile for the whole set instead of
+one per draw, which for short simulations dominates the run time, so it
+is much faster for large \code{n_uncertainty}. It requires \code{n_iterations = 1},
+because every NWPRI subproblem redraws the parameters and so cannot
+repeat a draw.
+}
+
+The two are \strong{not} statistically interchangeable. Over 1000 draws from the
+same fit their means and standard deviations agree to within a few percent
+(see \code{inst/reports/nwpri-validation.html}), but two differences are
+structural rather than numerical: NWPRI draws OMEGA and SIGMA from
+(right-skewed) inverse-Wishart distributions where \code{"replicates"} draws
+every parameter from one truncated multivariate normal, and NWPRI treats the
+THETA, OMEGA and SIGMA priors as independent blocks and therefore discards
+the THETA-OMEGA and THETA-SIGMA covariances that \verb{$COVARIANCE} reports.
+Which is preferable is a judgement call — the inverse-Wishart draw is
+arguably better justified for variance parameters, joint sampling is the one
+that keeps the full reported covariance — which is why this is a switch
+rather than a silent optimisation.}
+
+\item{n_chunks}{\code{uncertainty_engine = "nwpri"} only: number of NONMEM jobs
+the subproblems are split over. Defaults to \code{n_cores}. NONMEM's own RNG
+produces the draws, so \emph{which} draws you get depends on how the subproblems
+were chunked: set \code{n_chunks} explicitly to keep a run reproducible across
+machines with different core counts. Note also that a chunk that fails costs
+\code{n_uncertainty / n_chunks} draws rather than one.}
+
+\item{plev}{\code{uncertainty_engine = "nwpri"} only: the probability mass the
+THETA draws are truncated to, passed to \code{\link[=add_nwpri_prior]{add_nwpri_prior()}}.}
 }
 \value{
 data.frame with simulation results. When \code{n_uncertainty} is used,
@@ -118,7 +164,9 @@ the result also carries \code{n_uncertainty_requested} and \code{n_uncertainty_k
 attributes: replicates that fail on the nlmixr2 backend are dropped with a
 warning, so these let a caller detect a short (and potentially biased) set
 of draws without parsing warnings. On the NONMEM backend a failing replicate
-aborts the run instead.
+aborts the run instead. Under \code{uncertainty_engine = "nwpri"} a failing
+\emph{chunk} is dropped with a warning rather than aborting, and the same two
+attributes report how many draws survived.
 }
 \description{
 Run simulations

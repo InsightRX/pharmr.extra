@@ -4,7 +4,7 @@
 \alias{set_simulation_clean}
 \title{Set model to be a simulation (only) model}
 \usage{
-set_simulation_clean(model, seed, n)
+set_simulation_clean(model, seed, n, true_prior = FALSE)
 }
 \arguments{
 \item{model}{Pharmpy NONMEM model object}
@@ -12,13 +12,23 @@ set_simulation_clean(model, seed, n)
 \item{seed}{random seed number}
 
 \item{n}{number of simulation subproblems to run}
+
+\item{true_prior}{emit \code{TRUE=PRIOR}, i.e. have NONMEM draw a new parameter
+vector from the model's \verb{$PRIOR} record for every subproblem (see
+\code{\link[=add_nwpri_prior]{add_nwpri_prior()}}). Default \code{FALSE}.}
 }
 \value{
-a Pharmpy NONMEM model object
+a Pharmpy NONMEM model object when \code{true_prior = FALSE}.
+
+When \code{true_prior = TRUE} the return value is instead the NONMEM model
+\strong{code} (a single string). Pharmpy's \verb{$SIMULATION} grammar does not accept
+the \code{TRUE=PRIOR} option and refuses to parse such a control stream, so the
+record can only be carried at the code level; the caller is expected to
+write the string out itself rather than round-trip it through Pharmpy.
 }
 \description{
 This function is a drop-in replacement of the Pharmpy \code{set_simulation()}
-function. The pharmpy function works fine in many instances, but in some
+function. The pharmr function works fine in many instances, but in some
 cases it modifies the variable declarations (e.g. redeclares variables in $PK
 that are declared in $DES, which can lead to invalid models that are not
 accepted by NONMEM).

@@ -148,10 +148,14 @@ run_captured <- function(index, fn) {
 #'
 #' @param index replicate index (1-based).
 #' @param warnings list of captured warning conditions.
+#' @param label what the index counts, used as the warning prefix. The NWPRI
+#' uncertainty engine splits the draws over chunks rather than replicates, so
+#' its warnings should not claim to be about replicate `k`.
 #'
 #' @returns `NULL`, invisibly.
 #' @noRd
-emit_replicate_warnings <- function(index, warnings) {
+emit_replicate_warnings <- function(index, warnings,
+                                    label = "Uncertainty replicate") {
   for(w in warnings) {
     msg <- conditionMessage(w)
     ## Preserve any class the original warning carried beyond the base ones, so
@@ -162,7 +166,7 @@ emit_replicate_warnings <- function(index, warnings) {
       c("simpleWarning", "rlang_warning", "warning", "condition")
     )
     cli::cli_warn(
-      "Uncertainty replicate {index}: {msg}",
+      "{label} {index}: {msg}",
       class = if(length(extra) > 0) extra else NULL
     )
   }

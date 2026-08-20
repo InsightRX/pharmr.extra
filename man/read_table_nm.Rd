@@ -9,7 +9,8 @@ read_table_nm(
   skip = NULL,
   header = NULL,
   rm_duplicates = FALSE,
-  nonmem_tab = TRUE
+  nonmem_tab = TRUE,
+  subproblems = FALSE
 )
 }
 \arguments{
@@ -24,6 +25,14 @@ of the variables as its first line}
 
 \item{nonmem_tab}{logical value indicating to the function whether the file is a
 table or a nonmem additional output file.}
+
+\item{subproblems}{keep the simulation subproblems apart. A table written by
+a \verb{$SIMULATION} record with \code{SUBPROBLEMS > 1} holds one block of rows per
+subproblem, each introduced by a repeated \verb{TABLE NO.} header. By default
+those headers are discarded and the blocks are returned as one undivided
+concatenation. With \code{subproblems = TRUE} the table is split on them instead
+and a 1-based \code{.subproblem} column is added. Only supported for a single
+\code{file} and \code{nonmem_tab = TRUE}.}
 }
 \value{
 A \code{data.frame}

@@ -112,3 +112,75 @@ test_that("set_simulation_clean preserves $PK and $ERROR blocks", {
   expect_true(grepl("\\$PK", result$code))
   expect_true(grepl("\\$ERROR", result$code))
 })
+
+## Tests for set_simulation_record() ----------------------------------------
+##
+## Pure string surgery on the control stream, so these run without pharmpy.
+## `TRUE=PRIOR` in particular can only live here: pharmpy's `$SIMULATION`
+## grammar does not accept it and refuses to parse such a model.
+
+test_that("set_simulation_record appends a $SIMULATION record when there is none", {
+  code <- "$PROBLEM Test\n$INPUT ID TIME DV\n$THETA (0,10)\n$TABLE ID TIME FILE=simtab"
+  out <- set_simulation_record(code, seed = 42, n = 7)
+  expect_match(out, "\\$SIMULATION \\(42\\) SUBPROBLEMS=7 ONLYSIMULATION")
+  expect_false(grepl("TRUE=PRIOR", out))
+  ## the rest of the model is untouched
+  expect_true(all(unlist(strsplit(code, "\n")) %in% unlist(strsplit(out, "\n"))))
+})
+
+test_that("set_simulation_record replaces an existing record in place", {
+  code <- paste(
+    "$PROBLEM Test", "$INPUT ID TIME DV", "$THETA (0,10)",
+    "$SIMULATION (1) SUBPROBLEMS=1 ONLYSIMULATION",
+    "$TABLE ID TIME FILE=simtab",
+    sep = "\n"
+  )
+  out <- set_simulation_record(code, seed = 99, n = 3)
+  lines <- unlist(strsplit(out, "\n"))
+  expect_length(grep("^\\$SIM", lines), 1)
+  ## position is preserved: $SIMULATION must stay ahead of $TABLE
+  expect_lt(grep("^\\$SIM", lines), grep("^\\$TABLE", lines))
+  expect_equal(lines[grep("^\\$SIM", lines)],
+               "$SIMULATION (99) SUBPROBLEMS=3 ONLYSIMULATION")
+})
+
+test_that("set_simulation_record replaces multi-line and repeated records", {
+  code <- paste(
+    "$PROBLEM Test", "$THETA (0,10)",
+    "$SIMULATION (1) SUBPROBLEMS=1",
+    "  ONLYSIMULATION",
+    "$SIM (2) SUBPROBLEMS=2 ONLYSIMULATION",
+    "$TABLE ID FILE=simtab",
+    sep = "\n"
+  )
+  out <- set_simulation_record(code, seed = 5, n = 5)
+  lines <- unlist(strsplit(out, "\n"))
+  expect_length(grep("^\\$SIM", lines), 1)
+  expect_false(any(grepl("ONLYSIMULATION", lines[-grep("^\\$SIM", lines)])))
+  expect_lt(grep("^\\$SIM", lines), grep("^\\$TABLE", lines))
+})
+
+test_that("set_simulation_record emits TRUE=PRIOR when asked", {
+  code <- "$PROBLEM Test\n$THETA (0,10)\n$SIMULATION (1) SUBPROBLEMS=1 ONLYSIMULATION"
+  out <- set_simulation_record(code, seed = 7, n = 250, true_prior = TRUE)
+  expect_match(out, "\\$SIMULATION \\(7\\) SUBPROBLEMS=250 TRUE=PRIOR ONLYSIMULATION")
+})
+
+test_that("set_simulation_record rejects code with no records", {
+  expect_error(set_simulation_record("nothing here", seed = 1, n = 1),
+               "No NONMEM records")
+})
+
+test_that("set_simulation_clean(true_prior = TRUE) returns code, not a model", {
+  skip_if_nonmem_not_available()
+  local_pharmr.extra_options()
+  mod <- make_model_with_cov()
+  code <- set_simulation_clean(mod, seed = 3, n = 4, true_prior = TRUE)
+  ## Deliberately not a Pharmpy object: pharmpy cannot parse TRUE=PRIOR, so the
+  ## caller has to write this string out itself.
+  expect_type(code, "character")
+  expect_length(code, 1)
+  expect_match(code, "\\$SIMULATION \\(3\\) SUBPROBLEMS=4 TRUE=PRIOR ONLYSIMULATION")
+  expect_false(grepl("\\$EST", code))
+  expect_error(pharmr::read_model_from_string(code))
+})

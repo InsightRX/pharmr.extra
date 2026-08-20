@@ -1,5 +1,66 @@
 # pharmr.extra (development version)
 
+* `run_sim()` gains a second parameter-uncertainty engine, selected with
+  `uncertainty_engine = "nwpri"` (#130). Instead of drawing `n_uncertainty`
+  parameter sets in R and running one NONMEM job per draw
+  (`uncertainty_engine = "replicates"`, the unchanged default), it builds a
+  `$PRIOR NWPRI` record from the fit and runs
+  `$SIMULATION ... TRUE=PRIOR`, so NONMEM draws a new parameter vector for
+  every subproblem. The whole set of draws then costs one NONMEM compile
+  rather than `n_uncertainty` of them, which for short simulations is most of
+  the run time. NONMEM only, and it requires `n_iterations = 1`, since every
+  NWPRI subproblem redraws the parameters and so cannot repeat a draw.
+
+  NONMEM will not parallelise this for us — MPI/`PARAFILE` splits the
+  estimation and covariance steps, and a simulation-only model has neither, so
+  a single `SUBPROBLEMS=N` run is single-threaded whatever `n_cores` says. The
+  subproblems are therefore split over `n_chunks` separate NONMEM jobs
+  (default `n_cores`), each in its own run folder
+  (`id/regimen_<i>/uncertainty_chunk_<k>`) with its own widely-spaced seed,
+  and the tables are concatenated. Because the draws come out of NONMEM's RNG,
+  *which* draws you get depends on how the subproblems were chunked: set
+  `n_chunks` explicitly to keep a run reproducible across machines with
+  different core counts. A chunk that fails is dropped with a warning, so a
+  failure costs `n_uncertainty / n_chunks` draws rather than one; as for the
+  `"replicates"` engine, the result carries `n_uncertainty_requested` and
+  `n_uncertainty_kept` attributes.
+
+  The two engines are **not** statistically interchangeable, which is why this
+  is a user-facing switch rather than a silent optimisation. NWPRI draws OMEGA
+  and SIGMA from (right-skewed) inverse-Wishart distributions where
+  `"replicates"` draws every parameter from one truncated multivariate normal,
+  and NWPRI treats the THETA, OMEGA and SIGMA priors as independent blocks and
+  so discards the THETA-OMEGA and THETA-SIGMA covariances that `$COVARIANCE`
+  reports. Their first two moments still agree to within a few percent; see
+  `inst/reports/nwpri-validation.html`.
+
+* New `add_nwpri_prior()` builds the `$PRIOR NWPRI`, `$THETAP`, `$THETAPV`,
+  `$OMEGAP`, `$OMEGAPD`, `$SIGMAP` and `$SIGMAPD` records from a fit and
+  inserts them into a NONMEM model, mirroring the model's own `$OMEGA` /
+  `$SIGMA` block structure and giving each block the inverse-Wishart degrees
+  of freedom that match its estimated standard error. Parameters the
+  covariance matrix does not cover (FIXED ones, typically) are emitted with a
+  negligible prior variance and warned about, rather than dropped. The
+  generated control streams are checked against NONMEM 7.6.0: the fixture
+  `tests/testthat/fixtures/nwpri_generated_anchor.rds` freezes, for a
+  diagonal-OMEGA, a `BLOCK(2)`-OMEGA and a FIXED-THETA model, both the emitted
+  stream and 1000 parameter vectors NONMEM drew from it, so the record
+  construction is tested against NONMEM rather than against itself.
+
+* `set_simulation_clean()` gains `true_prior`, and the new
+  `set_simulation_record()` rewrites the `$SIMULATION` record of a control
+  stream directly. The latter works on model code rather than on a Pharmpy
+  model object because Pharmpy's `$SIMULATION` grammar rejects `TRUE=PRIOR`
+  and refuses to parse such a model; `set_simulation_clean(true_prior = TRUE)`
+  therefore returns the model code rather than a model object.
+
+* `read_table_nm()` gains `subproblems`. A table written by a `$SIMULATION`
+  record with `SUBPROBLEMS > 1` holds one block of rows per subproblem, each
+  opened by a repeated `TABLE NO.` header; those headers were previously
+  discarded along with the rest of the non-numeric rows, so the subproblem
+  boundaries were lost. With `subproblems = TRUE` the table is split on them
+  and a 1-based `.subproblem` column is added.
+
 * `run_sim(n_uncertainty = )` can now run its replicates in parallel, via
   `n_cores` (#126). Replicates are independent — own parameter draw, own
   derived seed (`seed + r`), combined only at the end — so they are spread over
