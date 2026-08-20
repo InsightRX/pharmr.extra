@@ -132,8 +132,8 @@ test_that("run_sim (nonmem): every replicate is simulated with the base seed", {
     covariance_matrix   = diag(2)
   )
   seeds <- c()
+  local_mock_nonmem_sim()
   local_mocked_bindings(
-    run_nlme = function(...) .mock_nlme_result(),
     sample_uncertainty_parameters =
       function(model, parameter_estimates, covariance_matrix, n, seed) {
         as.data.frame(matrix(rep(seq_len(n), 2), ncol = 2,
@@ -157,6 +157,11 @@ test_that("run_sim (nonmem): every replicate is simulated with the base seed", {
                  uncertainty_engine = "replicates", verbose = FALSE)
 
   expect_equal(sort(unique(out$.uncertainty)), 1:3)
-  ## one $SIMULATION record per replicate (single regimen), all on the same seed
-  expect_equal(seeds, rep(777, 3))
+  ## Every replicate simulates from the same $SIMULATION record, on the base
+  ## seed. One record for the whole run rather than one per replicate: the
+  ## simulation model does not depend on the draw, so it is built once and each
+  ## replicate only has its own parameters written into it (#129). That makes
+  ## the shared seed structural rather than something three separate builds have
+  ## to agree on.
+  expect_equal(seeds, 777)
 })

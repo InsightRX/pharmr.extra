@@ -1,9 +1,14 @@
 #' Run simulations
 #'
 #' @inheritParams run_nlme
-#' @param id base run id (default a random `sim_*`). Each regimen is run in its
-#' own subfolder `id/regimen_<i>` (`<i>` = 1-based regimen index), so regimens
-#' don't overwrite each other's output.
+#' @param id base run id (default a random `sim_*`). NONMEM only: nlmixr2
+#' simulations are solved in memory and write no run folders, so `id` does
+#' nothing there. Each regimen is run in its own subfolder `id/regimen_<i>`
+#' (`<i>` = 1-based regimen index), so regimens don't overwrite each other's
+#' output. Under `uncertainty_engine = "replicates"` each draw gets a folder of
+#' its own too, `id/uncertainty_<r>/regimen_<i>` (`<r>` = 1-based replicate
+#' index), so every replicate's NONMEM artifacts can be inspected afterwards
+#' and concurrent replicates cannot clobber each other.
 #' @param model either a Pharmpy model object, or a filename (for a model
 #' with NONMEM model code). If the latter, `run_sim()` will attempt to load the
 #' model into Pharmpy first.
@@ -70,17 +75,21 @@
 #' default variables `c("ID", "TIME", "DV", "EVID", "PRED")` as well as
 #' all variables declared in the NONMEM code.
 #' @param path folder in which to create the run folder(s). Each regimen is
-#' run in its own subfolder `id/regimen_<i>`. If `NULL` (default), the folder
-#' is forwarded to [run_nlme()] unset, so `run_nlme()`'s own default applies.
+#' run in its own subfolder `id/regimen_<i>` (see `id` for the uncertainty
+#' layout). If `NULL` (default), the folder is forwarded to [run_nlme()] unset,
+#' so `run_nlme()`'s own default applies.
 #' @param output_file TODO
 #' @param seed TODO
 #' @param n_cores number of processes to run uncertainty replicates on
 #' (default `1`, i.e. sequential; unchanged behaviour). Values `> 1` spread the
 #' `n_uncertainty` replicates over that many worker processes. For
-#' `uncertainty_engine = "replicates"` this is supported for the `nlmixr2` tool
-#' only; a NONMEM run warns and falls back to sequential. Output is identical
-#' to a sequential run for the same `seed`, since every replicate is run with
-#' the same `seed` and results are reassembled by replicate index.
+#' `uncertainty_engine = "replicates"` both backends are parallelised: the
+#' replicates are prepared in this process (applying the draw needs Pharmpy for
+#' NONMEM, rxode2 code generation for nlmixr2) and the workers only run the
+#' simulation. Output is identical to a sequential run for the same `seed`,
+#' since every replicate is run with the same `seed` and results are
+#' reassembled by replicate index. The unit of work is the replicate, not the
+#' regimen, so more workers than `n_uncertainty` buys nothing.
 #' For `uncertainty_engine = "nwpri"` (NONMEM only) it sets how many NONMEM
 #' jobs the subproblems are split over, one per worker process. NONMEM's own
 #' RNG produces the draws, so *which* draws you get depends on how the
@@ -314,80 +323,32 @@ run_sim <- function(
     ))
   }
 
-  ## Use provided data or fall back to model's dataset
-  if(is.null(data)) {
-    if(verbose) cli::cli_alert_info("Using input dataset for simulation")
-    sim_data <- as.data.frame(input_data)
-    sim_data[[".regimen"]] <- "original regimens"
-  } else {
-    validate_sim_data(data)
-    sim_data <- data
-    if(!".regimen" %in% names(sim_data)) {
-      sim_data[[".regimen"]] <- "original regimens"
-    }
-  }
+  ## Resolve the simulation dataset and split it into per-regimen jobs. Each
+  ## regimen is run in its own run folder (`id/regimen_<i>`) so regimens don't
+  ## overwrite each other's output. Numeric indexing avoids sanitizing user
+  ## labels that may contain spaces NONMEM cannot handle in `$DATA` paths.
+  regimens <- resolve_sim_regimens(data, input_data, verbose = verbose)
 
-  ## get unique regimens / datasets to simulate
-  unique_regimens <- unique(sim_data[[".regimen"]])
+  ## Turn the model into a simulation-only model, with the requested $TABLE.
+  ## Built once rather than once per regimen: it depends on the model, the seed
+  ## and the requested variables, none of which vary between regimens. This is
+  ## the Pharmpy half of the run, and the only half the parallel replicate path
+  ## keeps in the parent process (see prepare_nonmem_replicate_specs()).
+  sim_model <- build_nonmem_sim_model(
+    model        = model,
+    seed         = seed,
+    n_iterations = n_iterations,
+    update_table = update_table,
+    variables    = variables,
+    output_file  = output_file,
+    verbose      = verbose
+  )
+
+  ## Loop over regimens to simulate.
   comb <- list()
-
-  ## Loop over regimens to simulate. Each regimen gets its own run folder
-  ## (`id/regimen_<i>`) so regimens don't overwrite each other's output.
-  ## Numeric indexing avoids sanitizing user labels that may contain spaces
-  ## NONMEM cannot handle in `$DATA` paths.
-  for(i in seq_along(unique_regimens)) {
-    reg_label <- unique_regimens[i]
-    id_i <- file.path(id, paste0("regimen_", i))
-
-    ## grab data for regimen
-    sim_data_regimen <- sim_data |>
-      dplyr::filter(.data$.regimen == reg_label) |>
-      dplyr::select(-".regimen")
-    if("EVID" %in% names(sim_data_regimen)) {
-      sim_data_regimen <- sim_data_regimen |>
-        dplyr::arrange(.data$ID, .data$TIME, -.data$EVID)
-    } else {
-      sim_data_regimen <- sim_data_regimen |>
-        dplyr::arrange(.data$ID, .data$TIME)
-    }
-    
-    ## Ensure column names & order matches
-    if(all(names(sim_data_regimen) %in% names(input_data))) {
-      sim_data_regimen <- sim_data_regimen[, names(input_data)]
-    }
-
-    ## Set simulation (pharmr::set_simulation() modifies the model that sometimes invalidate the model, so add manually)
-    if(verbose) cli::cli_alert_info("Changing model to simulation-only model")
-    sim_model <- model |>
-      set_simulation_clean(seed = seed, n = n_iterations)
-
-    ## Add tables
-    if(update_table) {
-      if(verbose) cli::cli_alert_info("Updating table record(s)")
-      parameter_names <- get_defined_pk_parameters(sim_model)
-      if(is.null(variables)) {
-        default_variables <- c("ID", "TIME", "DV", "EVID", "PRED")
-        covariate_names <- vapply(
-          pharmr::get_model_covariates(sim_model),
-          function(x) x$name,
-          character(1)
-        )
-        variables <- c(default_variables, get_declared_variables(sim_model), covariate_names)
-      }
-      checked_variables <- c()
-      for(variab in variables) {
-        check_var <- check_nm_table_variables(sim_model, variab, throw_error = FALSE)
-        if(is.null(check_var)) { # i.e. IPRED is declared as variable and we can safely add to table
-          checked_variables <- c(checked_variables, variab)
-        }
-      }
-      table_variables <- unique(c(checked_variables, parameter_names))
-      sim_model <- sim_model |>
-        remove_tables_from_model(reload_dataset = FALSE) |>
-        add_table_to_model(table_variables, file = output_file, reload_dataset = FALSE)
-    } else {
-      if(verbose) cli::cli_alert_info("Using existing table record(s)")
-    }
+  for(reg in regimens) {
+    reg_label <- reg$label
+    id_i <- file.path(id, paste0("regimen_", reg$index))
 
     ## Run simulation
     if(verbose) cli::cli_alert_info("Running simulation ({reg_label})")
@@ -399,7 +360,7 @@ run_sim <- function(
     if(use_nwpri) {
       comb[[reg_label]] <- run_nwpri_regimen_tables(
         sim_model        = sim_model,
-        sim_data_regimen = sim_data_regimen,
+        sim_data_regimen = reg$data,
         reg_label        = reg_label,
         id               = id_i,
         path             = path %||% getwd(),
@@ -418,10 +379,10 @@ run_sim <- function(
     ## Update dataset (in safe way, avoiding pharmr::set_dataset)
     if(verbose) cli::cli_alert_info("Updating dataset reference")
     new_dataset_file <- tempfile(pattern = "data", fileext = ".csv")
-    write.csv(sim_data_regimen, new_dataset_file, quote = F, row.names = F)
+    write.csv(reg$data, new_dataset_file, quote = F, row.names = F)
 
-    ## sim_data_regimen. Forward `path` only when set, so run_nlme()'s own
-    ## default applies otherwise (decoupled from any getwd() default here).
+    ## Forward `path` only when set, so run_nlme()'s own default applies
+    ## otherwise (decoupled from any getwd() default here).
     nlme_args <- list(
       model = sim_model,
       data = new_dataset_file,
@@ -448,22 +409,13 @@ run_sim <- function(
     }
 
     ## post-processing
-    if(update_table) {
-      if(add_pk_variables) {
-        ## Derive the dosing regimen from sim_data_regimen so AUC_SS can be
-        ## computed in calc_pk_variables (needs regimen$dose).
-        regimen_for_pk <- NULL
-        if("EVID" %in% names(sim_data_regimen) && "AMT" %in% names(sim_data_regimen)) {
-          dose_rows <- sim_data_regimen[sim_data_regimen$EVID == 1, , drop = FALSE]
-          if(nrow(dose_rows) > 0) {
-            regimen_for_pk <- list(dose = dose_rows$AMT)
-          }
-        }
-        attr(results, "tables")[[output_file]] <- calc_pk_variables(
-          data = attr(results, "tables")[[output_file]],
-          regimen = regimen_for_pk
-        )
-      }
+    if(update_table && add_pk_variables) {
+      ## The dosing regimen comes from the simulation dataset so AUC_SS can be
+      ## computed in calc_pk_variables (needs regimen$dose).
+      attr(results, "tables")[[output_file]] <- calc_pk_variables(
+        data = attr(results, "tables")[[output_file]],
+        regimen = reg$regimen_for_pk
+      )
     }
 
     ## grab table, return
@@ -473,16 +425,16 @@ run_sim <- function(
   }
 
   ## combine back down to single data.frame again
-  out <- lapply(unique_regimens, function(reg_label) {
-    table_names <- names(comb[[reg_label]])
-    simtab <- table_names[1]
-    if(!is.null(simtab) && !is.null(comb[[reg_label]][[simtab]])) {
+  out <- lapply(regimens, function(reg) {
+    tables <- comb[[reg$label]]
+    simtab <- names(tables)[1]
+    if(!is.null(simtab) && !is.null(tables[[simtab]])) {
       return(
-        comb[[reg_label]][[simtab]] |>
-          dplyr::mutate(regimen_label = reg_label)
+        tables[[simtab]] |>
+          dplyr::mutate(regimen_label = reg$label)
       )
     } else {
-      cli::cli_warn("Simulation for {reg_label} did not output any results.")
+      cli::cli_warn("Simulation for {reg$label} did not output any results.")
       return(data.frame())
     }
   }) |>
@@ -500,10 +452,11 @@ run_sim <- function(
   n_cores <- resolve_n_cores(n_cores)
 
   ## NWPRI engine: build the prior once, then let the regimen loop chunk it.
-  ## Unlike the replicate loop below this *is* parallelised for NONMEM — the
-  ## workers only write a control stream and call nmfe, they never touch
-  ## Pharmpy — so `nmfe` is resolved here, in the parent, while Python is still
-  ## reachable.
+  ## Like the replicate loop below, the workers only write a control stream and
+  ## call nmfe and never touch Pharmpy — so `nmfe` is resolved here, in the
+  ## parent, while Python is still reachable. What differs is the unit of work:
+  ## NWPRI splits one job's subproblems over the workers, the replicate loop
+  ## gives each worker whole draws of its own.
   if(use_nwpri) {
     nwpri_nmfe <- get_nmfe_location(verbose = verbose)
     if(verbose) {
@@ -545,6 +498,12 @@ run_sim <- function(
     seed = seed
   )
 
+  ## Everything below counts replicates off the draws that came back rather
+  ## than off `n_uncertainty`: the two agree, but only the draws index `draws`,
+  ## and a short set is worth surviving as a warned-about short result rather
+  ## than as a subscript error.
+  n_replicates <- nrow(draws)
+
   ## Warn (once, regardless of `verbose`) about estimated parameters the
   ## covariance matrix does not cover: these are held at their point estimates,
   ## so their uncertainty is not propagated. Common for nlmixr2 fits, whose
@@ -578,28 +537,66 @@ run_sim <- function(
   ## fresh random variability on purpose. See issue #131.
   ##
   ## Replicates are otherwise independent (own draw, combined only at the end),
-  ## so they can be spread over worker processes. Only the nlmixr2/rxode2
-  ## backend is parallelised: the NONMEM backend drives Pharmpy through Python
-  ## (not sendable to a worker) and writes per-regimen run folders that
-  ## concurrent replicates would clobber.
-  if(n_cores > 1L && tool != "nlmixr2") {
-    cli::cli_warn(c(
-      "Parallel uncertainty replicates are supported for the {.val nlmixr2} tool only.",
-      i = "Running the {n_uncertainty} replicate{?s} sequentially."
-    ))
-    n_cores <- 1L
-  }
-
-  if(n_cores > 1L) {
+  ## so they can be spread over worker processes. Both backends do that by
+  ## preparing the replicates in this process -- where Python is reachable --
+  ## and handing the workers only plain R data: rendered nlmixr2 code for
+  ## rxode2, a prepared run folder for NONMEM (see #127 and #129).
+  ##
+  ## Preparing a NONMEM replicate means writing its control stream and dataset
+  ## into `id/uncertainty_<r>/regimen_<i>`, a folder per replicate rather than
+  ## the shared `id/regimen_<i>` this used to reuse for every draw: concurrent
+  ## replicates would clobber each other's run.mod, dataset and output tables,
+  ## and sequential ones simply overwrote them.
+  if(tool == "nonmem") {
+    ## Resolved here, in the parent, for the same reason: locating nmfe goes
+    ## through the Pharmpy configuration.
+    nmfe <- get_nmfe_location(verbose = verbose)
+    regimens <- resolve_sim_regimens(data, model$dataset, verbose = verbose)
+    ctx <- prepare_nonmem_replicate_context(
+      model        = model,
+      draws        = draws,
+      regimens     = regimens,
+      ## The *same* seed for every replicate, deliberately: see the note on
+      ## common random numbers at the top of this block.
+      seed         = seed,
+      n_iterations = n_iterations,
+      update_table = update_table,
+      variables    = variables,
+      output_file  = output_file,
+      verbose      = verbose
+    )
+    on.exit(unlink(ctx$dataset_files), add = TRUE)
+    prepare_spec <- function(r) {
+      prepare_nonmem_replicate_spec(
+        ctx = ctx, draw = draws[r, , drop = FALSE], index = r,
+        id = id, path = path %||% getwd()
+      )
+    }
+    ## Only the workers need every spec to exist before the first run: each one
+    ## is a run folder plus a full copy of the simulation dataset per regimen,
+    ## so a few hundred draws is a lot of scratch to write up front. The
+    ## sequential path below prepares each replicate right before running it.
+    if(n_cores > 1L) {
+      if(verbose) {
+        cli::cli_alert_info("Preparing {n_replicates} replicate run folder{?s}")
+      }
+      specs <- lapply(seq_len(n_replicates), prepare_spec)
+    }
+    replicate_fn <- make_nonmem_replicate_fn(
+      nmfe             = nmfe,
+      update_table     = update_table,
+      add_pk_variables = add_pk_variables
+    )
+  } else if(n_cores > 1L) {
     ## Render every replicate's model here, in the parent: applying a draw is a
     ## Pharmpy (Python) operation and the resulting model object cannot cross a
     ## process boundary, but the nlmixr2 code it renders to (a string) can.
     ## Regenerated rather than read from the cached `nlmixr_code` attribute,
     ## which still holds the point estimates.
     if(verbose) {
-      cli::cli_alert_info("Preparing {n_uncertainty} replicate model{?s}")
+      cli::cli_alert_info("Preparing {n_replicates} replicate model{?s}")
     }
-    specs <- lapply(seq_len(n_uncertainty), function(r) {
+    specs <- lapply(seq_len(n_replicates), function(r) {
       m <- pharmr::set_initial_estimates(
         model, inits = as.list(draws[r, , drop = FALSE])
       )
@@ -621,12 +618,20 @@ run_sim <- function(
       add_pk_variables = add_pk_variables,
       output_file = output_file
     )
+  }
+
+  if(n_cores > 1L) {
     if(verbose) {
       cli::cli_alert_info(
-        "Running {n_uncertainty} uncertainty replicate{?s} on {n_cores} core{?s}"
+        "Running {n_replicates} uncertainty replicate{?s} on {n_cores} core{?s}"
       )
     }
     replicates <- parallel_lapply(specs, replicate_fn, n_cores = n_cores)
+    ## Same rule as the sequential path below: a NONMEM replicate failure is
+    ## usually systematic, so it takes the run down rather than quietly
+    ## shortening the set of draws. Here it can only be applied after the fact,
+    ## the other workers having run already.
+    if(tool == "nonmem") abort_on_failed_replicates(replicates)
   } else {
     pb <- NULL
     if(verbose) {
@@ -640,7 +645,7 @@ run_sim <- function(
       ## finished simulation into an error and returning nothing to the caller.
       ## The bar is cosmetic; it must never be able to fail the run. See #137.
       pb <- progress_try(cli::cli_progress_bar(
-        "Uncertainty replicates", total = n_uncertainty,
+        "Uncertainty replicates", total = n_replicates,
         .auto_close = FALSE, .envir = environment()
       ))
       ## Backstop for the paths that leave this frame without reaching the
@@ -652,21 +657,29 @@ run_sim <- function(
         on.exit(progress_try(cli::cli_progress_done(id = pb)), add = TRUE)
       }
     }
-    replicates <- lapply(seq_len(n_uncertainty), function(r) {
-      res <- run_captured(r, function() {
-        inits <- as.list(draws[r, , drop = FALSE])
-        m <- pharmr::set_initial_estimates(model, inits = inits)
-        ## Force nlmixr2 code to regenerate from the updated estimates: a stale
-        ## cached `nlmixr_code` attribute would otherwise make run_sim_nlmixr()
-        ## silently simulate the point estimates on every replicate.
-        attr(m, "nlmixr_code") <- NULL
-        ## The *same* seed for every replicate, deliberately: see the note on
-        ## common random numbers at the top of this block.
-        ## `verbose = FALSE` + `suppressMessages()`: the engine's per-regimen
-        ## alerts would tear down and redraw the progress bar on every
-        ## replicate, and the worker path silences them the same way.
-        suppressMessages(run_sim_engine(m, seed, verbose = FALSE))
-      })
+    replicates <- lapply(seq_len(n_replicates), function(r) {
+      ## Prepare this NONMEM replicate's run folders, then run it exactly as a
+      ## worker would; only the nlmixr2 backend builds its replicate model
+      ## inside the captured call.
+      res <- if(tool == "nonmem") {
+        replicate_fn(prepare_spec(r))
+      } else {
+        run_captured(r, function() {
+          inits <- as.list(draws[r, , drop = FALSE])
+          m <- pharmr::set_initial_estimates(model, inits = inits)
+          ## Force nlmixr2 code to regenerate from the updated estimates: a
+          ## stale cached `nlmixr_code` attribute would otherwise make
+          ## run_sim_nlmixr() silently simulate the point estimates on every
+          ## replicate.
+          attr(m, "nlmixr_code") <- NULL
+          ## The *same* seed for every replicate, deliberately: see the note on
+          ## common random numbers at the top of this block.
+          ## `verbose = FALSE` + `suppressMessages()`: the engine's per-regimen
+          ## alerts would tear down and redraw the progress bar on every
+          ## replicate, and the worker path silences them the same way.
+          suppressMessages(run_sim_engine(m, seed, verbose = FALSE))
+        })
+      }
       if(tool == "nonmem" && inherits(res$result, "condition")) {
         ## Pre-parallel behaviour, kept deliberately: NONMEM replicate failures
         ## are typically systematic (licence, no output table, clobbered run

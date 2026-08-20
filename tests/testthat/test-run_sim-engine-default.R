@@ -45,6 +45,13 @@ test_that("resolve_uncertainty_engine says which engine it picked", {
       used$engine <- "nwpri"
       .stub_nwpri_tables()
     },
+    ## The replicate engine reaches NONMEM through a prepared run folder, the
+    ## point-estimate path still through run_nlme(); stub both, so whichever
+    ## branch runs is the one recorded.
+    run_nonmem_sim_folder = function(...) {
+      used$engine <- "replicates"
+      .mock_sim_tab()
+    },
     run_nlme = function(...) {
       used$engine <- "replicates"
       .mock_nlme_result()
