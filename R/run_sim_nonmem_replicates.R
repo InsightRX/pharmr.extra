@@ -63,8 +63,13 @@ resolve_sim_regimens <- function(data, input_data, verbose = TRUE) {
       reg_data <- reg_data |>
         dplyr::arrange(.data$ID, .data$TIME)
     }
-    ## Ensure column names & order matches
-    if(all(names(reg_data) %in% names(input_data))) {
+    ## Ensure column names & order match the model's dataset, which is the
+    ## order NONMEM reads `$INPUT` in. Only when the two hold the same columns:
+    ## a simulation dataset with a strict subset of them (a model covariate the
+    ## caller's `data` leaves out, say) also satisfies `%in%`, but indexing by
+    ## `names(input_data)` would then error with "undefined columns selected"
+    ## rather than leave the dataset as it came in.
+    if(setequal(names(reg_data), names(input_data))) {
       reg_data <- reg_data[, names(input_data)]
     }
     list(

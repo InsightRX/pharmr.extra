@@ -61,6 +61,22 @@ test_that("resolve_sim_regimens sorts records and follows the model's columns", 
   expect_equal(names(reg_data), c("ID", "TIME", "DV", "AMT", "EVID", "MDV"))
 })
 
+test_that("resolve_sim_regimens leaves a dataset missing model columns alone", {
+  ## The model's dataset carries a covariate the simulation dataset does not.
+  ## Reordering to the model's columns is not possible here, and attempting it
+  ## errored with "undefined columns selected" rather than passing the dataset
+  ## through.
+  regs <- resolve_sim_regimens(
+    .sim_dat(),
+    input_data = data.frame(ID = 1, TIME = 0, DV = 0, AMT = 0, EVID = 0,
+                            MDV = 0, WT = 70),
+    verbose = FALSE
+  )
+
+  expect_length(regs, 1)
+  expect_equal(names(regs[[1]]$data), names(.sim_dat()))
+})
+
 test_that("sim_regimen_doses returns NULL when there is nothing to derive", {
   expect_null(sim_regimen_doses(data.frame(ID = 1, TIME = 0, DV = 1)))
   ## dose columns present, but no dose records
