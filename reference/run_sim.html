@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9132</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9134</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -85,15 +85,21 @@ model into Pharmpy first.</p></dd>
 
 
 <dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
-<dd><p>base run id (default a random <code>sim_*</code>). Each regimen is run in its
-own subfolder <code>id/regimen_&lt;i&gt;</code> (<code>&lt;i&gt;</code> = 1-based regimen index), so regimens
-don't overwrite each other's output.</p></dd>
+<dd><p>base run id (default a random <code>sim_*</code>). NONMEM only: nlmixr2
+simulations are solved in memory and write no run folders, so <code>id</code> does
+nothing there. Each regimen is run in its own subfolder <code>id/regimen_&lt;i&gt;</code>
+(<code>&lt;i&gt;</code> = 1-based regimen index), so regimens don't overwrite each other's
+output. Under <code>uncertainty_engine = "replicates"</code> each draw gets a folder of
+its own too, <code>id/uncertainty_&lt;r&gt;/regimen_&lt;i&gt;</code> (<code>&lt;r&gt;</code> = 1-based replicate
+index), so every replicate's NONMEM artifacts can be inspected afterwards
+and concurrent replicates cannot clobber each other.</p></dd>
 
 
 <dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
 <dd><p>folder in which to create the run folder(s). Each regimen is
-run in its own subfolder <code>id/regimen_&lt;i&gt;</code>. If <code>NULL</code> (default), the folder
-is forwarded to <code><a href="run_nlme.html">run_nlme()</a></code> unset, so <code><a href="run_nlme.html">run_nlme()</a></code>'s own default applies.</p></dd>
+run in its own subfolder <code>id/regimen_&lt;i&gt;</code> (see <code>id</code> for the uncertainty
+layout). If <code>NULL</code> (default), the folder is forwarded to <code><a href="run_nlme.html">run_nlme()</a></code> unset,
+so <code><a href="run_nlme.html">run_nlme()</a></code>'s own default applies.</p></dd>
 
 
 <dt id="arg-force">force<a class="anchor" aria-label="anchor" href="#arg-force"></a></dt>
@@ -190,10 +196,13 @@ is returned back. If <code>FALSE</code>, the <code>add_pk_variables</code> argum
 <dd><p>number of processes to run uncertainty replicates on
 (default <code>1</code>, i.e. sequential; unchanged behaviour). Values <code>&gt; 1</code> spread the
 <code>n_uncertainty</code> replicates over that many worker processes. For
-<code>uncertainty_engine = "replicates"</code> this is supported for the <code>nlmixr2</code> tool
-only; a NONMEM run warns and falls back to sequential. Output is identical
-to a sequential run for the same <code>seed</code>, since every replicate is run with
-the same <code>seed</code> and results are reassembled by replicate index.
+<code>uncertainty_engine = "replicates"</code> both backends are parallelised: the
+replicates are prepared in this process (applying the draw needs Pharmpy for
+NONMEM, rxode2 code generation for nlmixr2) and the workers only run the
+simulation. Output is identical to a sequential run for the same <code>seed</code>,
+since every replicate is run with the same <code>seed</code> and results are
+reassembled by replicate index. The unit of work is the replicate, not the
+regimen, so more workers than <code>n_uncertainty</code> buys nothing.
 For <code>uncertainty_engine = "nwpri"</code> (NONMEM only) it sets how many NONMEM
 jobs the subproblems are split over, one per worker process. NONMEM's own
 RNG produces the draws, so <em>which</em> draws you get depends on how the

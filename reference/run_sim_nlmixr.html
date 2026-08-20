@@ -13,7 +13,7 @@ requires the Python pyreadr package)."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9132</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9134</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -88,9 +88,14 @@ model into Pharmpy first.</p></dd>
 
 
 <dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
-<dd><p>base run id (default a random <code>sim_*</code>). Each regimen is run in its
-own subfolder <code>id/regimen_&lt;i&gt;</code> (<code>&lt;i&gt;</code> = 1-based regimen index), so regimens
-don't overwrite each other's output.</p></dd>
+<dd><p>base run id (default a random <code>sim_*</code>). NONMEM only: nlmixr2
+simulations are solved in memory and write no run folders, so <code>id</code> does
+nothing there. Each regimen is run in its own subfolder <code>id/regimen_&lt;i&gt;</code>
+(<code>&lt;i&gt;</code> = 1-based regimen index), so regimens don't overwrite each other's
+output. Under <code>uncertainty_engine = "replicates"</code> each draw gets a folder of
+its own too, <code>id/uncertainty_&lt;r&gt;/regimen_&lt;i&gt;</code> (<code>&lt;r&gt;</code> = 1-based replicate
+index), so every replicate's NONMEM artifacts can be inspected afterwards
+and concurrent replicates cannot clobber each other.</p></dd>
 
 
 <dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>

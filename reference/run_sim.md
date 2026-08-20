@@ -48,15 +48,21 @@ run_sim(
 
 - id:
 
-  base run id (default a random `sim_*`). Each regimen is run in its own
-  subfolder `id/regimen_<i>` (`<i>` = 1-based regimen index), so
-  regimens don't overwrite each other's output.
+  base run id (default a random `sim_*`). NONMEM only: nlmixr2
+  simulations are solved in memory and write no run folders, so `id`
+  does nothing there. Each regimen is run in its own subfolder
+  `id/regimen_<i>` (`<i>` = 1-based regimen index), so regimens don't
+  overwrite each other's output. Under
+  `uncertainty_engine = "replicates"` each draw gets a folder of its own
+  too, `id/uncertainty_<r>/regimen_<i>` (`<r>` = 1-based replicate
+  index), so every replicate's NONMEM artifacts can be inspected
+  afterwards and concurrent replicates cannot clobber each other.
 
 - path:
 
   folder in which to create the run folder(s). Each regimen is run in
-  its own subfolder `id/regimen_<i>`. If `NULL` (default), the folder is
-  forwarded to
+  its own subfolder `id/regimen_<i>` (see `id` for the uncertainty
+  layout). If `NULL` (default), the folder is forwarded to
   [`run_nlme()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme.md)
   unset, so
   [`run_nlme()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme.md)'s
@@ -163,11 +169,14 @@ run_sim(
   number of processes to run uncertainty replicates on (default `1`,
   i.e. sequential; unchanged behaviour). Values `> 1` spread the
   `n_uncertainty` replicates over that many worker processes. For
-  `uncertainty_engine = "replicates"` this is supported for the
-  `nlmixr2` tool only; a NONMEM run warns and falls back to sequential.
-  Output is identical to a sequential run for the same `seed`, since
-  every replicate is run with the same `seed` and results are
-  reassembled by replicate index. For `uncertainty_engine = "nwpri"`
+  `uncertainty_engine = "replicates"` both backends are parallelised:
+  the replicates are prepared in this process (applying the draw needs
+  Pharmpy for NONMEM, rxode2 code generation for nlmixr2) and the
+  workers only run the simulation. Output is identical to a sequential
+  run for the same `seed`, since every replicate is run with the same
+  `seed` and results are reassembled by replicate index. The unit of
+  work is the replicate, not the regimen, so more workers than
+  `n_uncertainty` buys nothing. For `uncertainty_engine = "nwpri"`
   (NONMEM only) it sets how many NONMEM jobs the subproblems are split
   over, one per worker process. NONMEM's own RNG produces the draws, so
   *which* draws you get depends on how the subproblems were chunked: an

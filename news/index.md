@@ -2,6 +2,41 @@
 
 ## pharmr.extra (development version)
 
+- `run_sim(n_uncertainty = , n_cores = )` now parallelises the
+  `"replicates"` uncertainty engine on the NONMEM backend too (#129); it
+  used to warn and fall back to sequential for anything but nlmixr2. The
+  replicates are prepared in the calling process — applying the draw,
+  building the simulation model and writing the control stream are
+  Pharmpy calls, and a Pharmpy model object cannot cross a process
+  boundary — and the workers only run NONMEM and read the output tables
+  back, which is plain R over a folder and a few filenames. Measured on
+  16 draws of a 1-compartment model: 26s sequential against 15s on four
+  workers. The gain grows with the run time of the individual
+  simulation, since what is parallelised is the NONMEM run itself.
+
+- `run_sim(n_uncertainty = )` on the NONMEM backend now gives every
+  replicate its own run folder, `id/uncertainty_<r>/regimen_<i>`, in
+  place of the shared `id/regimen_<i>` every draw used to reuse.
+  Concurrent replicates would otherwise clobber each other’s `run.mod`,
+  dataset and output tables, and sequential ones simply overwrote them,
+  so only the last replicate’s NONMEM artifacts could be inspected
+  afterwards. This applies whether or not `n_cores > 1`, and the scratch
+  files are cleaned per replicate as
+  [`run_nlme()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme.md)
+  would.
+
+- [`run_sim()`](https://insightrx.github.io/pharmr.extra/reference/run_sim.md)
+  builds the simulation model (`$SIMULATION` record, `$TABLE` records)
+  once per run rather than once per regimen, and — under
+  `uncertainty_engine = "replicates"` on NONMEM — once for the whole set
+  of draws rather than once per draw, each replicate then only having
+  its own parameters written into it. The simulation setup never
+  depended on the regimen or on the draw, and
+  [`set_simulation_clean()`](https://insightrx.github.io/pharmr.extra/reference/set_simulation_clean.md)
+  round-trips the model through Pharmpy, so this is a saved Pharmpy
+  round trip per regimen and per replicate rather than a behaviour
+  change.
+
 - `run_sim(n_uncertainty = , n_cores > 1)` now simulates the same
   dataset the sequential path does (#136). The fix for \#136 routed
   dataset resolution through `resolve_nlmixr_data()` — which prefers the

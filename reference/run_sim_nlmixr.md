@@ -48,9 +48,15 @@ run_sim_nlmixr(
 
 - id:
 
-  base run id (default a random `sim_*`). Each regimen is run in its own
-  subfolder `id/regimen_<i>` (`<i>` = 1-based regimen index), so
-  regimens don't overwrite each other's output.
+  base run id (default a random `sim_*`). NONMEM only: nlmixr2
+  simulations are solved in memory and write no run folders, so `id`
+  does nothing there. Each regimen is run in its own subfolder
+  `id/regimen_<i>` (`<i>` = 1-based regimen index), so regimens don't
+  overwrite each other's output. Under
+  `uncertainty_engine = "replicates"` each draw gets a folder of its own
+  too, `id/uncertainty_<r>/regimen_<i>` (`<r>` = 1-based replicate
+  index), so every replicate's NONMEM artifacts can be inspected
+  afterwards and concurrent replicates cannot clobber each other.
 
 - path:
 
