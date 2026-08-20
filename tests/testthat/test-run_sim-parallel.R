@@ -156,11 +156,11 @@ test_that("nlmixr2 replicates give identical results run in parallel or not", {
   }, error = function(e) FALSE)
   skip_if_not(cl_ok, "cannot start a PSOCK cluster")
 
-  ## Mirrors run_sim(): one spec per replicate, each with its own draw and its
-  ## own derived seed.
+  ## Mirrors run_sim(): one spec per replicate, each with its own draw but all
+  ## on the same seed (common random numbers, #131).
   draws <- c(0.5, 1, 2, 4)
   specs <- lapply(seq_along(draws), function(r) {
-    list(index = r, code = .nlmixr_code(draws[r]), seed = 100 + r)
+    list(index = r, code = .nlmixr_code(draws[r]), seed = 100)
   })
   fn <- make_nlmixr_replicate_fn(
     data = .rx_sim_dat(), n_iterations = 2, variables = NULL,

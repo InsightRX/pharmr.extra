@@ -33,6 +33,17 @@
 #' (`nlmixr2est::bootstrapFit()`). NONMEM `$COVARIANCE` typically covers all
 #' parameters, so all are resampled.
 #'
+#' Every replicate is simulated with the **same** `seed` (common random
+#' numbers), so the sequence of standard normal deviates behind the simulated
+#' ETAs and residuals is identical across draws and the only thing that varies
+#' between replicates is the parameter vector. This is what makes a percentile
+#' computed per replicate a clean estimate of parameter uncertainty; with a
+#' different seed per replicate the spread across replicates would also contain
+#' the Monte-Carlo noise of re-simulating a fresh set of subjects each time.
+#' Use `n_iterations` if you want extra random variability *within* a
+#' replicate. Note this holds for `uncertainty_engine = "replicates"` only —
+#' see `uncertainty_engine` below for why NWPRI cannot do it.
+#'
 #' This is the same idea as NONMEM's own `$PRIOR NWPRI` +
 #' `$SIMULATION ... TRUE=PRIOR`, which is available directly as
 #' `uncertainty_engine = "nwpri"` (see below). The two are checked against each
@@ -67,8 +78,8 @@
 #' `n_uncertainty` replicates over that many worker processes. For
 #' `uncertainty_engine = "replicates"` this is supported for the `nlmixr2` tool
 #' only; a NONMEM run warns and falls back to sequential. Output is identical
-#' to a sequential run for the same `seed`, since each replicate keeps its own
-#' derived seed (`seed + r`) and results are reassembled by replicate index.
+#' to a sequential run for the same `seed`, since every replicate is run with
+#' the same `seed` and results are reassembled by replicate index.
 #' For `uncertainty_engine = "nwpri"` (NONMEM only) it sets how many NONMEM
 #' jobs the subproblems are split over, one per worker process. NONMEM's own
 #' RNG produces the draws, so *which* draws you get depends on how the
@@ -91,6 +102,15 @@
 #'   is much faster for large `n_uncertainty`. It requires `n_iterations = 1`,
 #'   because every NWPRI subproblem redraws the parameters and so cannot
 #'   repeat a draw.
+#'
+#' `"nwpri"` cannot give you common random numbers across draws. NONMEM
+#' continues its random sources from subproblem to subproblem and offers no way
+#' to rewind them, so each subproblem simulates a *different* set of ETAs and
+#' residuals in addition to a different parameter vector. Uncertainty intervals
+#' computed over `.uncertainty` from an NWPRI run therefore also contain the
+#' Monte-Carlo noise of re-simulating the subjects; make the simulation dataset
+#' large enough that this noise is small, or use `"replicates"` when a clean
+#' separation matters.
 #'
 #' The two are **not** statistically interchangeable. Over 1000 draws from the
 #' same fit their means and standard deviations agree to within a few percent
@@ -516,7 +536,18 @@ run_sim <- function(
     ))
   }
 
-  ## Replicates are independent (own draw, own seed, combined only at the end),
+  ## Common random numbers: every replicate runs with the *same* `seed`, so the
+  ## only thing that differs between replicates is the parameter draw. Both
+  ## backends generate ETA/EPS by scaling standard normal deviates, so a shared
+  ## seed means a shared sequence of deviates and therefore the same simulated
+  ## individuals (up to the draw's own OMEGA/SIGMA) in every replicate. That is
+  ## what makes a percentile computed per replicate a clean estimate of
+  ## parameter uncertainty: without it, the spread across replicates also
+  ## carries the Monte-Carlo noise of re-simulating a fresh set of subjects
+  ## each time. Use `n_iterations` (subproblems within a replicate) to add
+  ## fresh random variability on purpose. See issue #131.
+  ##
+  ## Replicates are otherwise independent (own draw, combined only at the end),
   ## so they can be spread over worker processes. Only the nlmixr2/rxode2
   ## backend is parallelised: the NONMEM backend drives Pharmpy through Python
   ## (not sendable to a worker) and writes per-regimen run folders that
@@ -542,7 +573,7 @@ run_sim <- function(
       m <- pharmr::set_initial_estimates(
         model, inits = as.list(draws[r, , drop = FALSE])
       )
-      list(index = r, code = make_nlmixr_saem_safe(m$code), seed = seed + r)
+      list(index = r, code = make_nlmixr_saem_safe(m$code), seed = seed)
     })
     ## Resolve the dataset in the parent for the same reason (it is identical
     ## across replicates, so this also avoids re-reading it per worker).
@@ -574,11 +605,12 @@ run_sim <- function(
         ## cached `nlmixr_code` attribute would otherwise make run_sim_nlmixr()
         ## silently simulate the point estimates on every replicate.
         attr(m, "nlmixr_code") <- NULL
-        ## distinct seed per draw so subproblem RNG differs between replicates.
+        ## The *same* seed for every replicate, deliberately: see the note on
+        ## common random numbers at the top of this block.
         ## `verbose = FALSE` + `suppressMessages()`: the engine's per-regimen
         ## alerts would tear down and redraw the progress bar on every
         ## replicate, and the worker path silences them the same way.
-        suppressMessages(run_sim_engine(m, seed + r, verbose = FALSE))
+        suppressMessages(run_sim_engine(m, seed, verbose = FALSE))
       })
       if(tool == "nonmem" && inherits(res$result, "condition")) {
         ## Pre-parallel behaviour, kept deliberately: NONMEM replicate failures

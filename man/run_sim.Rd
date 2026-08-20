@@ -72,6 +72,17 @@ held fixed. For full uncertainty on those, use a bootstrap
 (\code{nlmixr2est::bootstrapFit()}). NONMEM \verb{$COVARIANCE} typically covers all
 parameters, so all are resampled.
 
+Every replicate is simulated with the \strong{same} \code{seed} (common random
+numbers), so the sequence of standard normal deviates behind the simulated
+ETAs and residuals is identical across draws and the only thing that varies
+between replicates is the parameter vector. This is what makes a percentile
+computed per replicate a clean estimate of parameter uncertainty; with a
+different seed per replicate the spread across replicates would also contain
+the Monte-Carlo noise of re-simulating a fresh set of subjects each time.
+Use \code{n_iterations} if you want extra random variability \emph{within} a
+replicate. Note this holds for \code{uncertainty_engine = "replicates"} only —
+see \code{uncertainty_engine} below for why NWPRI cannot do it.
+
 This is the same idea as NONMEM's own \verb{$PRIOR NWPRI} +
 \verb{$SIMULATION ... TRUE=PRIOR}, which is available directly as
 \code{uncertainty_engine = "nwpri"} (see below). The two are checked against each
@@ -110,8 +121,8 @@ is returned back. If \code{FALSE}, the \code{add_pk_variables} argument will be 
 \code{n_uncertainty} replicates over that many worker processes. For
 \code{uncertainty_engine = "replicates"} this is supported for the \code{nlmixr2} tool
 only; a NONMEM run warns and falls back to sequential. Output is identical
-to a sequential run for the same \code{seed}, since each replicate keeps its own
-derived seed (\code{seed + r}) and results are reassembled by replicate index.
+to a sequential run for the same \code{seed}, since every replicate is run with
+the same \code{seed} and results are reassembled by replicate index.
 For \code{uncertainty_engine = "nwpri"} (NONMEM only) it sets how many NONMEM
 jobs the subproblems are split over, one per worker process. NONMEM's own
 RNG produces the draws, so \emph{which} draws you get depends on how the
@@ -136,6 +147,15 @@ is much faster for large \code{n_uncertainty}. It requires \code{n_iterations = 
 because every NWPRI subproblem redraws the parameters and so cannot
 repeat a draw.
 }
+
+\code{"nwpri"} cannot give you common random numbers across draws. NONMEM
+continues its random sources from subproblem to subproblem and offers no way
+to rewind them, so each subproblem simulates a \emph{different} set of ETAs and
+residuals in addition to a different parameter vector. Uncertainty intervals
+computed over \code{.uncertainty} from an NWPRI run therefore also contain the
+Monte-Carlo noise of re-simulating the subjects; make the simulation dataset
+large enough that this noise is small, or use \code{"replicates"} when a clean
+separation matters.
 
 The two are \strong{not} statistically interchangeable. Over 1000 draws from the
 same fit their means and standard deviations agree to within a few percent

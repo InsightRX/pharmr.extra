@@ -8,6 +8,13 @@
 #' MPI/`PARAFILE` parallelises estimation and covariance steps only, and a
 #' simulation-only model has neither.
 #'
+#' Note that the draws do not share random numbers: NONMEM continues its random
+#' sources from subproblem to subproblem and has no option to rewind them, so
+#' every draw re-simulates its own ETAs and residuals. Unlike the
+#' `"replicates"` engine (see [run_sim()], issue #131) an NWPRI uncertainty
+#' interval therefore also carries the Monte-Carlo noise of re-simulating the
+#' subjects.
+#'
 #' So the parallelism is at the process level: split the subproblems over
 #' `n_cores` NONMEM jobs, each with its own run folder and seed, and
 #' concatenate the tables. Each chunk differs from the others only in two
