@@ -67,7 +67,20 @@ covariance step reports uncertainty only for the population fixed effects,
 so residual and random-effect variance parameters (SIGMA, OMEGA/IIV) are
 held fixed. For full uncertainty on those, use a bootstrap
 (\code{nlmixr2est::bootstrapFit()}). NONMEM \verb{$COVARIANCE} typically covers all
-parameters, so all are resampled.}
+parameters, so all are resampled.
+
+This is the same idea as NONMEM's own \verb{$PRIOR NWPRI} +
+\verb{$SIMULATION ... TRUE=PRIOR}, and the two are checked against each other in
+\code{tests/testthat/test-run_sim-nwpri.R}. Aggregates agree closely: over 1000
+draws from the same fit, means and standard deviations of the fixed effects
+match to within 0.3\% and 3\%, those of the variance parameters to within 5\%
+and 8\%, and the resulting 90\% uncertainty interval on the predicted profile
+to within 7\%. Two differences are structural rather than numerical: NWPRI
+draws OMEGA and SIGMA from (right-skewed) inverse-Wishart distributions
+whereas the draws here come from a single truncated multivariate normal, and
+NWPRI treats the THETA, OMEGA and SIGMA priors as independent blocks whereas
+the draws here keep the THETA-OMEGA and THETA-SIGMA covariances that
+\verb{$COVARIANCE} reports.}
 
 \item{variables}{vector of variables to output. If \code{NULL}, will output
 default variables \code{c("ID", "TIME", "DV", "EVID", "PRED")} as well as

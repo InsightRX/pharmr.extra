@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>run_sim(n_uncertainty) vs NONMEM NWPRI</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1c1e21; --muted: #5c6370; --line: #e2e5ea;
+    --accent: #2f6fb5; --ok: #1f7a4d; --warn: #9a6b1c; --code-bg: #f5f6f8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14171a; --fg: #e6e8eb; --muted: #9aa3ad; --line: #2b3138;
+      --accent: #6fa8e0; --ok: #55b98a; --warn: #d1a44e; --code-bg: #1c2126;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #ffffff; --fg: #1c1e21; --muted: #5c6370; --line: #e2e5ea;
+    --accent: #2f6fb5; --ok: #1f7a4d; --warn: #9a6b1c; --code-bg: #f5f6f8;
+  }
+  :root[data-theme="dark"] {
+    --bg: #14171a; --fg: #e6e8eb; --muted: #9aa3ad; --line: #2b3138;
+    --accent: #6fa8e0; --ok: #55b98a; --warn: #d1a44e; --code-bg: #1c2126;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0 auto; padding: 2.5rem 1.25rem 4rem; max-width: 52rem;
+    background: var(--bg); color: var(--fg);
+    font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  h1 { font-size: 1.7rem; line-height: 1.25; margin: 0 0 .3rem; }
+  h2 { font-size: 1.15rem; margin: 2.4rem 0 .7rem; padding-bottom: .3rem; border-bottom: 1px solid var(--line); }
+  h3 { font-size: 1rem; margin: 1.6rem 0 .5rem; }
+  .sub { color: var(--muted); margin: 0 0 1.5rem; font-size: .95rem; }
+  p, li { margin: .6rem 0; }
+  code, .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .88em; }
+  code { background: var(--code-bg); padding: .1em .35em; border-radius: 3px; }
+  pre { background: var(--code-bg); padding: .9rem 1rem; border-radius: 6px; overflow-x: auto; border: 1px solid var(--line); }
+  pre code { background: none; padding: 0; }
+  .scroll { overflow-x: auto; margin: 1rem 0; }
+  table { border-collapse: collapse; width: 100%; font-size: .87rem; }
+  th, td { padding: .4rem .6rem; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th:first-child, td:first-child { text-align: left; }
+  thead th { color: var(--muted); font-weight: 600; border-bottom: 2px solid var(--line); }
+  tbody tr:last-child td { border-bottom: none; }
+  .grp { border-left: 1px solid var(--line); }
+  .verdict { color: var(--ok); font-weight: 600; }
+  .note { color: var(--warn); }
+  .callout {
+    border-left: 3px solid var(--accent); background: var(--code-bg);
+    padding: .8rem 1rem; border-radius: 0 6px 6px 0; margin: 1.2rem 0;
+  }
+  .callout p:first-child { margin-top: 0; }
+  .callout p:last-child { margin-bottom: 0; }
+  ul { padding-left: 1.3rem; }
+  .files li { margin: .35rem 0; }
+</style>
+</head>
+<body>
+
+<h1>Simulating with uncertainty: agreement with NONMEM <span class="mono">$PRIOR NWPRI</span></h1>
+<p class="sub">Validation of <code>run_sim(n_uncertainty = )</code> in pharmr.extra &middot; NONMEM 7.6.0 &middot; 2026-08-20</p>
+
+<div class="callout">
+<p><strong>Verdict.</strong> <span class="verdict">The two agree.</span> Over 1000 parameter draws from the same
+fit, means and SDs of the fixed effects match to within 0.3% and 2.4%, those of the variance parameters to within
+4.4% and 7.3%, and the resulting 90% uncertainty interval on the predicted concentration profile to within 6.3%.
+The remaining differences are structural (different prior families, different block independence assumptions),
+not defects — and on the one that matters, our draws lose less information than NWPRI's.</p>
+</div>
+
+<h2>What was compared</h2>
+
+<p><code>run_sim(n_uncertainty = N)</code> draws <em>N</em> parameter sets from the fit's covariance matrix and
+runs one simulation per draw. NONMEM does the same thing with <code>$PRIOR NWPRI</code> +
+<code>$SIMULATION ... TRUE=PRIOR</code>. Bit-for-bit equality is impossible — the two use different RNG streams and
+different sampling distributions for the variance parameters — so the comparison is on aggregates.</p>
+
+<p>Both sides drew 1000 parameter sets from one reference fit: a 1-compartment oral model
+(<code>ADVAN2 TRANS2</code>), 60 subjects, 10 samples each, IIV on CL and V, proportional residual error, fitted
+with FOCE INTER and a full <code>$COVARIANCE</code> step. NWPRI priors were centred on that fit: a multivariate
+normal on the THETA block using the estimated THETA covariance, and inverse-Wishart priors on OMEGA and SIGMA with
+<span class="mono">df = 2 &middot; (estimate / SE)<sup>2</sup> + 1</span> (Gisleskog, Karlsson &amp; Beal 2002 — the
+same rule PsN applies).</p>
+
+<h2>Marginal parameter distributions</h2>
+
+<div class="scroll">
+<table>
+  <thead>
+    <tr>
+      <th>parameter</th>
+      <th class="grp">NWPRI mean</th><th>ours</th><th>&Delta;%</th>
+      <th class="grp">NWPRI SD</th><th>ours</th><th>&Delta;%</th>
+      <th class="grp">NWPRI skew</th><th>ours</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>POP_KA</td><td class="grp">1.0412</td><td>1.0437</td><td>+0.24</td><td class="grp">0.03098</td><td>0.03172</td><td>+2.38</td><td class="grp">&minus;0.09</td><td>0.03</td></tr>
+    <tr><td>POP_CL</td><td class="grp">5.4807</td><td>5.4874</td><td>+0.12</td><td class="grp">0.1919</td><td>0.1918</td><td>&minus;0.04</td><td class="grp">&minus;0.08</td><td>&minus;0.06</td></tr>
+    <tr><td>POP_V</td><td class="grp">52.034</td><td>52.035</td><td>+0.00</td><td class="grp">2.110</td><td>2.095</td><td>&minus;0.74</td><td class="grp">&minus;0.00</td><td>0.21</td></tr>
+    <tr><td>IIV_CL</td><td class="grp">0.068909</td><td>0.067457</td><td>&minus;2.11</td><td class="grp">0.01112</td><td>0.01062</td><td>&minus;4.54</td><td class="grp">0.46</td><td>&minus;0.00</td></tr>
+    <tr><td>IIV_V</td><td class="grp">0.084225</td><td>0.080561</td><td>&minus;4.35</td><td class="grp">0.01590</td><td>0.01474</td><td>&minus;7.25</td><td class="grp">0.78</td><td>0.05</td></tr>
+    <tr><td>sigma_prop</td><td class="grp">0.041297</td><td>0.040874</td><td>&minus;1.02</td><td class="grp">0.002738</td><td>0.002669</td><td>&minus;2.55</td><td class="grp">0.26</td><td>0.04</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Propagated uncertainty on the predicted profile</h2>
+
+<p>The quantity a user actually reads off a simulation with uncertainty. Typical-value concentration after a
+100&nbsp;unit oral dose, evaluated per draw; median and 90% interval across the 1000 draws.</p>
+
+<div class="scroll">
+<table>
+  <thead>
+    <tr>
+      <th>time (h)</th>
+      <th class="grp">NWPRI median</th><th>ours</th><th>&Delta;%</th>
+      <th class="grp">NWPRI 90% CI</th><th>ours</th><th>width &Delta;%</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>0.25</td><td class="grp">0.4344</td><td>0.4353</td><td>+0.19</td><td class="grp">0.408 &ndash; 0.463</td><td>0.407 &ndash; 0.466</td><td>+5.4</td></tr>
+    <tr><td>0.5</td><td class="grp">0.7575</td><td>0.7594</td><td>+0.25</td><td class="grp">0.713 &ndash; 0.806</td><td>0.712 &ndash; 0.811</td><td>+5.4</td></tr>
+    <tr><td>1</td><td class="grp">1.1681</td><td>1.1703</td><td>+0.19</td><td class="grp">1.103 &ndash; 1.242</td><td>1.104 &ndash; 1.246</td><td>+1.5</td></tr>
+    <tr><td>2</td><td class="grp">1.4643</td><td>1.4664</td><td>+0.14</td><td class="grp">1.387 &ndash; 1.551</td><td>1.389 &ndash; 1.551</td><td>&minus;0.6</td></tr>
+    <tr><td>4</td><td class="grp">1.3692</td><td>1.3694</td><td>+0.01</td><td class="grp">1.306 &ndash; 1.444</td><td>1.303 &ndash; 1.440</td><td>&minus;0.5</td></tr>
+    <tr><td>6</td><td class="grp">1.1316</td><td>1.1315</td><td>&minus;0.01</td><td class="grp">1.083 &ndash; 1.187</td><td>1.079 &ndash; 1.186</td><td>+3.6</td></tr>
+    <tr><td>8</td><td class="grp">0.9196</td><td>0.9188</td><td>&minus;0.08</td><td class="grp">0.878 &ndash; 0.966</td><td>0.875 &ndash; 0.964</td><td>+2.3</td></tr>
+    <tr><td>12</td><td class="grp">0.6033</td><td>0.6038</td><td>+0.09</td><td class="grp">0.565 &ndash; 0.647</td><td>0.564 &ndash; 0.642</td><td>&minus;5.6</td></tr>
+    <tr><td>16</td><td class="grp">0.3955</td><td>0.3948</td><td>&minus;0.17</td><td class="grp">0.360 &ndash; 0.437</td><td>0.360 &ndash; 0.432</td><td>&minus;6.3</td></tr>
+    <tr><td>24</td><td class="grp">0.1698</td><td>0.1696</td><td>&minus;0.11</td><td class="grp">0.144 &ndash; 0.201</td><td>0.145 &ndash; 0.198</td><td>&minus;5.9</td></tr>
+  </tbody>
+</table>
+</div>
+
+<h2>Where the two differ, and why</h2>
+
+<h3>1. Prior family for the variance parameters</h3>
+<p>NWPRI draws OMEGA and SIGMA from inverse-Wishart distributions, which are right-skewed (skew 0.26&ndash;0.78 in
+the table above). Pharmpy draws every parameter from a single truncated multivariate normal, which is symmetric
+(skew &asymp; 0). The first two moments still line up to within a few percent, so summary statistics and
+percentile bands are close; the far right tail of a variance parameter is slightly heavier under NWPRI.</p>
+
+<h3>2. Independence between prior blocks</h3>
+<p>NWPRI treats the THETA prior, each OMEGA block and the SIGMA prior as mutually independent. It therefore
+<em>discards</em> the THETA&ndash;OMEGA and THETA&ndash;SIGMA covariances that the <code>$COVARIANCE</code> step
+reports. Our sampler draws all parameters jointly from the reported covariance matrix and keeps them:</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>correlation</th><th>in <code>$COVARIANCE</code></th><th>NWPRI draws</th><th>our draws</th></tr></thead>
+  <tbody>
+    <tr><td>POP_KA &ndash; POP_V &nbsp;<span class="mono">(within THETA block)</span></td><td>0.337</td><td>0.332</td><td>0.318</td></tr>
+    <tr><td>POP_V &ndash; IIV_V &nbsp;<span class="mono">(across blocks)</span></td><td>0.227</td><td>&minus;0.021</td><td>0.281</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>Both reproduce the within-block correlation. Only ours reproduces the cross-block one. This is a case where
+the difference favours our implementation — NWPRI's block independence is a modelling convenience of the prior
+formulation, not a property of the estimated uncertainty.</p>
+
+<h2>Why this approach rather than delegating to NWPRI</h2>
+
+<p>We could have implemented uncertainty simulation by rewriting the control stream to add
+<code>$PRIOR NWPRI</code> and handing the job to NONMEM. We sample in R/Pharmpy instead, for three reasons.</p>
+
+<ul>
+  <li><strong>Not NONMEM-specific.</strong> The sampler consumes a point-estimate vector and a covariance matrix
+  — nothing else. The same code path serves nlmixr2 fits, and any future backend, unchanged.
+  <code>$PRIOR NWPRI</code> exists only in NONMEM, so delegating to it would have left every non-NONMEM model
+  without uncertainty propagation.</li>
+
+  <li><strong>No modification of the model file.</strong> NWPRI requires injecting
+  <code>$THETAP</code>, <code>$THETAPV</code>, <code>$OMEGAP</code>, <code>$OMEGAPD</code>,
+  <code>$SIGMAP</code> and <code>$SIGMAPD</code> records into the control stream, generated from the fit and
+  kept consistent with the <code>$OMEGA</code>/<code>$SIGMA</code> block structure. That is fragile
+  (block-diagonal OMEGA, fixed elements, BLOCK SAME) and it means the model that gets simulated is no longer the
+  model that was fitted. Our approach updates initial estimates per draw and leaves model structure untouched.</li>
+
+  <li><strong>Uses the full reported uncertainty.</strong> As shown above, the prior-block formulation throws
+  away cross-block covariances. Sampling directly from the covariance matrix does not.</li>
+</ul>
+
+<p>The known cost is the symmetric-normal draw for the variance parameters (difference 1), examined next.</p>
+
+<h2>Is inverse-Wishart the more appropriate choice, statistically?</h2>
+
+<p>Difference 1 is the one worth arguing about, so it is worth stating why we are comfortable with the normal
+draw. Short answer: <strong>no, inverse-Wishart is not the better-justified choice here</strong> &mdash; though it
+is not wrong either, and it is better on one specific axis.</p>
+
+<h3>The normal draw is the one with asymptotic backing</h3>
+
+<p>What is being propagated is <em>estimation</em> uncertainty: the sampling distribution of the estimator
+&Omega;&#770;. Asymptotically that distribution is normal, for variance components exactly as much as for fixed
+effects &mdash; <span class="mono">&radic;n(&theta;&#770; &minus; &theta;) &rarr; N(0, I<sup>&minus;1</sup>)</span>.
+The matrix NONMEM reports from <code>$COVARIANCE</code> <em>is</em> that asymptotic approximation. Drawing from a
+multivariate normal defined by it uses the object for exactly what it is.</p>
+
+<p>Inverse-Wishart is not the sampling distribution of &Omega;&#770;. It is the conjugate <em>prior</em> for a
+covariance matrix in the multivariate normal model. That is why NWPRI uses it: <code>$PRIOR</code> exists to
+specify priors for a subsequent penalised or Bayesian estimation, where conjugacy and guaranteed
+positive-definiteness are the properties you want. <code>TRUE=PRIOR</code> simulation is a secondary use of that
+same machinery, and it inherits the inverse-Wishart form &mdash; it was not selected because it describes
+estimator uncertainty.</p>
+
+<p>A detail from the run above is consistent with this. NWPRI's variance draws centre 2&ndash;4% <em>above</em> the
+point estimate; ours centre on it. That is what you would expect if the estimate is anchored as the mode of the
+inverse-Wishart rather than its mean &mdash; an artifact of the prior specification, carrying no information about
+&Omega;&#770;.</p>
+
+<h3>Where inverse-Wishart is genuinely better</h3>
+
+<ul>
+  <li><strong>Support.</strong> Inverse-Wishart draws are positive-definite by construction. Our normal draws are
+  rejected and resampled when they fall outside the parameter bounds or yield a non-positive-definite OMEGA block.
+  The retained draws are then a <em>truncated</em> normal: mean biased upward, variance shrunk, shape not cleanly
+  characterised.</li>
+  <li><strong>Skew is real.</strong> Variance estimators are right-skewed in finite samples (compare
+  &sigma;&#770;<sup>2</sup> &sim; scaled &chi;<sup>2</sup>). Inverse-Wishart reproduces that; a normal
+  approximation cannot.</li>
+</ul>
+
+<p>Both only bite when a variance parameter is imprecisely estimated. For a diagonal element the rejection rate is
+<span class="mono">P(draw &lt; 0) = &Phi;(&minus;1/RSE)</span>:</p>
+
+<div class="scroll">
+<table>
+  <thead><tr><th>RSE of variance parameter</th><th>20%</th><th>30%</th><th>40%</th><th>50%</th><th>70%</th></tr></thead>
+  <tbody>
+    <tr><td>draws rejected</td><td>&lt;0.01%</td><td>0.04%</td><td>0.6%</td><td>2.3%</td><td>7.6%</td></tr>
+  </tbody>
+</table>
+</div>
+
+<p>In the anchor fit RSE is 16&ndash;18%, which is why the measured skew of our draws came out at
+&asymp;&nbsp;0 and the two samplers agreed to a few percent. The distinction only becomes material well outside
+that range.</p>
+
+<h3>Where inverse-Wishart is worse</h3>
+
+<ul>
+  <li><strong>One degree-of-freedom parameter per block.</strong> A <code>BLOCK(n)</code> OMEGA has
+  <span class="mono">n(n+1)/2</span> elements whose estimator uncertainty is itself a full matrix.
+  Inverse-Wishart compresses all of it into a single scalar &nu; plus the scale matrix, so it cannot express
+  differing precision across elements and it ties variance and correlation uncertainty together. This is the
+  standard objection to inverse-Wishart in the Bayesian literature (Alvarez, Niemi &amp; Simpson 2014; Tokuda et
+  al.).</li>
+  <li><strong>No cross-block covariance</strong> &mdash; difference 2 above.</li>
+  <li><strong>Crude moment match.</strong> The <span class="mono">df = 2 &middot; (estimate / SE)<sup>2</sup> +
+  1</span> rule matches the marginal variance of one diagonal element. Applied to a block it is an
+  approximation.</li>
+</ul>
+
+<h3>What would actually be better than either</h3>
+
+<p>If the goal is to fix the truncation weakness, inverse-Wishart is not the move &mdash; sampling on a
+<strong>transformed scale</strong> is. Draw <span class="mono">log(&omega;<sup>2</sup>)</span> for diagonal
+elements, or a matrix-log / Cholesky parameterisation for blocks, with the covariance matrix carried across by the
+delta method. That gets all four properties at once:</p>
+
+<ul>
+  <li>the support constraint holds by construction, so no rejection and no truncation bias;</li>
+  <li>right skew on the natural scale &mdash; the thing inverse-Wishart gets right;</li>
+  <li>the full joint covariance is retained, including THETA&ndash;OMEGA &mdash; the thing inverse-Wishart gets
+  wrong;</li>
+  <li>no per-block degree-of-freedom bottleneck.</li>
+</ul>
+
+<p>And when the normal approximation itself is the problem, rather than merely its support, the answer is to drop
+the approximation: SIR (already in this package &mdash; <code>add_sir.R</code>,
+<code>vignettes/sir-covariance.Rmd</code>) reweights normal proposals by the actual likelihood, and a bootstrap
+avoids the distributional assumption entirely.</p>
+
+<div class="callout">
+<p><strong>Conclusion.</strong> Switching to inverse-Wishart would trade an asymptotically justified approximation
+for a conjugate-prior convenience, and would cost cross-block covariance and per-element precision. For
+well-estimated models the two are indistinguishable in practice, as measured above. The genuine gap is
+imprecisely-estimated variance parameters, and log / Cholesky-scale sampling closes that gap better than
+inverse-Wishart would.</p>
+</div>
+
+<h2>Reproducing this</h2>
+
+<p>The comparison is an anchored regression test. The NONMEM side is generated once and frozen as a fixture; the
+Pharmpy side is re-sampled at test time and checked against it, so the test needs Pharmpy but not NONMEM and runs
+in CI.</p>
+
+<ul class="files">
+  <li><code>tests/testthat/test-run_sim-nwpri.R</code> — 6 tests, 36 assertions. Asserts the agreement above
+  <em>and</em> both structural differences explicitly, so a change in either sampler surfaces instead of hiding
+  inside a loose tolerance.</li>
+  <li><code>tests/testthat/fixtures/nwpri_anchor.rds</code> — model code, point estimates, SEs, covariance matrix,
+  and the 1000 NWPRI draws.</li>
+  <li><code>tests/testthat/fixtures/_create-nwpri-anchor.R</code> — regenerates the fixture end to end
+  (simulate data &rarr; fit &rarr; build NWPRI prior &rarr; <code>SUBPROBLEMS=1000 TRUE=PRIOR</code>). Fully
+  seeded. Needs NONMEM, so it is run by hand in the <code>pmx</code> container:</li>
+</ul>
+
+<pre><code>docker run --rm \
+  -v "$PWD/tests/testthat/fixtures:/fixtures" \
+  -v "$PWD:/pkg" \
+  -e RETICULATE_PYTHON=/app/venv/bin/python \
+  -w /fixtures --entrypoint sh pmx:latest \
+  -c 'Rscript _create-nwpri-anchor.R'</code></pre>
+
+<h3>Two gotchas worth recording</h3>
+<ul>
+  <li><span class="note">NWPRI needs an explicit <code>PLEV=</code></span> under <code>TRUE=PRIOR</code>. Without
+  it NONMEM stops with <code>VALUE OF ARGUMENT 'PLEV' IS INAPPROPRIATE</code>. The fixture uses
+  <code>PLEV=0.9999</code> so THETA truncation is negligible and the draws stay comparable to an untruncated
+  multivariate normal.</li>
+  <li><span class="note">Pharmpy 1.8.0 in the <code>pmx</code> image cannot read a NONMEM fit under NumPy 2</span>
+  — <code>read_modelfit_results()</code> calls <code>np.fill_diagonal(cor.values, 1)</code> and fails with
+  <code>ValueError: underlying array is read-only</code>. Upstream bug, unrelated to this package; the fixture
+  script reads <code>.ext</code> and <code>.cov</code> directly and sidesteps it.</li>
+</ul>
+
+</body>
+</html>
