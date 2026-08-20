@@ -1,5 +1,14 @@
 # pharmr.extra (development version)
 
+* `run_sim(n_uncertainty = , n_cores > 1)` now simulates the same dataset the
+  sequential path does (#136). The fix for #136 routed dataset resolution
+  through `resolve_nlmixr_data()` — which prefers the fitted dataset on
+  `attr(model, "original_data")` over `model$dataset` — but the parallel
+  uncertainty branch of `run_sim()` still resolved its own dataset as
+  `model$dataset`. After `run_nlme(model, data = )`, the same `run_sim()` call
+  therefore simulated the model-build dataset at `n_cores > 1` and the fitted
+  dataset at `n_cores = 1`.
+
 * `run_sim(n_uncertainty = )` on the sequential replicate path no longer dies
   in its progress bar under `Rscript` (#137). `cli` builds progress bars on
   top of its status-bar stack, and `call_nmfe()` called `cli_process_done()`
