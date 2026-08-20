@@ -74,7 +74,9 @@ output (\code{ID}, \code{TIME}, \code{DV}, \code{IPRED}, \code{PRED}, \code{EVID
 variables and a \code{regimen_label} column), so downstream example code
 that plots simulation results works unchanged.
 
-Limitation: \code{PRED} is reported as \code{IPRED} (no separate population
-prediction); rxSolve does not produce both in a single call.
+\code{PRED} is the population prediction, obtained from a second solve with the
+between-subject random effects zeroed (\code{\link[rxode2:zeroRe]{rxode2::zeroRe()}}) — rxSolve cannot
+emit \code{IPRED} and \code{PRED} in one call. If that solve is unavailable (older
+rxode2 without \code{zeroRe()}) or fails, \code{PRED} falls back to \code{IPRED}.
 }
 \keyword{internal}
