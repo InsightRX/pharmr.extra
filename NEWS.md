@@ -26,6 +26,49 @@
 * `create_vpc_data()` now warns when a NONMEM-only argument (`id`,
   `id_format`, `use_pharmpy`, `fix_input_heuristic`) is passed for an nlmixr2
   model, instead of dropping it without comment.
+* **Breaking-ish:** `run_sim(n_uncertainty = )` now defaults to
+  `uncertainty_engine = "auto"`, which uses **NWPRI** wherever it applies —
+  NONMEM, with `n_iterations = 1` — and `"replicates"` everywhere else (#134).
+  Benchmarked against the previous default on a 1-cmt oral model with a
+  700-row simulation dataset and `n_cores = 4`: 18.6 s -> 4.3 s at 50 draws,
+  65.3 s -> 5.1 s at 200, and 339.2 s -> 9.2 s at 1000. The replicate loop pays
+  a full NM-TRAN + compile + run per draw, so its cost is linear in
+  `n_uncertainty`; NWPRI pays one compile per chunk and is close to flat.
+  `n_cores` never helped the replicate loop on NONMEM in the first place (it
+  warns and runs sequentially), so this is where the parallelism actually
+  arrives for that backend.
+
+  Naming an engine explicitly still errors rather than falling back, so an
+  explicit `uncertainty_engine = "nwpri"` on an nlmixr2 run or with
+  `n_iterations > 1` fails exactly as before. `"auto"` announces its choice
+  under `verbose`.
+
+  Two consequences worth knowing, both documented on `run_sim()`. NWPRI draws
+  OMEGA/SIGMA from inverse-Wishart distributions and drops the THETA-OMEGA and
+  THETA-SIGMA covariances `$COVARIANCE` reports, so draws are not distributed
+  identically to the `"replicates"` engine's (aggregates agree to within a few
+  percent; see `inst/reports/nwpri-validation.html`). And NWPRI cannot hold the
+  simulated individuals fixed across draws the way `"replicates"` now does
+  (#131), so an interval over `.uncertainty` also carries the Monte-Carlo noise
+  of re-simulating the subjects — which shrinks as the dataset and
+  `n_uncertainty` grow. Pass `uncertainty_engine = "replicates"` to get the old
+  behaviour back.
+
+* Parallel worker startup is no longer able to take down a whole run (#134).
+  Bringing up the cluster happens before any work function is called, so it sat
+  outside `run_captured()`'s error handling: an intermittent failure in a
+  worker's `loadNamespace()` (seen inside rxode2's `.onLoad`) aborted the
+  entire `run_sim()` call rather than costing one chunk. `parallel_lapply()`
+  now retries once and then falls back to running everything sequentially with
+  a warning. Same results either way, only slower.
+
+* The NWPRI engine no longer splits the draws over more NONMEM jobs than the
+  split is worth (#134). Each extra chunk costs a worker process to start and
+  load the package (~1.4 s for four) against ~0.02 s per subproblem, so below
+  ~50 draws per chunk the chunking made the run slower — measured at 2.6 s in
+  one job versus 4.3 s over four for 50 draws. `n_cores` is now a ceiling
+  rather than a target.
+
 * `run_sim(n_uncertainty = )` with `uncertainty_engine = "replicates"` (the
   default) now simulates **every replicate with the same `seed`** instead of a
   per-replicate `seed + r` (#131). Both backends build ETAs and residuals by

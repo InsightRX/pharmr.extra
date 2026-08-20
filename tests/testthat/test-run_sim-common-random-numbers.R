@@ -153,7 +153,8 @@ test_that("run_sim (nonmem): every replicate is simulated with the base seed", {
   )
 
   out <- run_sim(fit = fake_fit, model = mod, data = .sim_dat(),
-                 n_uncertainty = 3, seed = 777, verbose = FALSE)
+                 n_uncertainty = 3, seed = 777,
+                 uncertainty_engine = "replicates", verbose = FALSE)
 
   expect_equal(sort(unique(out$.uncertainty)), 1:3)
   ## one $SIMULATION record per replicate (single regimen), all on the same seed

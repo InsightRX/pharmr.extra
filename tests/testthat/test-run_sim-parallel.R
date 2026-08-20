@@ -51,6 +51,58 @@ test_that("parallel_lapply matches lapply and keeps input order", {
   expect_equal(parallel_lapply(1:6, fn, n_cores = 2), expected)
 })
 
+test_that("parallel_lapply falls back to sequential when workers will not start", {
+  skip_on_cran()
+  cl_ok <- tryCatch({
+    cl <- parallel::makePSOCKcluster(2); parallel::stopCluster(cl); TRUE
+  }, error = function(e) FALSE)
+  skip_if_not(cl_ok, "cannot start a PSOCK cluster")
+
+  ## Worker startup fails *before* FUN is ever called, so it is outside
+  ## run_captured()'s reach: unguarded it would take down the whole run rather
+  ## than cost one item (#134).
+  local_mocked_bindings(
+    worker_init_fn = function() {
+      f <- function(path, dev, threads) stop("worker init exploded")
+      environment(f) <- baseenv()
+      f
+    },
+    .package = "pharmr.extra"
+  )
+  fn <- function(i) i^2
+  expect_warning(res <- parallel_lapply(1:4, fn, n_cores = 2),
+                 "running sequentially")
+  ## same results, just not in parallel
+  expect_equal(res, lapply(1:4, fn))
+})
+
+test_that("parallel_lapply retries once before giving up on the workers", {
+  skip_on_cran()
+  cl_ok <- tryCatch({
+    cl <- parallel::makePSOCKcluster(2); parallel::stopCluster(cl); TRUE
+  }, error = function(e) FALSE)
+  skip_if_not(cl_ok, "cannot start a PSOCK cluster")
+
+  ## The failure this guards against is intermittent, so a single retry is
+  ## expected to recover most of them without falling back at all.
+  calls <- 0L
+  local_mocked_bindings(
+    worker_init_fn = function() {
+      calls <<- calls + 1L
+      f <- if(calls == 1L) function(path, dev, threads) stop("transient")
+           else function(path, dev, threads) invisible(NULL)
+      environment(f) <- baseenv()
+      f
+    },
+    .package = "pharmr.extra"
+  )
+  fn <- function(i) i^2
+  ## second attempt succeeds, so no warning and the work really ran on workers
+  expect_no_warning(res <- parallel_lapply(1:4, fn, n_cores = 2))
+  expect_equal(res, lapply(1:4, fn))
+  expect_equal(calls, 2L)
+})
+
 test_that("run_captured captures warnings and converts errors to values", {
   ok <- run_captured(2, function() {
     warning("first problem")
@@ -267,7 +319,8 @@ test_that("run_sim: n_cores > 1 falls back to sequential for NONMEM", {
 
   expect_warning(
     out <- run_sim(fit = fake_fit, model = mod, data = .sim_dat(),
-                   n_uncertainty = 2, n_cores = 2, verbose = FALSE),
+                   n_uncertainty = 2, n_cores = 2,
+                   uncertainty_engine = "replicates", verbose = FALSE),
     "nlmixr2"
   )
   expect_equal(sort(unique(out$.uncertainty)), 1:2)
@@ -308,7 +361,8 @@ test_that("run_sim (nonmem): a failing replicate aborts the run", {
   ## returning a truncated set of draws.
   expect_error(
     run_sim(fit = fake_fit, model = mod, data = .sim_dat(),
-            n_uncertainty = 3, verbose = FALSE),
+            n_uncertainty = 3, uncertainty_engine = "replicates",
+            verbose = FALSE),
     "Uncertainty replicate 2 failed"
   )
   ## and it stops there: the third replicate is never started
