@@ -22,7 +22,6 @@ run_sim(
   verbose = TRUE,
   n_cores = 1,
   uncertainty_engine = c("replicates", "nwpri"),
-  n_chunks = NULL,
   plev = 0.9999
 )
 }
@@ -113,9 +112,12 @@ is returned back. If \code{FALSE}, the \code{add_pk_variables} argument will be 
 only; a NONMEM run warns and falls back to sequential. Output is identical
 to a sequential run for the same \code{seed}, since each replicate keeps its own
 derived seed (\code{seed + r}) and results are reassembled by replicate index.
-For \code{uncertainty_engine = "nwpri"} (NONMEM only) it sets how many worker
-processes the \code{n_chunks} NONMEM jobs are spread over. Ignored when no
-uncertainty is requested. The machine's cores are divided over the workers
+For \code{uncertainty_engine = "nwpri"} (NONMEM only) it sets how many NONMEM
+jobs the subproblems are split over, one per worker process. NONMEM's own
+RNG produces the draws, so \emph{which} draws you get depends on how the
+subproblems were chunked: an NWPRI run is only reproducible for a fixed
+\code{n_cores}. Note also that a chunk that fails costs \code{n_uncertainty / n_cores}
+draws rather than one. Ignored when no uncertainty is requested. The machine's cores are divided over the workers
 (rxode2's solver threads are capped per worker), so raising \code{n_cores} does
 not oversubscribe the CPU.}
 
@@ -148,13 +150,6 @@ arguably better justified for variance parameters, joint sampling is the one
 that keeps the full reported covariance — which is why this is a switch
 rather than a silent optimisation.}
 
-\item{n_chunks}{\code{uncertainty_engine = "nwpri"} only: number of NONMEM jobs
-the subproblems are split over. Defaults to \code{n_cores}. NONMEM's own RNG
-produces the draws, so \emph{which} draws you get depends on how the subproblems
-were chunked: set \code{n_chunks} explicitly to keep a run reproducible across
-machines with different core counts. Note also that a chunk that fails costs
-\code{n_uncertainty / n_chunks} draws rather than one.}
-
 \item{plev}{\code{uncertainty_engine = "nwpri"} only: the probability mass the
 THETA draws are truncated to, passed to \code{\link[=add_nwpri_prior]{add_nwpri_prior()}}.}
 }
@@ -166,7 +161,9 @@ warning, so these let a caller detect a short (and potentially biased) set
 of draws without parsing warnings. On the NONMEM backend a failing replicate
 aborts the run instead. Under \code{uncertainty_engine = "nwpri"} a failing
 \emph{chunk} is dropped with a warning rather than aborting, and the same two
-attributes report how many draws survived.
+attributes report how many draws survived — counted per regimen and
+reported for the worst one, since chunks are per regimen and the draws only
+pair across regimens where every regimen kept them.
 }
 \description{
 Run simulations

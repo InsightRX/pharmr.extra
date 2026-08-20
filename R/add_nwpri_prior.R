@@ -45,6 +45,10 @@
 #' (a relative standard deviation of `1e-3`) and are therefore held at their
 #' point estimate for all practical purposes. A warning lists them.
 #'
+#' Non-finite covariance elements — NONMEM reports `NaN` for parameters the
+#' covariance step could not separate — are treated as zero, so such a
+#' parameter takes the same route.
+#'
 #' @param model a Pharmpy NONMEM model object.
 #' @param fit a Pharmpy modelfit object carrying `parameter_estimates` and
 #' `covariance_matrix`. Ignored when `parameter_estimates` and
@@ -157,10 +161,45 @@ nwpri_model_structure <- function(model) {
   ## model's own parameter order matters: `$THETAP` is positional, so entry `i`
   ## must be THETA(i).
   variance_params <- unique(c(unlist(omega), unlist(sigma)))
+  variance_params <- variance_params[!nwpri_is_literal(variance_params)]
   all_params <- as.character(unlist(reticulate::py_to_r(model$parameters$names)))
   theta <- setdiff(all_params, variance_params)
 
   list(theta = theta, omega = omega, sigma = sigma)
+}
+
+#' Is a block entry a fixed number rather than a parameter name?
+#'
+#' `random_variables$get_covariance()` returns the *value* for a structurally
+#' zero covariance (`"0"`) rather than a parameter name, so the block matrices
+#' `nwpri_model_structure()` builds can hold numbers among the names. Parameter
+#' names never parse as numeric, so this tells the two apart.
+#'
+#' @param x character vector of block entries.
+#'
+#' @returns logical vector, `TRUE` where the entry is a number.
+#' @noRd
+nwpri_is_literal <- function(x) {
+  !is.na(suppressWarnings(as.numeric(x)))
+}
+
+#' Numeric values of a block's entries
+#'
+#' Parameter names are looked up in the estimates, fixed numbers
+#' ([nwpri_is_literal()]) are taken as they stand.
+#'
+#' @param b square character matrix of block entries.
+#' @param est named vector of parameter estimates.
+#'
+#' @returns numeric matrix of the same shape as `b`.
+#' @noRd
+nwpri_block_values <- function(b, est) {
+  vals <- vapply(
+    as.vector(b),
+    function(x) if(nwpri_is_literal(x)) as.numeric(x) else est[[x]],
+    numeric(1), USE.NAMES = FALSE
+  )
+  matrix(vals, nrow = nrow(b), ncol = ncol(b))
 }
 
 #' Relative standard deviation given to parameters with no uncertainty
@@ -196,7 +235,7 @@ nwpri_fill_zero_covariances <- function(m) {
   rho <- nwpri_zero_cov_rho()
   for(i in seq_len(nrow(m))) {
     for(j in seq_len(i - 1L)) {
-      if(m[i, j] == 0) {
+      if(is.na(m[i, j]) || m[i, j] == 0) {
         m[i, j] <- m[j, i] <- rho * sqrt(m[i, i] * m[j, j])
       }
     }
@@ -282,6 +321,22 @@ build_nwpri_records <- function(
   if(is.null(cov_names)) {
     cli::cli_abort("`covariance_matrix` must have parameter names as row/column names.")
   }
+  ## NONMEM reports `NaN` in `$COVARIANCE` for parameters it could not
+  ## separate. Left in, they propagate into the prior records as a literal
+  ## `NA`, and `diag(cov_mat) > 0` below silently indexes with `NA`. Treat them
+  ## as "no uncertainty reported" instead: a `NaN` variance then falls through
+  ## to the held-fixed path, and a `NaN` covariance to the zero-covariance one.
+  non_finite <- !is.finite(cov_mat)
+  if(any(non_finite)) {
+    cli::cli_warn(c(
+      "!" = "Covariance matrix has {sum(non_finite)} non-finite element{?s} \\
+             (NA/NaN/Inf); treated as zero.",
+      "i" = "NONMEM reports these for parameters the covariance step could not \\
+             separate, so their uncertainty is not propagated into the prior."
+    ))
+    cov_mat[non_finite] <- 0
+  }
+
   row_names <- rownames(cov_mat)
   if(is.null(row_names)) {
     rownames(cov_mat) <- cov_names
@@ -297,7 +352,10 @@ build_nwpri_records <- function(
   ## "and this block equals the previous one", so a prior built from that
   ## structure would sample each occurrence independently and quietly break the
   ## SAME constraint. Refuse rather than emit it.
-  shared <- table(unlist(lapply(blocks, function(b) unique(as.vector(b)))))
+  ## Literals are excluded: a structurally zero covariance shows up as `"0"`
+  ## in every block that has one, which is not two blocks sharing a parameter.
+  block_params <- unlist(lapply(blocks, function(b) unique(as.vector(b))))
+  shared <- table(block_params[!nwpri_is_literal(block_params)])
   repeated <- names(shared)[shared > 1]
   if(length(repeated) > 0) {
     cli::cli_abort(c(
@@ -311,6 +369,7 @@ build_nwpri_records <- function(
   }
 
   model_params <- unique(c(param_structure$theta, unlist(blocks)))
+  model_params <- model_params[!nwpri_is_literal(model_params)]
   missing_est <- setdiff(model_params, est_names)
   if(length(missing_est) > 0) {
     cli::cli_abort(c(
@@ -323,6 +382,18 @@ build_nwpri_records <- function(
   ## definite scale, so a variance estimated (or fixed) at zero — a dummy ETA,
   ## typically — has no prior to give it.
   variance_diag <- unlist(lapply(blocks, diag))
+  literal_diag <- variance_diag[nwpri_is_literal(variance_diag)]
+  if(length(literal_diag) > 0) {
+    cli::cli_abort(c(
+      "{.fn add_nwpri_prior} needs every OMEGA/SIGMA variance to be an \\
+       estimated parameter.",
+      x = "Fixed to a constant: {literal_diag}",
+      i = "{.code $PRIOR NWPRI} draws these from an inverse-Wishart \\
+           distribution, which needs a parameter to centre on. Remove the \\
+           parameter from the model, or use \\
+           {.code uncertainty_engine = \"replicates\"}."
+    ))
+  }
   non_positive <- variance_diag[est[variance_diag] <= 0]
   if(length(non_positive) > 0) {
     cli::cli_abort(c(
@@ -392,7 +463,7 @@ build_nwpri_records <- function(
     for(k in seq_along(blocks)) {
       b <- blocks[[k]]
       p <- nrow(b)
-      vals <- matrix(est[as.vector(b)], nrow = p, ncol = p)
+      vals <- nwpri_block_values(b, est)
       if(p == 1) {
         lines <- c(lines, paste0("$", prefix, "P ", nwpri_fmt(vals[1, 1]), " FIX"))
       } else {

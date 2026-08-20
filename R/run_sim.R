@@ -69,9 +69,12 @@
 #' only; a NONMEM run warns and falls back to sequential. Output is identical
 #' to a sequential run for the same `seed`, since each replicate keeps its own
 #' derived seed (`seed + r`) and results are reassembled by replicate index.
-#' For `uncertainty_engine = "nwpri"` (NONMEM only) it sets how many worker
-#' processes the `n_chunks` NONMEM jobs are spread over. Ignored when no
-#' uncertainty is requested. The machine's cores are divided over the workers
+#' For `uncertainty_engine = "nwpri"` (NONMEM only) it sets how many NONMEM
+#' jobs the subproblems are split over, one per worker process. NONMEM's own
+#' RNG produces the draws, so *which* draws you get depends on how the
+#' subproblems were chunked: an NWPRI run is only reproducible for a fixed
+#' `n_cores`. Note also that a chunk that fails costs `n_uncertainty / n_cores`
+#' draws rather than one. Ignored when no uncertainty is requested. The machine's cores are divided over the workers
 #' (rxode2's solver threads are capped per worker), so raising `n_cores` does
 #' not oversubscribe the CPU.
 #' @param uncertainty_engine how `n_uncertainty` parameter uncertainty is
@@ -101,12 +104,6 @@
 #' arguably better justified for variance parameters, joint sampling is the one
 #' that keeps the full reported covariance — which is why this is a switch
 #' rather than a silent optimisation.
-#' @param n_chunks `uncertainty_engine = "nwpri"` only: number of NONMEM jobs
-#' the subproblems are split over. Defaults to `n_cores`. NONMEM's own RNG
-#' produces the draws, so *which* draws you get depends on how the subproblems
-#' were chunked: set `n_chunks` explicitly to keep a run reproducible across
-#' machines with different core counts. Note also that a chunk that fails costs
-#' `n_uncertainty / n_chunks` draws rather than one.
 #' @param plev `uncertainty_engine = "nwpri"` only: the probability mass the
 #' THETA draws are truncated to, passed to [add_nwpri_prior()].
 #'
@@ -117,7 +114,9 @@
 #' of draws without parsing warnings. On the NONMEM backend a failing replicate
 #' aborts the run instead. Under `uncertainty_engine = "nwpri"` a failing
 #' *chunk* is dropped with a warning rather than aborting, and the same two
-#' attributes report how many draws survived.
+#' attributes report how many draws survived — counted per regimen and
+#' reported for the worst one, since chunks are per regimen and the draws only
+#' pair across regimens where every regimen kept them.
 #'
 #' @export
 run_sim <- function(
@@ -141,7 +140,6 @@ run_sim <- function(
     ## set `n_cores` instead.
     n_cores = 1,
     uncertainty_engine = c("replicates", "nwpri"),
-    n_chunks = NULL,
     plev = 0.9999
 ) {
 
@@ -341,17 +339,13 @@ run_sim <- function(
       if(verbose) cli::cli_alert_info("Using existing table record(s)")
     }
 
-    ## Update dataset (in safe way, avoiding pharmr::set_dataset)
-    if(verbose) cli::cli_alert_info("Updating dataset reference")
-    new_dataset_file <- tempfile(pattern = "data", fileext = ".csv")
-    write.csv(sim_data_regimen, new_dataset_file, quote = F, row.names = F)
-    
     ## Run simulation
     if(verbose) cli::cli_alert_info("Running simulation ({reg_label})")
 
     ## NWPRI engine: NONMEM draws the parameters itself, so there is no
     ## per-replicate model to build and no run_nlme() call — the finished
-    ## control stream is chunked over its own run folders instead.
+    ## control stream is chunked over its own run folders instead. It writes
+    ## its own dataset per run folder, so the temp copy below is skipped.
     if(use_nwpri) {
       comb[[reg_label]] <- run_nwpri_regimen_tables(
         sim_model        = sim_model,
@@ -360,7 +354,6 @@ run_sim <- function(
         id               = id_i,
         path             = path %||% getwd(),
         n_uncertainty    = n_uncertainty,
-        n_chunks         = nwpri_n_chunks,
         seed             = seed,
         nmfe             = nwpri_nmfe,
         update_table     = update_table,
@@ -371,6 +364,11 @@ run_sim <- function(
       )
       next
     }
+
+    ## Update dataset (in safe way, avoiding pharmr::set_dataset)
+    if(verbose) cli::cli_alert_info("Updating dataset reference")
+    new_dataset_file <- tempfile(pattern = "data", fileext = ".csv")
+    write.csv(sim_data_regimen, new_dataset_file, quote = F, row.names = F)
 
     ## sim_data_regimen. Forward `path` only when set, so run_nlme()'s own
     ## default applies otherwise (decoupled from any getwd() default here).
@@ -457,7 +455,6 @@ run_sim <- function(
   ## Pharmpy — so `nmfe` is resolved here, in the parent, while Python is still
   ## reachable.
   if(use_nwpri) {
-    nwpri_n_chunks <- resolve_n_chunks(n_chunks, n_cores)
     nwpri_nmfe <- get_nmfe_location(verbose = verbose)
     if(verbose) {
       cli::cli_alert_info(
@@ -469,7 +466,12 @@ run_sim <- function(
     if(nrow(out) == 0 || !".uncertainty" %in% names(out)) {
       cli::cli_abort("The NWPRI simulation produced no uncertainty draws.")
     }
-    n_kept <- length(unique(out[[".uncertainty"]]))
+    ## Per regimen, not over the concatenation: each regimen is chunked
+    ## separately, so regimen A losing chunk 1 and regimen B losing chunk 2
+    ## would still cover 1..n between them and hide both failures. The draws
+    ## are only paired across regimens where every regimen kept them, so the
+    ## worst regimen is what the count has to report.
+    n_kept <- nwpri_draws_kept(out)
     attr(out, "n_uncertainty_requested") <- n_uncertainty
     attr(out, "n_uncertainty_kept") <- n_kept
     if(verbose) {

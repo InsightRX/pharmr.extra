@@ -32,7 +32,7 @@ test_that("nwpri_chunk_sizes never asks for more chunks than draws", {
 test_that("nwpri_chunk_sizes validates its input", {
   expect_error(nwpri_chunk_sizes(0, 2), "positive integer")
   expect_error(nwpri_chunk_sizes(-1, 2), "positive integer")
-  expect_error(nwpri_chunk_sizes(10, 0), "`n_chunks` must be a positive integer")
+  expect_error(nwpri_chunk_sizes(10, 0), "Number of NWPRI chunks must be a positive integer")
 })
 
 # Seeds ------------------------------------------------------------------------
@@ -61,15 +61,6 @@ test_that("nwpri_chunk_seeds validates the base seed", {
   expect_error(nwpri_chunk_seeds(-1, 2), "non-negative integer")
   expect_error(nwpri_chunk_seeds(1.5, 2), "non-negative integer")
   expect_error(nwpri_chunk_seeds("x", 2), "non-negative integer")
-})
-
-test_that("resolve_n_chunks defaults to n_cores and validates otherwise", {
-  expect_equal(resolve_n_chunks(NULL, 8), 8L)
-  expect_equal(resolve_n_chunks(3, 8), 3L)
-  expect_type(resolve_n_chunks(3, 8), "integer")
-  expect_error(resolve_n_chunks(0, 8), "positive integer")
-  expect_error(resolve_n_chunks(2.5, 8), "positive integer")
-  expect_error(resolve_n_chunks(c(1, 2), 8), "positive integer")
 })
 
 # Collection -------------------------------------------------------------------
@@ -193,6 +184,8 @@ test_that("run_nwpri_regimen chunks the draws over its own run folders", {
   folder <- withr::local_tempdir()
   log_env <- new.env(parent = emptyenv())
   log_env$mods <- list()
+  dataset <- file.path(folder, "data.csv")
+  write.csv(data.frame(ID = 1, TIME = 0, DV = 0), dataset, row.names = FALSE)
 
   code <- paste("$PROBLEM t", "$DATA data.csv IGNORE=@", "$THETA (0,1)",
                 "$SIMULATION (1) SUBPROBLEMS=1 ONLYSIMULATION",
@@ -200,10 +193,14 @@ test_that("run_nwpri_regimen chunks the draws over its own run folders", {
 
   mockery::stub(run_nwpri_regimen, "make_nwpri_chunk_fn",
                 function(nmfe, output_file) .fake_chunk_fn(log_env))
+  ## Run the chunks in-process: `n_cores = 4` is what sets the chunk count, but
+  ## PSOCK workers would write the log into their own copy of `log_env`.
+  mockery::stub(run_nwpri_regimen, "parallel_lapply",
+                function(X, FUN, n_cores = 1L) lapply(X, FUN))
   out <- run_nwpri_regimen(
-    sim_code = code, n_uncertainty = 10, n_chunks = 4, seed = 500,
+    sim_code = code, dataset = dataset, n_uncertainty = 10, seed = 500,
     folder = folder, output_file = "simtab", nmfe = "fake-nmfe",
-    n_cores = 1, force = FALSE, verbose = FALSE
+    n_cores = 4, force = FALSE, verbose = FALSE
   )
 
   ## One run folder per chunk, under the regimen folder.
@@ -233,21 +230,78 @@ test_that("run_nwpri_regimen chunks the draws over its own run folders", {
   }
 })
 
-test_that("run_nwpri_regimen honours n_chunks rather than the draw count", {
+test_that("run_nwpri_regimen gives every chunk its own copy of the dataset", {
+  folder <- withr::local_tempdir()
+  log_env <- new.env(parent = emptyenv()); log_env$mods <- list()
+  dataset <- file.path(folder, "data.csv")
+  write.csv(data.frame(ID = 1, TIME = 0, DV = 0), dataset, row.names = FALSE)
+
+  mockery::stub(run_nwpri_regimen, "make_nwpri_chunk_fn",
+                function(nmfe, output_file) .fake_chunk_fn(log_env))
+  mockery::stub(run_nwpri_regimen, "parallel_lapply",
+                function(X, FUN, n_cores = 1L) lapply(X, FUN))
+  run_nwpri_regimen(
+    sim_code = "$PROBLEM t\n$DATA data.csv IGNORE=@\n$THETA (0,1)",
+    dataset = dataset, n_uncertainty = 4, seed = 1,
+    folder = folder, output_file = "simtab", nmfe = "fake-nmfe",
+    n_cores = 2, force = FALSE, verbose = FALSE
+  )
+  ## A copy per chunk rather than one file behind an absolute path: NM-TRAN
+  ## truncates the `$DATA` filename field.
+  for (k in 1:2) {
+    expect_true(file.exists(
+      file.path(folder, paste0("uncertainty_chunk_", k), "data.csv")
+    ))
+  }
+})
+
+# Draws kept -------------------------------------------------------------------
+
+test_that("nwpri_draws_kept counts the worst regimen, not the union", {
+  ## Regimen A lost the first chunk, regimen B the second: between them they
+  ## cover 1..4, but neither has more than two draws and they no longer pair.
+  out <- data.frame(
+    .uncertainty  = c(3, 4, 1, 2),
+    regimen_label = c("A", "A", "B", "B")
+  )
+  expect_equal(nwpri_draws_kept(out), 2L)
+
+  ## A complete set is still reported as complete.
+  full <- data.frame(
+    .uncertainty  = rep(1:4, 2),
+    regimen_label = rep(c("A", "B"), each = 4)
+  )
+  expect_equal(nwpri_draws_kept(full), 4L)
+
+  ## Repeated rows per draw (one row per subject/time) do not inflate the count.
+  repeated <- data.frame(
+    .uncertainty  = rep(1:2, each = 3),
+    regimen_label = "A"
+  )
+  expect_equal(nwpri_draws_kept(repeated), 2L)
+})
+
+test_that("nwpri_draws_kept falls back to the whole table without regimen labels", {
+  expect_equal(nwpri_draws_kept(data.frame(.uncertainty = c(1, 1, 2))), 2L)
+})
+
+test_that("run_nwpri_regimen chunks by n_cores rather than the draw count", {
   folder <- withr::local_tempdir()
   log_env <- new.env(parent = emptyenv())
   log_env$mods <- list()
+  dataset <- file.path(folder, "data.csv")
+  write.csv(data.frame(ID = 1, TIME = 0, DV = 0), dataset, row.names = FALSE)
   code <- "$PROBLEM t\n$THETA (0,1)\n$SIMULATION (1) SUBPROBLEMS=1 ONLYSIMULATION"
 
   mockery::stub(run_nwpri_regimen, "make_nwpri_chunk_fn",
                 function(nmfe, output_file) .fake_chunk_fn(log_env))
   out <- run_nwpri_regimen(
-    sim_code = code, n_uncertainty = 6, n_chunks = 1, seed = 1,
+    sim_code = code, dataset = dataset, n_uncertainty = 6, seed = 1,
     folder = folder, output_file = "simtab", nmfe = "fake-nmfe",
     n_cores = 1, force = FALSE, verbose = FALSE
   )
-  ## One job, all six subproblems in it. This is the setting that makes a run
-  ## reproducible independent of the machine's core count.
+  ## One core, so one job with all six subproblems in it — the draws are
+  ## reproducible for that core count.
   expect_length(log_env$mods, 1)
   expect_match(grep("^\\$SIM", log_env$mods[["1"]], value = TRUE),
                "SUBPROBLEMS=6")
@@ -257,12 +311,15 @@ test_that("run_nwpri_regimen honours n_chunks rather than the draw count", {
 test_that("run_nwpri_regimen refuses to reuse an existing chunk folder", {
   folder <- withr::local_tempdir()
   dir.create(file.path(folder, "uncertainty_chunk_1"))
+  dataset <- file.path(folder, "data.csv")
+  write.csv(data.frame(ID = 1, TIME = 0, DV = 0), dataset, row.names = FALSE)
   log_env <- new.env(parent = emptyenv()); log_env$mods <- list()
   mockery::stub(run_nwpri_regimen, "make_nwpri_chunk_fn",
                 function(nmfe, output_file) .fake_chunk_fn(log_env))
   expect_error(
     run_nwpri_regimen(
-      sim_code = "$PROBLEM t\n$THETA (0,1)", n_uncertainty = 2, n_chunks = 1,
+      sim_code = "$PROBLEM t\n$THETA (0,1)", dataset = dataset,
+      n_uncertainty = 2,
       seed = 1, folder = folder, output_file = "simtab", nmfe = "fake",
       n_cores = 1, force = FALSE, verbose = FALSE
     ),
@@ -352,7 +409,7 @@ test_that("run_sim(uncertainty_engine = 'nwpri') runs NONMEM and tags the draws"
   out <- run_sim(
     fit = fit, model = model, data = sim_data,
     id = "sim_nwpri", path = withr::local_tempdir(), force = TRUE,
-    tool = "nonmem", n_uncertainty = 6, n_chunks = 2,
+    tool = "nonmem", n_uncertainty = 6, n_cores = 2,
     uncertainty_engine = "nwpri", seed = 4242, verbose = FALSE
   )
 

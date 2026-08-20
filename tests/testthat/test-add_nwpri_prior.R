@@ -328,6 +328,77 @@ test_that("a zero on the covariance diagonal counts as no uncertainty", {
   expect_identical(with_zero, without)
 })
 
+test_that("a structurally zero covariance in a BLOCK is a number, not a parameter", {
+  ## `random_variables$get_covariance()` reports "0" rather than a parameter
+  ## name for a covariance the model fixes to zero, so the block matrices hold
+  ## numbers among the names.
+  case <- .nwpri_case("block")
+  ps <- case$param_structure
+  ps$omega[[1]][1, 2] <- ps$omega[[1]][2, 1] <- "0"
+  ## ... and the same in a second block, to show that two blocks both reporting
+  ## "0" is not two blocks sharing a parameter.
+  ps$sigma <- list(matrix(c("sigma_prop", "0", "0", "sigma_add"), nrow = 2))
+  est <- case$parameter_estimates[setdiff(names(case$parameter_estimates),
+                                          c("OMEGA_2_1", "SIGMA_2_1"))]
+  cov <- case$covariance_matrix
+  keep <- setdiff(colnames(as.matrix(cov)), "OMEGA_2_1")
+  cov <- as.matrix(cov)[keep, keep]
+
+  records <- build_nwpri_records(ps, est, cov)
+  omegap <- .records_of(paste(records$records, collapse = "\n"), "OMEGAP")[[1]]
+  expect_match(omegap[1], "BLOCK\\(2\\)")
+  ## The zero was nudged off zero for NM-TRAN, not written out as `NA`.
+  expect_false(any(grepl("NA", records$records)))
+  off_diag <- .numbers_in(omegap[3])[1]
+  expect_true(off_diag > 0 && off_diag < 1e-4)
+})
+
+test_that("build_nwpri_records refuses a variance fixed to a constant", {
+  case <- .nwpri_case("block")
+  ps <- case$param_structure
+  ps$omega[[1]] <- matrix(c("0", "0", "0", "0"), nrow = 2)
+  expect_error(
+    build_nwpri_records(ps, case$parameter_estimates, case$covariance_matrix),
+    "variance to be an estimated parameter"
+  )
+})
+
+test_that("non-finite covariance elements are warned about and zeroed", {
+  ## NONMEM reports NaN for parameters the covariance step could not separate.
+  case <- .nwpri_case("diagonal")
+  cov <- as.matrix(case$covariance_matrix)
+  cov["POP_CL", "POP_V"] <- cov["POP_V", "POP_CL"] <- NaN
+
+  expect_warning(
+    records <- build_nwpri_records(case$param_structure,
+                                   case$parameter_estimates, cov),
+    "non-finite"
+  )
+  expect_false(any(grepl("NA|NaN", records$records)))
+
+  ## A NaN *variance* means the parameter has no usable uncertainty at all, so
+  ## it falls through to the held-fixed path rather than reaching the records.
+  cov2 <- as.matrix(case$covariance_matrix)
+  cov2["POP_CL", ] <- cov2[, "POP_CL"] <- NaN
+  expect_warning(
+    expect_warning(
+      records2 <- build_nwpri_records(case$param_structure,
+                                      case$parameter_estimates, cov2),
+      "non-finite"
+    ),
+    "POP_CL"
+  )
+  expect_false(any(grepl("NA|NaN", records2$records)))
+})
+
+test_that("nwpri_fill_zero_covariances treats a missing covariance as zero", {
+  m <- matrix(c(4, NA, NA, 9), nrow = 2)
+  filled <- nwpri_fill_zero_covariances(m)
+  expect_false(anyNA(filled))
+  expect_equal(filled[1, 2], filled[2, 1])
+  expect_true(filled[1, 2] > 0 && filled[1, 2] < 1e-4)
+})
+
 test_that("insert_nwpri_records refuses a model that already has a $PRIOR", {
   case <- .nwpri_case("diagonal")
   records <- build_nwpri_records(case$param_structure, case$parameter_estimates,

@@ -14,16 +14,15 @@
   NONMEM will not parallelise this for us — MPI/`PARAFILE` splits the
   estimation and covariance steps, and a simulation-only model has neither, so
   a single `SUBPROBLEMS=N` run is single-threaded whatever `n_cores` says. The
-  subproblems are therefore split over `n_chunks` separate NONMEM jobs
-  (default `n_cores`), each in its own run folder
+  subproblems are therefore split over `n_cores` separate NONMEM jobs, one per
+  worker process, each in its own run folder
   (`id/regimen_<i>/uncertainty_chunk_<k>`) with its own widely-spaced seed,
   and the tables are concatenated. Because the draws come out of NONMEM's RNG,
-  *which* draws you get depends on how the subproblems were chunked: set
-  `n_chunks` explicitly to keep a run reproducible across machines with
-  different core counts. A chunk that fails is dropped with a warning, so a
-  failure costs `n_uncertainty / n_chunks` draws rather than one; as for the
-  `"replicates"` engine, the result carries `n_uncertainty_requested` and
-  `n_uncertainty_kept` attributes.
+  *which* draws you get depends on how the subproblems were chunked, so an
+  NWPRI run is only reproducible for a fixed `n_cores`. A chunk that fails is
+  dropped with a warning, so a failure costs `n_uncertainty / n_cores` draws
+  rather than one; as for the `"replicates"` engine, the result carries
+  `n_uncertainty_requested` and `n_uncertainty_kept` attributes.
 
   The two engines are **not** statistically interchangeable, which is why this
   is a user-facing switch rather than a silent optimisation. NWPRI draws OMEGA
@@ -40,7 +39,9 @@
   `$SIGMA` block structure and giving each block the inverse-Wishart degrees
   of freedom that match its estimated standard error. Parameters the
   covariance matrix does not cover (FIXED ones, typically) are emitted with a
-  negligible prior variance and warned about, rather than dropped. The
+  negligible prior variance and warned about, rather than dropped; so are
+  parameters whose covariance NONMEM reports as `NaN` because the covariance
+  step could not separate them. The
   generated control streams are checked against NONMEM 7.6.0: the fixture
   `tests/testthat/fixtures/nwpri_generated_anchor.rds` freezes, for a
   diagonal-OMEGA, a `BLOCK(2)`-OMEGA and a FIXED-THETA model, both the emitted

@@ -84,6 +84,10 @@ prior records (NONMEM requires the prior to mirror the model's parameter
 structure), so they are emitted with a negligible prior variance
 (a relative standard deviation of \code{1e-3}) and are therefore held at their
 point estimate for all practical purposes. A warning lists them.
+
+Non-finite covariance elements — NONMEM reports \code{NaN} for parameters the
+covariance step could not separate — are treated as zero, so such a
+parameter takes the same route.
 }
 
 \examples{

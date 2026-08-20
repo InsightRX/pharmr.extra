@@ -9,24 +9,27 @@
 #' simulation-only model has neither.
 #'
 #' So the parallelism is at the process level: split the subproblems over
-#' `n_chunks` NONMEM jobs, each with its own run folder and seed, and
+#' `n_cores` NONMEM jobs, each with its own run folder and seed, and
 #' concatenate the tables. Each chunk differs from the others only in two
 #' numbers in the `$SIMULATION` record, so the workers never need Pharmpy —
 #' they get a folder and a control stream, and do [call_nmfe()] plus a table
 #' read.
 #'
 #' @param sim_code the finished simulation control stream for this regimen:
-#' `$PRIOR` records in place, `$DATA` pointing at the dataset, `$TABLE` records
-#' set up. Its `$SIMULATION` record is rewritten per chunk.
+#' `$PRIOR` records in place, `$DATA` naming the dataset by its bare filename,
+#' `$TABLE` records set up. Its `$SIMULATION` record is rewritten per chunk.
+#' @param dataset path to this regimen's simulation dataset, copied into every
+#' chunk folder under the name `$DATA` refers to.
 #' @param n_uncertainty total number of parameter draws to produce.
-#' @param n_chunks number of NONMEM jobs to split them over.
 #' @param seed base random seed; chunk seeds are derived from it.
 #' @param folder run folder for this regimen. Chunk `k` runs in
 #' `<folder>/uncertainty_chunk_<k>`.
 #' @param output_file name of the simulation output table.
 #' @param nmfe path to the nmfe script, resolved by the caller (the worker
 #' processes must not touch Pharmpy).
-#' @param n_cores number of worker processes to spread the chunks over.
+#' @param n_cores number of worker processes, and therefore the number of
+#' NONMEM jobs the subproblems are split over: one chunk per worker, so no
+#' worker sits idle and no worker runs two jobs in sequence.
 #' @param force overwrite existing chunk run folders?
 #' @param verbose verbose output?
 #'
@@ -36,8 +39,8 @@
 #' @noRd
 run_nwpri_regimen <- function(
     sim_code,
+    dataset,
     n_uncertainty,
-    n_chunks,
     seed,
     folder,
     output_file,
@@ -46,7 +49,7 @@ run_nwpri_regimen <- function(
     force = FALSE,
     verbose = TRUE
 ) {
-  sizes   <- nwpri_chunk_sizes(n_uncertainty, n_chunks)
+  sizes   <- nwpri_chunk_sizes(n_uncertainty, n_cores)
   seeds   <- nwpri_chunk_seeds(seed, length(sizes))
   offsets <- cumsum(c(0L, utils::head(sizes, -1L)))
 
@@ -63,6 +66,13 @@ run_nwpri_regimen <- function(
       verbose = FALSE
     )
     chunk_folder <- normalizePath(chunk_folder, mustWork = TRUE)
+    ## A copy per chunk rather than one shared file referenced by an absolute
+    ## path: NM-TRAN truncates the `$DATA` filename field, and a run folder
+    ## under a deep temp path is easily long enough to hit that. This is what
+    ## the `"replicates"` engine's `copy_dataset = TRUE` does, for the same
+    ## reason.
+    file.copy(dataset, file.path(chunk_folder, basename(dataset)),
+              overwrite = TRUE)
     code <- set_simulation_record(
       code = sim_code, seed = seeds[k], n = sizes[k], true_prior = TRUE
     )
@@ -136,7 +146,7 @@ make_nwpri_chunk_fn <- function(nmfe, output_file) {
 #' whole set of draws. A chunk that failed is dropped with a warning rather
 #' than taking the run down with it — but note this is a coarser granularity
 #' than the `"replicates"` engine, where a failure costs one draw rather than
-#' `n / n_chunks` of them.
+#' `n / n_cores` of them.
 #'
 #' @param chunks list of [run_captured()] envelopes, in spec order.
 #' @param specs the chunk specs the envelopes came from.
@@ -193,7 +203,7 @@ collect_nwpri_chunks <- function(chunks, specs, n_uncertainty) {
   if(n_kept < n_uncertainty) {
     cli::cli_warn(c(
       "Only {n_kept} of {n_uncertainty} NWPRI draw{?s} produced output.",
-      i = "A failed chunk costs {.field n_uncertainty / n_chunks} draws at \\
+      i = "A failed chunk costs {.field n_uncertainty / n_cores} draws at \\
            once, so intervals computed over {.field .uncertainty} may be \\
            based on many fewer draws than requested.",
       i = "The counts are on the result as the {.field n_uncertainty_kept} and \\
@@ -203,13 +213,37 @@ collect_nwpri_chunks <- function(chunks, specs, n_uncertainty) {
   out
 }
 
+#' Number of NWPRI draws that survived in *every* regimen
+#'
+#' Chunks are per regimen, so a dropped chunk costs its draws in that regimen
+#' only. Counting distinct `.uncertainty` values over the concatenated result
+#' would let one regimen's missing draws be covered by another's, reporting a
+#' complete set while no regimen has one and the draws no longer pair across
+#' regimens. The worst regimen is therefore what gets reported.
+#'
+#' @param out the concatenated simulation output, with `.uncertainty` and
+#' (when [run_sim()] simulated more than one regimen) `regimen_label`.
+#'
+#' @returns the smallest number of distinct draws any regimen kept.
+#' @noRd
+nwpri_draws_kept <- function(out) {
+  if(!"regimen_label" %in% names(out)) {
+    return(length(unique(out[[".uncertainty"]])))
+  }
+  per_regimen <- tapply(
+    out[[".uncertainty"]], out[["regimen_label"]],
+    function(x) length(unique(x))
+  )
+  as.integer(min(per_regimen))
+}
+
 #' Split `n` subproblems over `n_chunks` NONMEM jobs
 #'
 #' As even as possible, remainder spread over the leading chunks. Never more
 #' chunks than draws: an empty `$SIMULATION` record is not a thing.
 #'
 #' @param n total number of subproblems.
-#' @param n_chunks requested number of chunks.
+#' @param n_chunks requested number of chunks (`run_sim()`'s `n_cores`).
 #'
 #' @returns an integer vector of chunk sizes summing to `n`.
 #' @noRd
@@ -220,7 +254,7 @@ nwpri_chunk_sizes <- function(n, n_chunks) {
     cli::cli_abort("Number of NWPRI draws must be a positive integer.")
   }
   if(is.na(n_chunks) || n_chunks < 1L) {
-    cli::cli_abort("`n_chunks` must be a positive integer.")
+    cli::cli_abort("Number of NWPRI chunks must be a positive integer.")
   }
   k <- min(n, n_chunks)
   base <- n %/% k
@@ -236,7 +270,7 @@ nwpri_chunk_sizes <- function(n, n_chunks) {
 #'
 #' Note that the draws therefore depend on how the subproblems were chunked:
 #' unlike the `"replicates"` engine, an NWPRI run is only reproducible for a
-#' fixed `n_chunks`.
+#' fixed `n_cores`.
 #'
 #' @param seed base seed.
 #' @param n_chunks number of chunks.
@@ -256,32 +290,10 @@ nwpri_chunk_seeds <- function(seed, n_chunks, spacing = 1000003L) {
   if(anyDuplicated(seeds) > 0) {
     cli::cli_abort(c(
       "Could not derive {n_chunks} distinct NONMEM seeds from `seed = {seed}`.",
-      i = "Use fewer chunks, or a different seed."
+      i = "Use fewer cores, or a different seed."
     ))
   }
   as.integer(seeds)
-}
-
-#' Resolve the number of chunks an NWPRI run is split over
-#'
-#' Defaults to `n_cores`, which is the throughput-optimal choice but makes the
-#' draws depend on the machine: the parameter vectors come out of NONMEM's own
-#' RNG, so which ones you get depends on how the subproblems were chunked. Set
-#' `n_chunks` explicitly to keep a run reproducible across machines.
-#'
-#' @param n_chunks requested number of chunks, or `NULL` for `n_cores`.
-#' @param n_cores resolved number of worker processes.
-#'
-#' @returns a positive integer.
-#' @noRd
-resolve_n_chunks <- function(n_chunks, n_cores) {
-  if(is.null(n_chunks)) return(as.integer(n_cores))
-  n <- suppressWarnings(as.numeric(n_chunks))
-  if(length(n) != 1 || is.na(n) || n < 1 || n != round(n) ||
-     n > .Machine$integer.max) {
-    cli::cli_abort("`n_chunks` must be a positive integer (<= {(.Machine$integer.max)}) or NULL.")
-  }
-  as.integer(n)
 }
 
 #' Run one regimen's NWPRI draws and return its output tables
@@ -313,7 +325,6 @@ run_nwpri_regimen_tables <- function(
     id,
     path,
     n_uncertainty,
-    n_chunks,
     seed,
     nmfe,
     update_table = TRUE,
@@ -327,13 +338,13 @@ run_nwpri_regimen_tables <- function(
   )
   reg_folder <- normalizePath(reg_folder, mustWork = TRUE)
 
-  ## One dataset for the whole regimen, shared by every chunk: `$DATA` is
-  ## rewritten to an absolute path so the chunk folders below it can all read
-  ## the same file.
+  ## One dataset for the whole regimen, copied into every chunk folder by
+  ## `run_nwpri_regimen()`. `$DATA` names it without a path so NM-TRAN never
+  ## sees a filename long enough to truncate.
   dataset_path <- file.path(reg_folder, "data.csv")
   write.csv(unquote_column_names(sim_data_regimen), dataset_path,
             quote = FALSE, row.names = FALSE)
-  sim_code <- change_nonmem_dataset(sim_model$code, dataset_path)
+  sim_code <- change_nonmem_dataset(sim_model$code, basename(dataset_path))
 
   ## Which table to read back. Derived from the control stream rather than
   ## taken from `run_sim()`'s `output_file`, so `update_table = FALSE` (tables
@@ -350,8 +361,8 @@ run_nwpri_regimen_tables <- function(
 
   tab <- run_nwpri_regimen(
     sim_code      = sim_code,
+    dataset       = dataset_path,
     n_uncertainty = n_uncertainty,
-    n_chunks      = n_chunks,
     seed          = seed,
     folder        = reg_folder,
     output_file   = table_name,
