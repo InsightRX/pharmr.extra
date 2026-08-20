@@ -10,8 +10,10 @@
 #' variables and a `regimen_label` column), so downstream example code
 #' that plots simulation results works unchanged.
 #'
-#' Limitation: `PRED` is reported as `IPRED` (no separate population
-#' prediction); rxSolve does not produce both in a single call.
+#' `PRED` is the population prediction, obtained from a second solve with the
+#' between-subject random effects zeroed ([rxode2::zeroRe()]) — rxSolve cannot
+#' emit `IPRED` and `PRED` in one call. If that solve is unavailable (older
+#' rxode2 without `zeroRe()`) or fails, `PRED` falls back to `IPRED`.
 #'
 #' @inheritParams run_sim
 #' @param path ignored for the nlmixr2 backend: simulations run via
@@ -55,7 +57,11 @@ run_sim_nlmixr <- function(
         cli::cli_abort("Could not resolve a model from the supplied `fit`.")
       }
     }
-    input_data <- as.data.frame(model$dataset)
+    ## Not `model$dataset`: when the caller passed an explicit `data =` to
+    ## run_nlme(), the fitted dataset lives on `attr(model, "original_data")`
+    ## and `model$dataset` still points at whatever was attached at model-build
+    ## time. resolve_nlmixr_data() prefers the former.
+    input_data <- resolve_nlmixr_data(model, NULL)
   } else {
     if(is.null(data)) {
       cli::cli_abort("`data` is required when `model_code` is supplied.")
@@ -122,9 +128,14 @@ run_sim_nlmixr <- function(
       returnType = "data.frame"
     )
 
+    ## Population prediction: the same events solved with the between-subject
+    ## random effects zeroed. Costs one extra single-replicate solve per
+    ## regimen, and is what makes prediction-corrected VPCs meaningful.
+    pop_pred <- solve_population_prediction(nlmixr_fn, sim_data_regimen)
+
     ## Reshape rxSolve output to the NONMEM-style sdtab columns expected
     ## by example code.
-    out_df <- shape_rxsolve_output(raw_sim, sim_data_regimen)
+    out_df <- shape_rxsolve_output(raw_sim, sim_data_regimen, pop_pred = pop_pred)
 
     if(!is.null(variables)) {
       keep <- intersect(variables, names(out_df))
@@ -159,8 +170,14 @@ run_sim_nlmixr <- function(
 #' `EVID`/`AMT`/`MDV` from the input dataset so that downstream filters
 #' like `filter(EVID == 0)` keep working.
 #'
+#' @param pop_pred optional numeric vector of population predictions for one
+#' simulation replicate (see [solve_population_prediction()]). `raw_sim` stacks
+#' `nsim` contiguous replicates in identical row order, so the vector is
+#' recycled across them. `NULL` (or a length that doesn't divide the output)
+#' falls back to reporting `IPRED` as `PRED`.
+#'
 #' @noRd
-shape_rxsolve_output <- function(raw_sim, sim_data_regimen) {
+shape_rxsolve_output <- function(raw_sim, sim_data_regimen, pop_pred = NULL) {
   df <- as.data.frame(raw_sim)
   ## Pharmpy's nlmixr code typically declares `IPRED` directly in the
   ## model({}) block, so it appears in rxSolve output already. Drop
@@ -179,10 +196,15 @@ shape_rxsolve_output <- function(raw_sim, sim_data_regimen) {
       df[[old_nm]] <- NULL
     }
   }
-  ## PRED is not directly available from rxSolve; report IPRED as a stand-in
-  ## (acceptable for plotting; document the approximation upstream).
-  if(!"PRED" %in% names(df) && "IPRED" %in% names(df)) {
-    df$PRED <- df$IPRED
+  ## PRED comes from a separate zero-random-effects solve (rxSolve cannot emit
+  ## both in one call). Where that isn't available, report IPRED as a stand-in.
+  if(!"PRED" %in% names(df)) {
+    if(!is.null(pop_pred) && length(pop_pred) > 0 &&
+       nrow(df) %% length(pop_pred) == 0) {
+      df$PRED <- rep(pop_pred, times = nrow(df) / length(pop_pred))
+    } else if("IPRED" %in% names(df)) {
+      df$PRED <- df$IPRED
+    }
   }
   ## Coerce ID to numeric (rxSolve often returns it as factor/character).
   if("ID" %in% names(df) && !is.numeric(df$ID)) {
@@ -206,6 +228,57 @@ shape_rxsolve_output <- function(raw_sim, sim_data_regimen) {
     if("MDV" %in% names(df)) df$MDV[is.na(df$MDV)] <- 0L
   }
   df
+}
+
+#' Solve a model with the between-subject random effects zeroed
+#'
+#' Gives the population prediction (`PRED`) for a set of events. rxSolve
+#' returns either the individual prediction or nothing else in a single call,
+#' so `PRED` needs its own solve of the same events through
+#' [rxode2::zeroRe()]'d model.
+#'
+#' Best-effort: returns `NULL` when the installed rxode2 has no `zeroRe()`,
+#' when the model has no random effects to zero, or when the solve fails for
+#' any other reason. Callers fall back to reporting `IPRED` as `PRED`.
+#'
+#' @param nlmixr_fn the nlmixr2/rxode2 model function.
+#' @param events the event table for one regimen.
+#'
+#' @returns numeric vector of population predictions, one per solved row, or
+#' `NULL`.
+#' @noRd
+solve_population_prediction <- function(nlmixr_fn, events) {
+  if(!rx_zero_re_supported()) return(NULL)
+  res <- tryCatch(
+    suppressWarnings(suppressMessages(
+      rxode2::rxSolve(
+        object = rxode2::zeroRe(nlmixr_fn),
+        events = events,
+        nsim = 1,
+        returnType = "data.frame"
+      )
+    )),
+    error = function(e) NULL
+  )
+  if(is.null(res)) return(NULL)
+  ## Pharmpy's nlmixr code declares IPRED in the model block; rxSolve's own
+  ## `ipredSim` is the fallback for models that don't.
+  col <- intersect(c("IPRED", "ipredSim"), names(res))
+  if(!length(col)) return(NULL)
+  as.numeric(res[[col[1]]])
+}
+
+#' Does the installed rxode2 expose `zeroRe()`?
+#'
+#' Not present in every rxode2 version. Where it is missing, `PRED` degrades
+#' to `IPRED` rather than erroring.
+#'
+#' @returns `TRUE` when rxode2 exports `zeroRe`.
+#' @noRd
+rx_zero_re_supported <- function() {
+  ns <- tryCatch(asNamespace("rxode2"), error = function(e) NULL)
+  if(is.null(ns)) return(FALSE)
+  "zeroRe" %in% getNamespaceExports(ns)
 }
 
 #' Does the installed rxode2 expose its RNG seed hooks?

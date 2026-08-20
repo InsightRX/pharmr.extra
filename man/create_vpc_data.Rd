@@ -28,7 +28,9 @@ to \code{model} + \code{parameters}.}
 character vector of NONMEM model code, or a path to a \code{.mod} file.}
 
 \item{data}{Path to the NONMEM-ready CSV. Optional; if missing, the
-function reads \verb{$DATA} from the model code.}
+function reads \verb{$DATA} from the model code. For nlmixr2 models a
+\code{data.frame} is accepted too, and the default is the dataset the model
+was fitted against.}
 
 \item{parameters}{Named list of parameter inits, e.g.
 \code{list(THETA_1 = 0.23, OMEGA_1_1 = 0.097, SIGMA_1_1 = 1)}. Optional.}
@@ -40,17 +42,21 @@ dataset to keep in the output.}
 
 \item{verbose}{verbose output?}
 
-\item{id}{run id used as folder name. Defaults to a random name.}
+\item{id}{run id used as folder name. Defaults to a random name. NONMEM
+models only; ignored (with a warning) for nlmixr2 models, which run
+through \code{\link[rxode2:rxSolve]{rxode2::rxSolve()}} and create no run folder.}
 
 \item{use_pharmpy}{retained for backward compatibility; controls whether
-\code{PRED}/\code{TAD} are transferred from obs to sim during post-processing.}
+\code{PRED}/\code{TAD} are transferred from obs to sim during post-processing.
+NONMEM models only; ignored (with a warning) for nlmixr2 models.}
 
 \item{fix_input_heuristic}{If TRUE (default), detect the common
 \code{pharmr::set_dataset()} side-effect that rewrites \verb{$INPUT} to the CSV
 headers, and rebind \code{TIME} -> \code{TAFD} and (for log-transform-both-sides
 models) \code{DV} -> \code{LNDV}. Set to FALSE to leave \verb{$INPUT} untouched. The
 LTBS detection only scans the \verb{$ERROR} record (not the whole model) so
-a \code{LOG()} call in a covariate transform doesn't trigger a false swap.}
+a \code{LOG()} call in a covariate transform doesn't trigger a false swap.
+NONMEM models only; ignored (with a warning) for nlmixr2 models.}
 
 \item{seed}{integer seed passed to the simulation step. Default \code{NULL}
 draws a random seed per call (so repeated \code{create_vpc_data()} calls
@@ -62,7 +68,7 @@ sets the output format of the \code{ID} column only. Defaults to \code{sF11.0}, 
 integer subject IDs of up to 10 digits are written in full instead of
 being truncated by NONMEM's default (~6 significant digits). All other
 columns keep NONMEM's default format. \code{NULL} uses the NONMEM default for
-\code{ID} too.}
+\code{ID} too. NONMEM models only; ignored (with a warning) for nlmixr2 models.}
 }
 \value{
 list with \code{obs} and \code{sim} data frames.
@@ -78,3 +84,14 @@ Python/R <-> reticulate serialisation cannot reject a value that NONMEM
 itself would accept. \code{run_nlme()} is still used to actually invoke nmfe,
 and post-processing of \code{obs}/\code{sim} is identical to the original.
 }
+\section{nlmixr2 models}{
+
+Pharmpy models in nlmixr format are routed to an rxode2-based path
+(\code{\link[rxode2:rxSolve]{rxode2::rxSolve()}}) instead of NONMEM. \code{fit}, \code{model}, \code{data},
+\code{parameters}, \code{keep_columns}, \code{n}, \code{seed} and \code{verbose} all apply there;
+the remaining arguments are NONMEM-specific and warn if set. \code{sim$PRED} is
+a genuine population prediction (a second solve with the between-subject
+random effects zeroed), except on rxode2 versions without \code{zeroRe()}, where
+it falls back to \code{IPRED}.
+}
+
