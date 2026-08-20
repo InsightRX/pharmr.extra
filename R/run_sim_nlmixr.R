@@ -17,6 +17,11 @@
 #' @param path ignored for the nlmixr2 backend: simulations run via
 #' [rxode2::rxSolve()] and create no NONMEM-style run folders. Accepted only to
 #' keep the signature aligned with [run_sim()].
+#' @param model_code pre-rendered nlmixr2/rxode2 model code (character), used
+#' instead of extracting it from `model`. This is what lets a simulation run in
+#' a worker process: a Pharmpy `model` is a Python (reticulate) object and
+#' cannot cross a process boundary, but its rendered code can. When supplied,
+#' `model`/`fit` are not needed and `data` is required.
 #' @keywords internal
 run_sim_nlmixr <- function(
   fit = NULL,
@@ -29,25 +34,34 @@ run_sim_nlmixr <- function(
   add_pk_variables = FALSE,
   output_file = "simtab",
   seed = 12345,
-  verbose = TRUE
+  verbose = TRUE,
+  model_code = NULL
 ) {
   if(!requireNamespace("rxode2", quietly = TRUE)) {
     cli::cli_abort("Package {.pkg rxode2} is required for nlmixr2 simulations.")
   }
 
-  ## Resolve model with current estimates
-  if(is.null(model)) {
-    if(is.null(fit)) {
-      cli::cli_abort("Need either `fit` or `model` to simulate.")
-    }
-    model <- attr(fit, "final_model")
-    if(is.null(model)) model <- attr(fit, "model")
+  ## Resolve model with current estimates. Skipped entirely when the caller
+  ## already rendered the model code (parallel uncertainty replicates), since
+  ## touching `model` would mean touching Python.
+  if(is.null(model_code)) {
     if(is.null(model)) {
-      cli::cli_abort("Could not resolve a model from the supplied `fit`.")
+      if(is.null(fit)) {
+        cli::cli_abort("Need either `fit` or `model` to simulate.")
+      }
+      model <- attr(fit, "final_model")
+      if(is.null(model)) model <- attr(fit, "model")
+      if(is.null(model)) {
+        cli::cli_abort("Could not resolve a model from the supplied `fit`.")
+      }
     }
+    input_data <- as.data.frame(model$dataset)
+  } else {
+    if(is.null(data)) {
+      cli::cli_abort("`data` is required when `model_code` is supplied.")
+    }
+    input_data <- NULL
   }
-
-  input_data <- as.data.frame(model$dataset)
 
   if(is.null(data)) {
     if(verbose) cli::cli_alert_info("Using input dataset for simulation")
@@ -71,7 +85,8 @@ run_sim_nlmixr <- function(
   ## SAEM-safe residual aliases and scale_observations); otherwise re-apply
   ## the residual-alias cleanup, since the cached attribute can be lost across
   ## subsequent pharmpy ops (e.g. update_parameters returns a fresh object).
-  model_code <- attr(model, "nlmixr_code") %||%
+  model_code <- model_code %||%
+    attr(model, "nlmixr_code") %||%
     make_nlmixr_saem_safe(model$code)
   nlmixr_fn <- extract_nlmixr_function(model_code)
   if(is.null(nlmixr_fn)) {

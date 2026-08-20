@@ -1,6 +1,6 @@
 Package: pharmr.extra
 Title: Extension of pharmr (Pharmpy) functionality
-Version: 0.0.0.9119
+Version: 0.0.0.9120
 Authors@R: c(
     person("Ron", "Keizer", email = "ron@insight-rx.com", role = c("cre", "aut")),
     person("Michael", "McCarthy", email = "michael.mccarthy@insight-rx.com", role = "ctb"),
@@ -24,6 +24,7 @@ Imports:
     job,
     jsonlite,
     knitr,
+    parallel,
     PKPDsim,
     plotly,
     readr,
@@ -40,6 +41,7 @@ Suggests:
     nlmixr2,
     nlmixr2data,
     nlmixr2est,
+    pkgload,
     rmarkdown,
     testthat (>= 3.2.0),
     withr

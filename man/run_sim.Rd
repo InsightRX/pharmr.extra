@@ -19,6 +19,7 @@ run_sim(
   output_file = "simtab",
   update_table = TRUE,
   seed = 12345,
+  n_cores = 1,
   verbose = TRUE
 )
 }
@@ -85,6 +86,14 @@ specifed in the model. However, in the return object, only the first table
 is returned back. If \code{FALSE}, the \code{add_pk_variables} argument will be ignored.}
 
 \item{seed}{TODO}
+
+\item{n_cores}{number of processes to run uncertainty replicates on
+(default \code{1}, i.e. sequential; unchanged behaviour). Values \verb{> 1} spread the
+\code{n_uncertainty} replicates over that many worker processes and are
+supported for the \code{nlmixr2} tool only; a NONMEM run warns and falls back to
+sequential. Output is identical to a sequential run for the same \code{seed},
+since each replicate keeps its own derived seed (\code{seed + r}) and results are
+reassembled by replicate index. Ignored when no uncertainty is requested.}
 
 \item{verbose}{verbose output?}
 }

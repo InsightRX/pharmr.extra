@@ -413,36 +413,8 @@ test_that("create_dosing_records: multiple regimens propagate to .regimen column
 # without requiring NONMEM to actually execute
 # ===========================================================================
 
-## Minimal fake run_nlme result
-.mock_nlme_result <- function(tab = NULL) {
-  if (is.null(tab)) {
-    tab <- data.frame(
-      ID   = c(1L, 1L, 1L),
-      TIME = c(0, 6, 12),
-      DV   = c(0, 5.1, 3.2),
-      EVID = c(1L, 0L, 0L),
-      PRED = c(0, 5.0, 3.0),
-      CL   = c(2, 2, 2)
-    )
-  }
-  result <- list()
-  attr(result, "tables") <- list(simtab = tab)
-  result
-}
-
-## Minimal dataset that satisfies run_sim() column expectations
-.sim_dat <- function(n_ids = 1) {
-  lapply(seq_len(n_ids), function(i) {
-    data.frame(
-      ID   = i,
-      TIME = c(0, 6, 12),
-      DV   = c(0, 5, 3),
-      AMT  = c(100, 0, 0),
-      EVID = c(1, 0, 0),
-      MDV  = c(1, 0, 0)
-    )
-  }) |> dplyr::bind_rows()
-}
+## `.mock_nlme_result()` / `.sim_dat()` live in helper.R: they are shared with
+## test-run_sim-parallel.R.
 
 test_that("run_sim (stub): update_table=FALSE skips variable setup, returns table", {
   local_pharmr.extra_options()
