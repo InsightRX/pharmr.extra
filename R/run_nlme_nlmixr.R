@@ -134,8 +134,11 @@ run_nlme_nlmixr <- function(
   if(est %in% c("foce")) est <- "focei"
 
   ## Fit
+  nlmixr_proc <- NULL
   if(verbose) {
-    cli::cli_process_start(paste0("Starting nlmixr2 run in ", fit_folder))
+    nlmixr_proc <- cli::cli_process_start(
+      paste0("Starting nlmixr2 run in ", fit_folder)
+    )
   }
   log_path <- file.path(fit_folder, output_file)
   lsoda_log_path <- file.path(fit_folder, "run_lsoda.log")
@@ -148,7 +151,7 @@ run_nlme_nlmixr <- function(
     lsoda_log_path = lsoda_log_path,
     verbose = verbose
   )
-  if(verbose) cli::cli_process_done()
+  if(!is.null(nlmixr_proc)) cli::cli_process_done(id = nlmixr_proc)
 
   ## Build a uniform fit object (pharmpy-shaped).
   fit <- as_pharmpy_shaped_fit(raw_fit, model, input_data = fit_data)

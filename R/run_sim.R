@@ -623,9 +623,23 @@ run_sim <- function(
   } else {
     pb <- NULL
     if(verbose) {
+      ## `.auto_close = FALSE` plus `progress_try()` on every call that drives
+      ## the bar: cli implements progress bars on top of its status-bar stack,
+      ## so an unbalanced `cli_process_done()` anywhere below us (in a
+      ## dependency, or in user code called from one) pops *our* entry, and
+      ## cli then indexes the emptied stack -- "subscript out of bounds". With
+      ## `.auto_close = TRUE` that surfaces from a deferred `on.exit()` clause
+      ## in this frame, i.e. *after* every replicate has already run, turning a
+      ## finished simulation into an error and returning nothing to the caller.
+      ## The bar is cosmetic; it must never be able to fail the run. See #137.
       pb <- cli::cli_progress_bar(
-        "Uncertainty replicates", total = n_uncertainty, .envir = environment()
+        "Uncertainty replicates", total = n_uncertainty,
+        .auto_close = FALSE, .envir = environment()
       )
+      ## Backstop for the paths that leave this frame without reaching the
+      ## explicit close below (an abort from a replicate, a caller's
+      ## interrupt).
+      on.exit(progress_try(cli::cli_progress_done(id = pb)), add = TRUE)
     }
     replicates <- lapply(seq_len(n_uncertainty), function(r) {
       res <- run_captured(r, function() {
@@ -647,7 +661,7 @@ run_sim <- function(
         ## are typically systematic (licence, no output table, clobbered run
         ## folder), so carrying on would burn the remaining replicates only to
         ## return a silently truncated set of draws.
-        if(!is.null(pb)) cli::cli_progress_done(id = pb)
+        if(!is.null(pb)) progress_try(cli::cli_progress_done(id = pb))
         emit_replicate_warnings(r, res$warnings)
         cli::cli_abort("Uncertainty replicate {r} failed.", parent = res$result)
       }
@@ -655,10 +669,10 @@ run_sim <- function(
       ## quiet about a misbehaving replicate until the last one has finished.
       emit_replicate_warnings(r, res$warnings)
       res$warnings <- list()
-      if(!is.null(pb)) cli::cli_progress_update(id = pb)
+      if(!is.null(pb)) progress_try(cli::cli_progress_update(id = pb))
       res
     })
-    if(!is.null(pb)) cli::cli_progress_done(id = pb)
+    if(!is.null(pb)) progress_try(cli::cli_progress_done(id = pb))
   }
 
   ## Assemble by replicate index (not by completion order) so `.uncertainty`

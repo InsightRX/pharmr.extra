@@ -29,12 +29,16 @@ attach_fit_info <- function(
   verbose = TRUE
 ) {
   ## Read tables from the run folder
-  if(verbose) cli::cli_process_start("Importing generated tables")
+  ## Close by id throughout: a bare `cli_process_done()` pops whatever status
+  ## is on cli's stack, which -- when the matching start was skipped -- is the
+  ## caller's progress bar, and cli then errors on its teardown (issue #137).
+  proc <- NULL
+  if(verbose) proc <- cli::cli_process_start("Importing generated tables")
   tables <- get_tables_from_fit(
     model,
     fit_folder
   )
-  if(verbose) cli::cli_process_done()
+  if(!is.null(proc)) cli::cli_process_done(id = proc)
 
   ## Rebuild `residuals` so it is aligned with the observation records and
   ## carries join keys (see repair_residuals()). Must happen before the
@@ -52,16 +56,19 @@ attach_fit_info <- function(
 
   if(!is_sim_model) {
     ## Generate a summary of fit info
-    if(verbose) cli::cli_process_start("Summarizing fit results")
+    proc <- NULL
+    if(verbose) proc <- cli::cli_process_start("Summarizing fit results")
     fit_info <- get_fit_info(
       fit,
       path = fit_folder,
       output_file = output_file
     )
     attr(fit, "info") <- fit_info
+    ## Inside the `!is_sim_model` branch, with the start it pairs with: sim
+    ## models never open this status bar, so closing it here unconditionally
+    ## used to pop the caller's bar instead.
+    if(!is.null(proc)) cli::cli_process_done(id = proc)
   }
-
-  if(verbose) cli::cli_process_done()
 
   fit
 }
