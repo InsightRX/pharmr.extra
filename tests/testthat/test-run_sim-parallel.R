@@ -11,6 +11,20 @@ test_that("resolve_n_cores validates its input", {
   expect_error(resolve_n_cores(1.5), "positive integer")
   expect_error(resolve_n_cores("two"), "positive integer")
   expect_error(resolve_n_cores(c(1, 2)), "positive integer")
+  ## `as.integer()` returns NA for these; they must still be reported as an
+  ## invalid `n_cores`, not blow up on the NA further down.
+  expect_error(resolve_n_cores(Inf), "positive integer")
+  expect_error(resolve_n_cores(1e10), "positive integer")
+})
+
+test_that("worker_threads splits the machine over the workers", {
+  avail <- suppressWarnings(parallel::detectCores(logical = TRUE))
+  skip_if(is.na(avail))
+  expect_equal(worker_threads(1), as.integer(avail))
+  expect_equal(worker_threads(2), max(1L, as.integer(avail %/% 2)))
+  ## never zero, however many workers are asked for
+  expect_gte(worker_threads(avail * 4), 1L)
+  expect_type(worker_threads(3), "integer")
 })
 
 test_that("resolve_n_cores caps at the number of cores detected", {
@@ -45,12 +59,38 @@ test_that("run_captured captures warnings and converts errors to values", {
   })
   expect_equal(ok$index, 2)
   expect_equal(ok$result, data.frame(x = 1))
-  expect_equal(ok$warnings, c("first problem", "second problem"))
+  ## conditions, not just messages, so custom classes survive the trip back
+  expect_length(ok$warnings, 2)
+  expect_equal(
+    vapply(ok$warnings, conditionMessage, character(1)),
+    c("first problem", "second problem")
+  )
+  expect_s3_class(ok$warnings[[1]], "condition")
 
   bad <- run_captured(3, function() stop("boom"))
   expect_equal(bad$index, 3)
   expect_s3_class(bad$result, "condition")
   expect_equal(conditionMessage(bad$result), "boom")
+})
+
+test_that("emit_replicate_warnings labels warnings and keeps their class", {
+  captured <- run_captured(4, function() {
+    rlang::warn("something odd", class = "my_custom_warning")
+    invisible(NULL)
+  })
+
+  expect_warning(
+    emit_replicate_warnings(captured$index, captured$warnings),
+    "Uncertainty replicate 4: something odd"
+  )
+  ## a caller handling the original condition class still sees it
+  seen <- tryCatch(
+    emit_replicate_warnings(captured$index, captured$warnings),
+    my_custom_warning = function(w) conditionMessage(w)
+  )
+  expect_match(seen, "Uncertainty replicate 4")
+
+  expect_silent(emit_replicate_warnings(1, list()))
 })
 
 # ---------------------------------------------------------------------------
@@ -233,7 +273,7 @@ test_that("run_sim: n_cores > 1 falls back to sequential for NONMEM", {
   expect_equal(sort(unique(out$.uncertainty)), 1:2)
 })
 
-test_that("run_sim: a failing replicate is dropped with a warning", {
+test_that("run_sim (nonmem): a failing replicate aborts the run", {
   local_pharmr.extra_options()
   skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
@@ -263,13 +303,98 @@ test_that("run_sim: a failing replicate is dropped with a warning", {
     .package = "pharmr"
   )
 
-  expect_warning(
-    out <- run_sim(fit = fake_fit, model = mod, data = .sim_dat(),
-                   n_uncertainty = 3, verbose = FALSE),
-    "replicate 2 failed"
+  ## NONMEM replicate failures are usually systematic (licence, no output
+  ## table, clobbered run folder), so the run stops instead of quietly
+  ## returning a truncated set of draws.
+  expect_error(
+    run_sim(fit = fake_fit, model = mod, data = .sim_dat(),
+            n_uncertainty = 3, verbose = FALSE),
+    "Uncertainty replicate 2 failed"
+  )
+  ## and it stops there: the third replicate is never started
+  expect_equal(call_n, 2L)
+})
+
+test_that("run_sim (nlmixr2): a failing replicate is dropped with a warning", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- make_model_without_cov()
+  fake_fit <- list(
+    parameter_estimates = c(POP_CL = 1, POP_V = 10),
+    covariance_matrix   = diag(2)
+  )
+  call_n <- 0L
+  local_mocked_bindings(
+    run_sim_nlmixr = function(...) {
+      call_n <<- call_n + 1L
+      if(call_n == 2L) stop("simulated rxode2 failure")
+      .mock_sim_table()
+    },
+    sample_uncertainty_parameters =
+      function(model, parameter_estimates, covariance_matrix, n, seed) {
+        as.data.frame(matrix(rep(seq_len(n), 2), ncol = 2,
+                             dimnames = list(NULL, c("POP_CL", "POP_V"))))
+      },
+    .package = "pharmr.extra"
+  )
+  local_mocked_bindings(
+    set_initial_estimates = function(model, inits) model,
+    .package = "pharmr"
+  )
+
+  out <- suppressWarnings(
+    run_sim(fit = fake_fit, model = mod, data = .sim_dat(), tool = "nlmixr2",
+            n_uncertainty = 3, verbose = FALSE)
   )
   ## the run survives, and the surviving replicates keep their own indices
   expect_equal(sort(unique(out$.uncertainty)), c(1, 3))
+  ## the shortfall is on the result, not only in the console warnings
+  expect_equal(attr(out, "n_uncertainty_requested"), 3L)
+  expect_equal(attr(out, "n_uncertainty_kept"), 2L)
+})
+
+test_that("run_sim: a short replicate set warns about the shortfall", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- make_model_without_cov()
+  fake_fit <- list(
+    parameter_estimates = c(POP_CL = 1, POP_V = 10),
+    covariance_matrix   = diag(2)
+  )
+  call_n <- 0L
+  local_mocked_bindings(
+    run_sim_nlmixr = function(...) {
+      call_n <<- call_n + 1L
+      if(call_n == 2L) stop("simulated rxode2 failure")
+      .mock_sim_table()
+    },
+    sample_uncertainty_parameters =
+      function(model, parameter_estimates, covariance_matrix, n, seed) {
+        as.data.frame(matrix(rep(seq_len(n), 2), ncol = 2,
+                             dimnames = list(NULL, c("POP_CL", "POP_V"))))
+      },
+    .package = "pharmr.extra"
+  )
+  local_mocked_bindings(
+    set_initial_estimates = function(model, inits) model,
+    .package = "pharmr"
+  )
+
+  expect_warning(
+    ## muffle the per-replicate warning so only the summary one is asserted on
+    withCallingHandlers(
+      run_sim(fit = fake_fit, model = mod, data = .sim_dat(), tool = "nlmixr2",
+              n_uncertainty = 3, verbose = FALSE),
+      warning = function(w) {
+        if(grepl("omitted", conditionMessage(w))) invokeRestart("muffleWarning")
+      }
+    ),
+    "Only 2 of 3 uncertainty replicates"
+  )
 })
 
 test_that("run_sim: errors when every replicate fails", {
@@ -283,7 +408,7 @@ test_that("run_sim: errors when every replicate fails", {
     covariance_matrix   = diag(2)
   )
   local_mocked_bindings(
-    run_nlme = function(...) stop("simulated NONMEM failure"),
+    run_sim_nlmixr = function(...) stop("simulated rxode2 failure"),
     sample_uncertainty_parameters =
       function(model, parameter_estimates, covariance_matrix, n, seed) {
         as.data.frame(matrix(rep(seq_len(n), 2), ncol = 2,
@@ -298,9 +423,28 @@ test_that("run_sim: errors when every replicate fails", {
 
   expect_error(
     suppressWarnings(
-      run_sim(fit = fake_fit, model = mod, data = .sim_dat(),
+      run_sim(fit = fake_fit, model = mod, data = .sim_dat(), tool = "nlmixr2",
               n_uncertainty = 2, verbose = FALSE)
     ),
     "All 2 uncertainty replicates failed"
+  )
+})
+
+test_that("run_sim: `data` is validated before replicates are dispatched", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- make_model_without_cov()
+  fake_fit <- list(
+    parameter_estimates = c(POP_CL = 1, POP_V = 10),
+    covariance_matrix   = diag(2)
+  )
+  ## One clear message from the parent, rather than n_uncertainty worker
+  ## failures followed by "all replicates failed".
+  expect_error(
+    run_sim(fit = fake_fit, model = mod, data = matrix(1:4, ncol = 2),
+            tool = "nlmixr2", n_uncertainty = 2, n_cores = 2, verbose = FALSE),
+    "must be a data.frame"
   )
 })

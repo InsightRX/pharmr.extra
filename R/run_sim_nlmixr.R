@@ -68,12 +68,7 @@ run_sim_nlmixr <- function(
     sim_data <- input_data
     sim_data[[".regimen"]] <- "original regimens"
   } else {
-    if(!inherits(data, "data.frame")) {
-      cli::cli_abort(
-        c("`data` must be a data.frame (typically the output of {.fn create_sim_dataset}).",
-          x = "Got an object of class {.cls {class(data)}}.")
-      )
-    }
+    validate_sim_data(data)
     sim_data <- as.data.frame(data)
     if(!".regimen" %in% names(sim_data)) {
       sim_data[[".regimen"]] <- "original regimens"
@@ -96,6 +91,16 @@ run_sim_nlmixr <- function(
   unique_regimens <- unique(sim_data[[".regimen"]])
   comb <- list()
   set.seed(seed)
+  ## `set.seed()` on its own does not pin rxode2's RNG once solving is threaded;
+  ## `rxSetSeed()` is the documented hook for that. Setting both is what makes a
+  ## replicate reproduce identically whether it ran in this process or in a
+  ## worker (which starts from a fresh rxode2 RNG state). Restored on exit,
+  ## since rxSetSeed() is global and would otherwise pin the caller's session.
+  if(rx_seed_supported()) {
+    old_rx_seed <- rxode2::rxGetSeed()
+    rxode2::rxSetSeed(seed)
+    on.exit(try(rxode2::rxSetSeed(old_rx_seed), silent = TRUE), add = TRUE)
+  }
 
   for(reg_label in unique_regimens) {
     if(verbose) cli::cli_alert_info("Running simulation ({reg_label})")
@@ -201,4 +206,17 @@ shape_rxsolve_output <- function(raw_sim, sim_data_regimen) {
     if("MDV" %in% names(df)) df$MDV[is.na(df$MDV)] <- 0L
   }
   df
+}
+
+#' Does the installed rxode2 expose its RNG seed hooks?
+#'
+#' `rxSetSeed()`/`rxGetSeed()` are not present in every rxode2 version, so the
+#' seeding is applied only where both exist.
+#'
+#' @returns `TRUE` when both hooks are exported by rxode2.
+#' @noRd
+rx_seed_supported <- function() {
+  ns <- tryCatch(asNamespace("rxode2"), error = function(e) NULL)
+  if(is.null(ns)) return(FALSE)
+  all(c("rxSetSeed", "rxGetSeed") %in% getNamespaceExports(ns))
 }

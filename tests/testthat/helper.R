@@ -62,3 +62,18 @@ make_model_without_cov <- function() {
     )
   }) |> dplyr::bind_rows()
 }
+
+
+## Simulation output as run_sim_nlmixr() returns it, for tests that mock the
+## nlmixr2 engine out.
+.mock_sim_table <- function() {
+  data.frame(
+    ID            = c(1L, 1L, 1L),
+    TIME          = c(0, 6, 12),
+    DV            = c(0, 5.1, 3.2),
+    IPRED         = c(0, 5.1, 3.2),
+    PRED          = c(0, 5.0, 3.0),
+    EVID          = c(1L, 0L, 0L),
+    regimen_label = "original regimens"
+  )
+}

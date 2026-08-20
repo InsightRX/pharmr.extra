@@ -7,8 +7,12 @@
 #' @noRd
 resolve_n_cores <- function(n_cores) {
   n <- suppressWarnings(as.numeric(n_cores))
-  if(length(n) != 1 || is.na(n) || n < 1 || n != round(n)) {
-    cli::cli_abort("`n_cores` must be a positive integer.")
+  ## Bound above by the integer range as well: `as.integer()` returns NA for
+  ## `Inf` or anything past `.Machine$integer.max`, which would then blow up in
+  ## the `n == 1L` comparison below instead of reporting the real problem.
+  if(length(n) != 1 || is.na(n) || n < 1 || n != round(n) ||
+     n > .Machine$integer.max) {
+    cli::cli_abort("`n_cores` must be a positive integer (<= {(.Machine$integer.max)}).")
   }
   n <- as.integer(n)
   if(n == 1L) return(n)
@@ -46,7 +50,8 @@ parallel_lapply <- function(X, FUN, n_cores = 1L) {
   if(n_cores <= 1L || length(X) < 2L) {
     return(lapply(X, FUN))
   }
-  cl <- parallel::makePSOCKcluster(min(n_cores, length(X)))
+  n_workers <- min(n_cores, length(X))
+  cl <- parallel::makePSOCKcluster(n_workers)
   on.exit(parallel::stopCluster(cl), add = TRUE)
   init <- worker_init_args()
   ## Reparented to baseenv() on purpose: a closure carrying this package's
@@ -54,18 +59,42 @@ parallel_lapply <- function(X, FUN, n_cores = 1L) {
   ## unserialise it, which fails when the package was never installed and
   ## silently runs stale code when it was. This one loads nothing implicitly,
   ## so it gets to decide which copy the worker uses.
-  init_fn <- function(path, dev) {
+  init_fn <- function(path, dev, threads) {
     if(isTRUE(dev)) {
       pkgload::load_all(path, quiet = TRUE, helpers = FALSE,
                         attach_testthat = FALSE)
     } else {
       loadNamespace("pharmr.extra")
     }
+    ## Each worker is a fresh R process in which rxode2 sizes its OpenMP thread
+    ## pool to every core it detects, so `n_workers` workers would each spawn a
+    ## machine's worth of solver threads and spend the run fighting each other
+    ## for cores. Give every worker an equal, non-overlapping share instead.
+    if(requireNamespace("rxode2", quietly = TRUE)) {
+      try(rxode2::setRxThreads(threads), silent = TRUE)
+    }
     invisible(NULL)
   }
   environment(init_fn) <- baseenv()
-  parallel::clusterCall(cl, init_fn, init$path, init$dev)
+  parallel::clusterCall(cl, init_fn, init$path, init$dev,
+                        worker_threads(n_workers))
   parallel::parLapplyLB(cl, X, FUN)
+}
+
+#' Solver threads to allow each worker process
+#'
+#' Splits the machine's cores evenly over the workers, so the total number of
+#' rxode2/OpenMP threads stays around the core count rather than
+#' `n_workers` times it. At least `1` per worker.
+#'
+#' @param n_workers number of worker processes about to be started.
+#'
+#' @returns a positive integer.
+#' @noRd
+worker_threads <- function(n_workers) {
+  avail <- suppressWarnings(parallel::detectCores(logical = TRUE))
+  if(is.na(avail)) return(1L)
+  max(1L, as.integer(avail %/% n_workers))
 }
 
 #' Arguments describing how workers should load this package
@@ -99,16 +128,43 @@ worker_init_args <- function() {
 #' @param fn function of no arguments performing the replicate.
 #'
 #' @returns list with `index`, `result` (a data.frame, or an error condition)
-#' and `warnings` (character vector).
+#' and `warnings` (list of warning conditions).
 #' @noRd
 run_captured <- function(index, fn) {
-  warns <- character()
+  warns <- list()
   res <- withCallingHandlers(
     tryCatch(fn(), error = function(e) e),
     warning = function(w) {
-      warns <<- c(warns, conditionMessage(w))
+      ## The whole condition, not just its message: re-emitting it in the
+      ## parent should keep any custom class an upstream `tryCatch()` matches on.
+      warns[[length(warns) + 1L]] <<- w
       invokeRestart("muffleWarning")
     }
   )
   list(index = index, result = res, warnings = warns)
+}
+
+#' Re-emit warnings a replicate raised, labelled with the replicate index
+#'
+#' @param index replicate index (1-based).
+#' @param warnings list of captured warning conditions.
+#'
+#' @returns `NULL`, invisibly.
+#' @noRd
+emit_replicate_warnings <- function(index, warnings) {
+  for(w in warnings) {
+    msg <- conditionMessage(w)
+    ## Preserve any class the original warning carried beyond the base ones, so
+    ## callers handling a specific condition class still see it after the trip
+    ## through a worker.
+    extra <- setdiff(
+      class(w),
+      c("simpleWarning", "rlang_warning", "warning", "condition")
+    )
+    cli::cli_warn(
+      "Uncertainty replicate {index}: {msg}",
+      class = if(length(extra) > 0) extra else NULL
+    )
+  }
+  invisible(NULL)
 }
