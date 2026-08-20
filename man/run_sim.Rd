@@ -21,7 +21,7 @@ run_sim(
   seed = 12345,
   verbose = TRUE,
   n_cores = 1,
-  uncertainty_engine = c("replicates", "nwpri"),
+  uncertainty_engine = c("auto", "replicates", "nwpri"),
   plev = 0.9999
 )
 }
@@ -81,7 +81,8 @@ different seed per replicate the spread across replicates would also contain
 the Monte-Carlo noise of re-simulating a fresh set of subjects each time.
 Use \code{n_iterations} if you want extra random variability \emph{within} a
 replicate. Note this holds for \code{uncertainty_engine = "replicates"} only —
-see \code{uncertainty_engine} below for why NWPRI cannot do it.
+see \code{uncertainty_engine} below for why NWPRI cannot do it, and why it is
+nonetheless the default.
 
 This is the same idea as NONMEM's own \verb{$PRIOR NWPRI} +
 \verb{$SIMULATION ... TRUE=PRIOR}, which is available directly as
@@ -135,9 +136,14 @@ not oversubscribe the CPU.}
 \item{uncertainty_engine}{how \code{n_uncertainty} parameter uncertainty is
 propagated. Ignored when no uncertainty is requested.
 \itemize{
-\item \code{"replicates"} (default, unchanged behaviour) draws \code{n_uncertainty}
-parameter sets from the fit's covariance matrix in R and runs one
-simulation per draw. Works for both backends.
+\item \code{"auto"} (default) uses \code{"nwpri"} where it applies — NONMEM, with
+\code{n_iterations = 1} — and \code{"replicates"} everywhere else. Naming an engine
+explicitly errors rather than falling back, so an explicit request is
+never silently overridden; \code{"auto"} announces which one it picked under
+\code{verbose}.
+\item \code{"replicates"} draws \code{n_uncertainty} parameter sets from the fit's
+covariance matrix in R and runs one simulation per draw. Works for both
+backends.
 \item \code{"nwpri"} (NONMEM only) hands the job to NONMEM: a \verb{$PRIOR NWPRI} record
 built from the fit (see \code{\link[=add_nwpri_prior]{add_nwpri_prior()}}) plus
 \verb{$SIMULATION ... TRUE=PRIOR}, so NONMEM draws a new parameter vector per
@@ -167,8 +173,19 @@ THETA, OMEGA and SIGMA priors as independent blocks and therefore discards
 the THETA-OMEGA and THETA-SIGMA covariances that \verb{$COVARIANCE} reports.
 Which is preferable is a judgement call — the inverse-Wishart draw is
 arguably better justified for variance parameters, joint sampling is the one
-that keeps the full reported covariance — which is why this is a switch
-rather than a silent optimisation.}
+that keeps the full reported covariance — which is why this stays a switch
+rather than becoming an implementation detail.
+
+A third difference matters for uncertainty intervals specifically: NWPRI
+cannot hold the simulated individuals fixed across draws, where
+\code{"replicates"} does (see \code{n_uncertainty} above, and issue #131). An NWPRI
+interval over \code{.uncertainty} therefore also carries the Monte-Carlo noise of
+re-simulating the subjects. That noise shrinks as the simulation dataset and
+\code{n_uncertainty} grow, which is the regime the speed difference makes
+practical, so NWPRI is nonetheless the default. Use
+\code{uncertainty_engine = "replicates"} when a clean separation matters more
+than run time — small simulation datasets and few draws being the case to
+watch.}
 
 \item{plev}{\code{uncertainty_engine = "nwpri"} only: the probability mass the
 THETA draws are truncated to, passed to \code{\link[=add_nwpri_prior]{add_nwpri_prior()}}.}

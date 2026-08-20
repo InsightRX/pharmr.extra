@@ -56,9 +56,10 @@ run_nwpri_regimen <- function(
     force = FALSE,
     verbose = TRUE
 ) {
-  sizes   <- nwpri_chunk_sizes(n_uncertainty, n_cores)
-  seeds   <- nwpri_chunk_seeds(seed, length(sizes))
-  offsets <- cumsum(c(0L, utils::head(sizes, -1L)))
+  n_chunks <- nwpri_worker_count(n_uncertainty, n_cores)
+  sizes    <- nwpri_chunk_sizes(n_uncertainty, n_chunks)
+  seeds    <- nwpri_chunk_seeds(seed, length(sizes))
+  offsets  <- cumsum(c(0L, utils::head(sizes, -1L)))
 
   ## Folders are created and control streams written here rather than in the
   ## workers: `create_run_folder()` carries the `force` semantics used
@@ -94,8 +95,7 @@ run_nwpri_regimen <- function(
 
   if(verbose) {
     cli::cli_alert_info(
-      "Running {n_uncertainty} NWPRI draw{?s} in {length(specs)} NONMEM \\
-       job{?s} on {n_cores} core{?s}"
+      "Running {n_uncertainty} NWPRI draw{?s} in {length(specs)} NONMEM job{?s}"
     )
   }
   chunks <- parallel_lapply(
@@ -243,6 +243,43 @@ nwpri_draws_kept <- function(out) {
   )
   as.integer(min(per_regimen))
 }
+
+#' How many NONMEM jobs the subproblems are actually worth splitting over
+#'
+#' `n_cores` is a ceiling, not a target. Every extra chunk buys one more
+#' concurrent NONMEM process but costs a worker process that has to start up
+#' and load this package, measured at ~1.4 s for four workers, against a
+#' marginal cost of ~0.02 s per subproblem for a small model. Below roughly
+#' `NWPRI_MIN_DRAWS_PER_CHUNK` draws per chunk the startup is the larger
+#' number and chunking makes the run slower: benchmarking 50 draws of a 1-cmt
+#' model took 2.6 s in one job and 4.3 s split over four (#134).
+#'
+#' Note this makes the draws depend on `n_uncertainty` as well as `n_cores`,
+#' since NONMEM's RNG produces them per chunk — see `nwpri_chunk_seeds()`.
+#'
+#' @param n total number of draws.
+#' @param n_cores the caller's `n_cores`, an upper bound on the chunk count.
+#'
+#' @returns a positive integer, never more than `n_cores` or `n`.
+#' @noRd
+nwpri_worker_count <- function(n, n_cores) {
+  n <- as.integer(n)
+  n_cores <- as.integer(n_cores)
+  if(is.na(n) || n < 1L) {
+    cli::cli_abort("Number of NWPRI draws must be a positive integer.")
+  }
+  if(is.na(n_cores) || n_cores < 1L) {
+    cli::cli_abort("Number of NWPRI chunks must be a positive integer.")
+  }
+  min(n_cores, max(1L, n %/% NWPRI_MIN_DRAWS_PER_CHUNK))
+}
+
+#' Fewest draws that justify giving a chunk its own worker process
+#'
+#' See `nwpri_worker_count()`. Derived from the measured worker startup cost
+#' over the measured per-subproblem cost, rounded to something memorable.
+#' @noRd
+NWPRI_MIN_DRAWS_PER_CHUNK <- 50L
 
 #' Split `n` subproblems over `n_chunks` NONMEM jobs
 #'
@@ -396,4 +433,55 @@ run_nwpri_regimen_tables <- function(
   }
 
   stats::setNames(list(tab), table_name)
+}
+
+#' Pick the uncertainty engine for `uncertainty_engine = "auto"`
+#'
+#' NWPRI where it can be used, `"replicates"` everywhere else. NWPRI is the
+#' faster engine by a wide margin — its cost is roughly flat in
+#' `n_uncertainty` where the replicate loop pays a NONMEM compile per draw —
+#' so it is the better default whenever it applies. It applies only to NONMEM,
+#' and only with `n_iterations = 1`, because every `$SIMULATION` subproblem
+#' under `TRUE=PRIOR` redraws the parameters and so cannot repeat a draw.
+#'
+#' Unlike an explicit `uncertainty_engine = "nwpri"`, which errors when it
+#' cannot be honoured, `"auto"` falls back silently-but-audibly: the choice is
+#' announced under `verbose` so a run that quietly took the slower route is
+#' still visible.
+#'
+#' Note the two engines are not statistically interchangeable, and NWPRI is
+#' the one that cannot hold the simulated individuals fixed across draws (see
+#' [run_sim()], issues #131 and #134). That is a deliberate trade for the
+#' speed; use `uncertainty_engine = "replicates"` where it matters.
+#'
+#' @param tool resolved simulation tool, `"nonmem"` or `"nlmixr2"`.
+#' @param n_iterations the caller's `n_iterations`.
+#' @param verbose announce the choice?
+#'
+#' @returns `"nwpri"` or `"replicates"`.
+#' @noRd
+resolve_uncertainty_engine <- function(tool, n_iterations, verbose = TRUE) {
+  if(tool != "nonmem") {
+    if(verbose) {
+      cli::cli_alert_info(
+        "Using the {.val replicates} uncertainty engine \\
+         ({.code $PRIOR NWPRI} is a NONMEM feature; this runs in {.val {tool}})."
+      )
+    }
+    return("replicates")
+  }
+  if(n_iterations != 1) {
+    if(verbose) {
+      cli::cli_alert_info(
+        "Using the {.val replicates} uncertainty engine \\
+         ({.code n_iterations = {n_iterations}}; NWPRI redraws the parameters \\
+         every subproblem and so needs {.code n_iterations = 1})."
+      )
+    }
+    return("replicates")
+  }
+  if(verbose) {
+    cli::cli_alert_info("Using the {.val nwpri} uncertainty engine.")
+  }
+  "nwpri"
 }

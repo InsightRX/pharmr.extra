@@ -38,10 +38,21 @@ resolve_n_cores <- function(n_cores) {
 #' Results are returned in the order of `X` regardless of how work was
 #' scheduled, so callers can rely on positional indexing.
 #'
+#' Starting the workers is best-effort: bringing a cluster up is a separate
+#' failure mode from the work itself, and it is one this package has seen fail
+#' intermittently (#134 — a worker's `loadNamespace()` failing inside rxode2's
+#' `.onLoad`). Because it happens before `FUN` is ever called it is outside
+#' whatever error handling the caller wrapped `FUN` in, so left unguarded it
+#' takes down the entire run rather than costing one item. Rather than let a
+#' transient startup problem throw away the work, a failed attempt is retried
+#' once and then falls back to running everything sequentially in this process:
+#' slower, but the same results.
+#'
 #' @param X vector/list to iterate over.
 #' @param FUN function applied to each element. Must be self-contained enough
 #' to survive serialisation to a worker (no Python/reticulate objects, no
-#' open connections).
+#' open connections). Must also be safe to call again from scratch: a parallel
+#' attempt that fails part-way is redone sequentially.
 #' @param n_cores number of worker processes; `1` runs sequentially in-process.
 #'
 #' @returns list of results, one per element of `X`, in the order of `X`.
@@ -51,14 +62,40 @@ parallel_lapply <- function(X, FUN, n_cores = 1L) {
     return(lapply(X, FUN))
   }
   n_workers <- min(n_cores, length(X))
-  cl <- parallel::makePSOCKcluster(n_workers)
-  on.exit(parallel::stopCluster(cl), add = TRUE)
-  init <- worker_init_args()
-  ## Reparented to baseenv() on purpose: a closure carrying this package's
-  ## namespace makes the worker load the *installed* pharmr.extra just to
-  ## unserialise it, which fails when the package was never installed and
-  ## silently runs stale code when it was. This one loads nothing implicitly,
-  ## so it gets to decide which copy the worker uses.
+
+  attempt <- function() {
+    cl <- parallel::makePSOCKcluster(n_workers)
+    on.exit(parallel::stopCluster(cl), add = TRUE)
+    init <- worker_init_args()
+    parallel::clusterCall(cl, worker_init_fn(), init$path, init$dev,
+                          worker_threads(n_workers))
+    parallel::parLapplyLB(cl, X, FUN)
+  }
+
+  for(try_n in 1:2) {
+    res <- tryCatch(attempt(), error = function(e) e)
+    if(!inherits(res, "condition")) return(res)
+    if(try_n == 1L) next
+    cli::cli_warn(c(
+      "Could not run on {n_workers} worker process{?es}; running sequentially.",
+      x = conditionMessage(res),
+      i = "The results are the same either way, only slower."
+    ))
+  }
+  lapply(X, FUN)
+}
+
+#' The function each worker runs before any work is handed to it
+#'
+#' A factory returning a `baseenv()`-parented closure, on purpose: a closure
+#' carrying this package's namespace makes the worker load the *installed*
+#' pharmr.extra just to unserialise it, which fails when the package was never
+#' installed and silently runs stale code when it was. This one loads nothing
+#' implicitly, so it gets to decide which copy the worker uses.
+#'
+#' @returns a function of `(path, dev, threads)`.
+#' @noRd
+worker_init_fn <- function() {
   init_fn <- function(path, dev, threads) {
     if(isTRUE(dev)) {
       pkgload::load_all(path, quiet = TRUE, helpers = FALSE,
@@ -76,9 +113,7 @@ parallel_lapply <- function(X, FUN, n_cores = 1L) {
     invisible(NULL)
   }
   environment(init_fn) <- baseenv()
-  parallel::clusterCall(cl, init_fn, init$path, init$dev,
-                        worker_threads(n_workers))
-  parallel::parLapplyLB(cl, X, FUN)
+  init_fn
 }
 
 #' Solver threads to allow each worker process

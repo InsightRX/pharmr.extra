@@ -682,9 +682,13 @@ test_that("run_sim: warns which parameters are held fixed under n_uncertainty", 
     .package = "pharmr"
   )
 
+  ## The held-fixed warning belongs to the replicate loop, which samples the
+  ## draws in R; NWPRI builds its prior in NONMEM instead, so pin the engine
+  ## rather than depend on which one is the default (#134).
   expect_warning(
     run_sim(fit = fake_fit, model = mod, data = .sim_dat(),
-            n_uncertainty = 2, verbose = FALSE),
+            n_uncertainty = 2, uncertainty_engine = "replicates",
+            verbose = FALSE),
     "POP_V"
   )
 })
@@ -728,7 +732,8 @@ test_that("run_sim (stub): n_uncertainty samples draws and tags .uncertainty col
   )
 
   out <- run_sim(fit = fake_fit, model = mod, data = .sim_dat(),
-                 n_uncertainty = n_draws, verbose = FALSE)
+                 n_uncertainty = n_draws, uncertainty_engine = "replicates",
+                 verbose = FALSE)
 
   expect_equal(sampled, n_draws)
   expect_true(".uncertainty" %in% names(out))
@@ -766,7 +771,8 @@ test_that("run_sim (stub): each replicate perturbs the model with its own draw",
   )
 
   out <- run_sim(fit = fake_fit, model = mod, data = .sim_dat(),
-                 n_uncertainty = n_draws, verbose = FALSE)
+                 n_uncertainty = n_draws, uncertainty_engine = "replicates",
+                 verbose = FALSE)
 
   ## Draws must reach set_initial_estimates once per replicate, in order, each
   ## carrying that replicate's own row -- guards against a regression where the

@@ -42,7 +42,8 @@
 #' the Monte-Carlo noise of re-simulating a fresh set of subjects each time.
 #' Use `n_iterations` if you want extra random variability *within* a
 #' replicate. Note this holds for `uncertainty_engine = "replicates"` only —
-#' see `uncertainty_engine` below for why NWPRI cannot do it.
+#' see `uncertainty_engine` below for why NWPRI cannot do it, and why it is
+#' nonetheless the default.
 #'
 #' This is the same idea as NONMEM's own `$PRIOR NWPRI` +
 #' `$SIMULATION ... TRUE=PRIOR`, which is available directly as
@@ -91,9 +92,14 @@
 #' @param uncertainty_engine how `n_uncertainty` parameter uncertainty is
 #' propagated. Ignored when no uncertainty is requested.
 #'
-#' * `"replicates"` (default, unchanged behaviour) draws `n_uncertainty`
-#'   parameter sets from the fit's covariance matrix in R and runs one
-#'   simulation per draw. Works for both backends.
+#' * `"auto"` (default) uses `"nwpri"` where it applies — NONMEM, with
+#'   `n_iterations = 1` — and `"replicates"` everywhere else. Naming an engine
+#'   explicitly errors rather than falling back, so an explicit request is
+#'   never silently overridden; `"auto"` announces which one it picked under
+#'   `verbose`.
+#' * `"replicates"` draws `n_uncertainty` parameter sets from the fit's
+#'   covariance matrix in R and runs one simulation per draw. Works for both
+#'   backends.
 #' * `"nwpri"` (NONMEM only) hands the job to NONMEM: a `$PRIOR NWPRI` record
 #'   built from the fit (see [add_nwpri_prior()]) plus
 #'   `$SIMULATION ... TRUE=PRIOR`, so NONMEM draws a new parameter vector per
@@ -122,8 +128,19 @@
 #' the THETA-OMEGA and THETA-SIGMA covariances that `$COVARIANCE` reports.
 #' Which is preferable is a judgement call — the inverse-Wishart draw is
 #' arguably better justified for variance parameters, joint sampling is the one
-#' that keeps the full reported covariance — which is why this is a switch
-#' rather than a silent optimisation.
+#' that keeps the full reported covariance — which is why this stays a switch
+#' rather than becoming an implementation detail.
+#'
+#' A third difference matters for uncertainty intervals specifically: NWPRI
+#' cannot hold the simulated individuals fixed across draws, where
+#' `"replicates"` does (see `n_uncertainty` above, and issue #131). An NWPRI
+#' interval over `.uncertainty` therefore also carries the Monte-Carlo noise of
+#' re-simulating the subjects. That noise shrinks as the simulation dataset and
+#' `n_uncertainty` grow, which is the regime the speed difference makes
+#' practical, so NWPRI is nonetheless the default. Use
+#' `uncertainty_engine = "replicates"` when a clean separation matters more
+#' than run time — small simulation datasets and few draws being the case to
+#' watch.
 #' @param plev `uncertainty_engine = "nwpri"` only: the probability mass the
 #' THETA draws are truncated to, passed to [add_nwpri_prior()].
 #'
@@ -159,7 +176,7 @@ run_sim <- function(
     ## before, and callers passing it positionally would otherwise silently
     ## set `n_cores` instead.
     n_cores = 1,
-    uncertainty_engine = c("replicates", "nwpri"),
+    uncertainty_engine = c("auto", "replicates", "nwpri"),
     plev = 0.9999
 ) {
 
@@ -234,7 +251,20 @@ run_sim <- function(
 
   ## Which uncertainty engine. Only meaningful when uncertainty was asked for,
   ## so an engine set on a point-estimate run is simply unused.
+  ##
+  ## `"auto"` (the default) prefers NWPRI, which is the faster engine by a wide
+  ## margin — one NONMEM compile for the whole set of draws instead of one per
+  ## draw, measured at 37x for 1000 draws of a small model (#134) — and falls
+  ## back to `"replicates"` wherever NWPRI cannot be used. Asking for an engine
+  ## by name still errors rather than falling back, so an explicit request is
+  ## never silently overridden.
   uncertainty_engine <- match.arg(uncertainty_engine)
+  if(uncertainty_engine == "auto") {
+    uncertainty_engine <- resolve_uncertainty_engine(
+      tool = tool, n_iterations = n_iterations,
+      verbose = verbose && !is.null(n_uncertainty)
+    )
+  }
   use_nwpri <- !is.null(n_uncertainty) && uncertainty_engine == "nwpri"
   if(use_nwpri) {
     if(tool != "nonmem") {
