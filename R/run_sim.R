@@ -632,14 +632,18 @@ run_sim <- function(
       ## in this frame, i.e. *after* every replicate has already run, turning a
       ## finished simulation into an error and returning nothing to the caller.
       ## The bar is cosmetic; it must never be able to fail the run. See #137.
-      pb <- cli::cli_progress_bar(
+      pb <- progress_try(cli::cli_progress_bar(
         "Uncertainty replicates", total = n_uncertainty,
         .auto_close = FALSE, .envir = environment()
-      )
+      ))
       ## Backstop for the paths that leave this frame without reaching the
       ## explicit close below (an abort from a replicate, a caller's
-      ## interrupt).
-      on.exit(progress_try(cli::cli_progress_done(id = pb)), add = TRUE)
+      ## interrupt). Only when we actually own a bar: with `pb = NULL` this
+      ## would close whatever sits on top of cli's stack, which is the very
+      ## bug this guards against.
+      if(!is.null(pb)) {
+        on.exit(progress_try(cli::cli_progress_done(id = pb)), add = TRUE)
+      }
     }
     replicates <- lapply(seq_len(n_uncertainty), function(r) {
       res <- run_captured(r, function() {

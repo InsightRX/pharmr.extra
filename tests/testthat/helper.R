@@ -124,8 +124,11 @@ local_cli_outer_status <- function(.local_envir = parent.frame()) {
 ## shows one after `cli.progress_show_after` seconds *and* on a timer tick, so
 ## both have to be forced for a test to reach that code path.
 local_cli_progress_forced <- function(.local_envir = parent.frame()) {
+  ## Both internals are resolved defensively: if a future cli renames either,
+  ## the test has to skip rather than error out.
   clienv <- tryCatch(cli:::clienv, error = function(e) NULL)
-  if(!is.environment(clienv)) {
+  tick_set <- tryCatch(cli:::cli_tick_set, error = function(e) NULL)
+  if(!is.environment(clienv) || !is.function(tick_set)) {
     testthat::skip("cli progress internals not available")
   }
   withr::local_options(
@@ -133,7 +136,7 @@ local_cli_progress_forced <- function(.local_envir = parent.frame()) {
     .local_envir = .local_envir
   )
   old_tick <- clienv$tick_time
-  cli:::cli_tick_set(tick_time = 1)
-  withr::defer(cli:::cli_tick_set(tick_time = old_tick), envir = .local_envir)
+  tick_set(tick_time = 1)
+  withr::defer(tick_set(tick_time = old_tick), envir = .local_envir)
   invisible(NULL)
 }

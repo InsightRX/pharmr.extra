@@ -15,6 +15,8 @@
 
 * `call_nmfe(check_only = TRUE)` no longer leaks its status bar on the early
   return, and its `on.exit()` no longer discards `cli`'s own deferred cleanup.
+  With `verbose = TRUE`, a control stream NM-TRAN rejects now closes that bar
+  as failed rather than printing a success message before returning `FALSE`.
 
 * **Breaking-ish:** `run_sim(n_uncertainty = )` now defaults to
   `uncertainty_engine = "auto"`, which uses **NWPRI** wherever it applies —

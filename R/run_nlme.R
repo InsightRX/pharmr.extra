@@ -590,7 +590,15 @@ call_nmfe <- function(
     )
     has_no_error <- !any(stringr::str_detect(cons, "AN ERROR WAS FOUND"))
     attr(has_no_error, "message") <- cons
-    if(!is.null(nmfe_proc)) cli::cli_process_done(id = nmfe_proc)
+    if(!is.null(nmfe_proc)) {
+      ## Close the bar to match the outcome we are about to return: a control
+      ## stream NM-TRAN rejects must not print a success message.
+      if(has_no_error) {
+        cli::cli_process_done(id = nmfe_proc)
+      } else {
+        cli::cli_process_failed(id = nmfe_proc)
+      }
+    }
     return(has_no_error)
   } else {
     nmfe_args <- c(model_file, output_file)

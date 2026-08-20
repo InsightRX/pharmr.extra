@@ -66,12 +66,17 @@ test_that("call_nmfe (check_only) does not leak its status bar", {
 
   ## `check_only = TRUE` returns early; the status bar opened before that
   ## return has to be closed on the way out rather than left on the stack.
-  bin_dir <- withr::local_tempdir()
+  ## Everything lives inside `nm_dir` so withr cleans the whole fixture up:
+  ## `tr/` is a sibling of the nmfe folder, so putting nmfe at the tempdir
+  ## root would place `tr/` outside any managed directory.
+  nm_dir <- withr::local_tempdir()
+  bin_dir <- file.path(nm_dir, "run")
+  dir.create(bin_dir, showWarnings = FALSE, recursive = TRUE)
   fake_nmfe <- file.path(bin_dir, "nmfe")
   writeLines(c("#!/bin/sh", "exit 0"), fake_nmfe)
   Sys.chmod(fake_nmfe, "0755")
   ## get_nmtran_from_nmfe() looks one folder up, then in tr/NMTRAN.exe
-  tr_dir <- file.path(dirname(bin_dir), "tr")
+  tr_dir <- file.path(nm_dir, "tr")
   dir.create(tr_dir, showWarnings = FALSE, recursive = TRUE)
   fake_nmtran <- file.path(tr_dir, "NMTRAN.exe")
   writeLines(c("#!/bin/sh", "exit 0"), fake_nmtran)
@@ -93,6 +98,42 @@ test_that("call_nmfe (check_only) does not leak its status bar", {
   )
 
   expect_true(as.logical(res))
+  expect_equal(.cli_status_depth(), before)
+})
+
+test_that("call_nmfe (check_only) reports a rejected control stream as failed", {
+  skip_on_os("windows")
+
+  ## A control stream NM-TRAN rejects must not close the status bar with a
+  ## success message: the bar's outcome has to match the returned value.
+  nm_dir <- withr::local_tempdir()
+  bin_dir <- file.path(nm_dir, "run")
+  dir.create(bin_dir, showWarnings = FALSE, recursive = TRUE)
+  fake_nmfe <- file.path(bin_dir, "nmfe")
+  writeLines(c("#!/bin/sh", "exit 0"), fake_nmfe)
+  Sys.chmod(fake_nmfe, "0755")
+  tr_dir <- file.path(nm_dir, "tr")
+  dir.create(tr_dir, showWarnings = FALSE, recursive = TRUE)
+  fake_nmtran <- file.path(tr_dir, "NMTRAN.exe")
+  writeLines(c("#!/bin/sh", "echo 'AN ERROR WAS FOUND IN THE CONTROL STATEMENTS.'"), fake_nmtran)
+  Sys.chmod(fake_nmtran, "0755")
+
+  run_dir <- withr::local_tempdir()
+  writeLines("$PROBLEM test", file.path(run_dir, "run.mod"))
+
+  before <- local_cli_outer_status()
+
+  res <- call_nmfe(
+    model_file = "run.mod",
+    output_file = "run.lst",
+    path = run_dir,
+    nmfe = fake_nmfe,
+    console = FALSE,
+    check_only = TRUE,
+    verbose = TRUE
+  )
+
+  expect_false(as.logical(res))
   expect_equal(.cli_status_depth(), before)
 })
 
