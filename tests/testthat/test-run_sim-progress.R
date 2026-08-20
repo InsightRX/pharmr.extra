@@ -15,16 +15,16 @@ test_that("run_sim (stub): a stray cli_process_done() in the backend cannot fail
     parameter_estimates = c(POP_CL = 1, POP_V = 10),
     covariance_matrix   = diag(2)
   )
+  ## The shape of the original bug: `call_nmfe()` called `cli_process_done()`
+  ## even when `verbose = FALSE` had opened no status bar, so each replicate
+  ## popped run_sim()'s own progress bar off cli's stack. The sleep is what
+  ## gets the bar past `cli.progress_show_after` and actually rendered.
+  local_mock_nonmem_sim(function(spec, nmfe, table_names, clean = TRUE) {
+    Sys.sleep(0.05)
+    cli::cli_process_done()
+    .mock_sim_tab()
+  })
   local_mocked_bindings(
-    ## The shape of the original bug: `call_nmfe()` called `cli_process_done()`
-    ## even when `verbose = FALSE` had opened no status bar, so each replicate
-    ## popped run_sim()'s own progress bar off cli's stack. The sleep is what
-    ## gets the bar past `cli.progress_show_after` and actually rendered.
-    run_nlme = function(...) {
-      Sys.sleep(0.05)
-      cli::cli_process_done()
-      .mock_nlme_result()
-    },
     sample_uncertainty_parameters =
       function(model, parameter_estimates, covariance_matrix, n, seed) {
         as.data.frame(matrix(rep(seq_len(n), 2), ncol = 2,
@@ -57,11 +57,11 @@ test_that("run_sim (stub): sequential uncertainty replicates run with verbose = 
     parameter_estimates = c(POP_CL = 1, POP_V = 10),
     covariance_matrix   = diag(2)
   )
+  local_mock_nonmem_sim(function(spec, nmfe, table_names, clean = TRUE) {
+    Sys.sleep(0.05)
+    .mock_sim_tab()
+  })
   local_mocked_bindings(
-    run_nlme = function(...) {
-      Sys.sleep(0.05)
-      .mock_nlme_result()
-    },
     sample_uncertainty_parameters =
       function(model, parameter_estimates, covariance_matrix, n, seed) {
         as.data.frame(matrix(rep(seq_len(n), 2), ncol = 2,

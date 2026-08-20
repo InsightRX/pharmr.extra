@@ -42,21 +42,47 @@ make_model_without_cov <- function() {
   )
 }
 
+## Minimal fake simulation output table, as a run folder would yield it
+.mock_sim_tab <- function() {
+  data.frame(
+    ID   = c(1L, 1L, 1L),
+    TIME = c(0, 6, 12),
+    DV   = c(0, 5.1, 3.2),
+    EVID = c(1L, 0L, 0L),
+    PRED = c(0, 5.0, 3.0),
+    CL   = c(2, 2, 2)
+  )
+}
+
 ## Minimal fake run_nlme result
 .mock_nlme_result <- function(tab = NULL) {
   if (is.null(tab)) {
-    tab <- data.frame(
-      ID   = c(1L, 1L, 1L),
-      TIME = c(0, 6, 12),
-      DV   = c(0, 5.1, 3.2),
-      EVID = c(1L, 0L, 0L),
-      PRED = c(0, 5.0, 3.0),
-      CL   = c(2, 2, 2)
-    )
+    tab <- .mock_sim_tab()
   }
   result <- list()
   attr(result, "tables") <- list(simtab = tab)
   result
+}
+
+## Stand in for the execute half of the NONMEM `"replicates"` uncertainty
+## engine (#129). `run_sim()` prepares every replicate's run folder for real --
+## that half is Pharmpy work in the parent -- and this replaces the NONMEM run
+## and table read a worker would do, so the tests need no NONMEM installation.
+## `get_nmfe_location()` goes with it: it is resolved in the parent before any
+## replicate is dispatched.
+##
+## `fn` takes the same arguments as `run_nonmem_sim_folder()` and returns one
+## regimen's simulation table.
+local_mock_nonmem_sim <- function(fn = NULL, .local_envir = parent.frame()) {
+  if (is.null(fn)) {
+    fn <- function(spec, nmfe, table_names, clean = TRUE) .mock_sim_tab()
+  }
+  testthat::local_mocked_bindings(
+    get_nmfe_location = function(...) "/nonexistent/nmfe",
+    run_nonmem_sim_folder = fn,
+    .package = "pharmr.extra",
+    .env = .local_envir
+  )
 }
 
 ## Minimal dataset that satisfies run_sim() column expectations

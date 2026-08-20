@@ -32,7 +32,11 @@ model into Pharmpy first.}
 
 \item{id}{base run id (default a random \verb{sim_*}). Each regimen is run in its
 own subfolder \verb{id/regimen_<i>} (\verb{<i>} = 1-based regimen index), so regimens
-don't overwrite each other's output.}
+don't overwrite each other's output. Under
+\code{uncertainty_engine = "replicates"} each draw gets a folder of its own too,
+\verb{id/uncertainty_<r>/regimen_<i>} (\verb{<r>} = 1-based replicate index), so every
+replicate's NONMEM artifacts can be inspected afterwards and concurrent
+replicates cannot clobber each other.}
 
 \item{path}{ignored for the nlmixr2 backend: simulations run via
 \code{\link[rxode2:rxSolve]{rxode2::rxSolve()}} and create no NONMEM-style run folders. Accepted only to

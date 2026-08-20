@@ -293,7 +293,7 @@ test_that("run_sim (nlmixr2): n_cores > 1 gives identical output to n_cores = 1"
   expect_false(isTRUE(all.equal(by_rep[[1]], by_rep[[2]])))
 })
 
-test_that("run_sim: n_cores > 1 falls back to sequential for NONMEM", {
+test_that("run_sim (nonmem): n_cores > 1 hands prepared folders to the workers", {
   local_pharmr.extra_options()
   skip_if_nonmem_not_available()
   withr::local_dir(tempdir())
@@ -303,8 +303,17 @@ test_that("run_sim: n_cores > 1 falls back to sequential for NONMEM", {
     parameter_estimates = c(POP_CL = 1, POP_V = 10),
     covariance_matrix   = diag(2)
   )
+  seen_specs <- NULL
+  local_mock_nonmem_sim()
   local_mocked_bindings(
-    run_nlme = function(...) .mock_nlme_result(),
+    ## Run the replicates in-process, but record what the parallel path handed
+    ## to the workers. A real cluster is covered by parallel_lapply's own tests;
+    ## what matters here is that NONMEM replicates now go through it at all, and
+    ## that what travels is plain R data (#129).
+    parallel_lapply = function(x, fn, n_cores, ...) {
+      seen_specs <<- x
+      lapply(x, fn)
+    },
     sample_uncertainty_parameters =
       function(model, parameter_estimates, covariance_matrix, n, seed) {
         as.data.frame(matrix(rep(seq_len(n), 2), ncol = 2,
@@ -317,13 +326,61 @@ test_that("run_sim: n_cores > 1 falls back to sequential for NONMEM", {
     .package = "pharmr"
   )
 
-  expect_warning(
+  ## no "supported for nlmixr2 only" fallback any more
+  expect_no_warning(
     out <- run_sim(fit = fake_fit, model = mod, data = .sim_dat(),
                    n_uncertainty = 2, n_cores = 2,
-                   uncertainty_engine = "replicates", verbose = FALSE),
-    "nlmixr2"
+                   uncertainty_engine = "replicates", verbose = FALSE)
   )
   expect_equal(sort(unique(out$.uncertainty)), 1:2)
+
+  expect_length(seen_specs, 2)
+  ## a folder per replicate, and nothing Python in what the workers receive
+  folders <- vapply(seen_specs, function(s) s$regimens[[1]]$folder, character(1))
+  expect_length(unique(folders), 2)
+  expect_match(folders, "uncertainty_[12]/regimen_1$")
+  expect_equal(unserialize(serialize(seen_specs, NULL)), seen_specs)
+})
+
+test_that("run_sim (nonmem): a replicate failing in a worker aborts the run", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- make_model_without_cov()
+  fake_fit <- list(
+    parameter_estimates = c(POP_CL = 1, POP_V = 10),
+    covariance_matrix   = diag(2)
+  )
+  call_n <- 0L
+  local_mock_nonmem_sim(function(spec, nmfe, table_names, clean = TRUE) {
+    call_n <<- call_n + 1L
+    if(call_n == 2L) stop("simulated NONMEM failure")
+    .mock_sim_tab()
+  })
+  local_mocked_bindings(
+    parallel_lapply = function(x, fn, n_cores, ...) lapply(x, fn),
+    sample_uncertainty_parameters =
+      function(model, parameter_estimates, covariance_matrix, n, seed) {
+        as.data.frame(matrix(rep(seq_len(n), 2), ncol = 2,
+                             dimnames = list(NULL, c("POP_CL", "POP_V"))))
+      },
+    .package = "pharmr.extra"
+  )
+  local_mocked_bindings(
+    set_initial_estimates = function(model, inits) model,
+    .package = "pharmr"
+  )
+
+  ## Same rule as the sequential path: a NONMEM replicate failure takes the run
+  ## down rather than quietly shortening the set of draws. The parallel path can
+  ## only apply it once the workers are back, so the later replicates do run.
+  expect_error(
+    run_sim(fit = fake_fit, model = mod, data = .sim_dat(),
+            n_uncertainty = 3, n_cores = 2,
+            uncertainty_engine = "replicates", verbose = FALSE),
+    "Uncertainty replicate 2 failed"
+  )
 })
 
 test_that("run_sim (nonmem): a failing replicate aborts the run", {
@@ -337,13 +394,13 @@ test_that("run_sim (nonmem): a failing replicate aborts the run", {
     covariance_matrix   = diag(2)
   )
   call_n <- 0L
+  ## one run per replicate (single regimen): fail the second
+  local_mock_nonmem_sim(function(spec, nmfe, table_names, clean = TRUE) {
+    call_n <<- call_n + 1L
+    if(call_n == 2L) stop("simulated NONMEM failure")
+    .mock_sim_tab()
+  })
   local_mocked_bindings(
-    ## one run_nlme() call per replicate (single regimen): fail the second
-    run_nlme = function(...) {
-      call_n <<- call_n + 1L
-      if(call_n == 2L) stop("simulated NONMEM failure")
-      .mock_nlme_result()
-    },
     sample_uncertainty_parameters =
       function(model, parameter_estimates, covariance_matrix, n, seed) {
         as.data.frame(matrix(rep(seq_len(n), 2), ncol = 2,

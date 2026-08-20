@@ -669,8 +669,8 @@ test_that("run_sim: warns which parameters are held fixed under n_uncertainty", 
     parameter_estimates = c(POP_CL = 1, POP_V = 10),
     covariance_matrix   = matrix(1, dimnames = list("POP_CL", "POP_CL"))
   )
+  local_mock_nonmem_sim()
   local_mocked_bindings(
-    run_nlme = function(...) .mock_nlme_result(),
     sample_uncertainty_parameters =
       function(model, parameter_estimates, covariance_matrix, n, seed) {
         data.frame(POP_CL = seq_len(n))   # only POP_CL sampled
@@ -716,8 +716,8 @@ test_that("run_sim (stub): n_uncertainty samples draws and tags .uncertainty col
   )
   n_draws <- 3L
   sampled <- 0L
+  local_mock_nonmem_sim()
   local_mocked_bindings(
-    run_nlme = function(...) .mock_nlme_result(),
     sample_uncertainty_parameters =
       function(model, parameter_estimates, covariance_matrix, n, seed) {
         sampled <<- n
@@ -754,8 +754,8 @@ test_that("run_sim (stub): each replicate perturbs the model with its own draw",
   ## Distinct value per draw so we can verify draw r reaches replicate r.
   draws <- data.frame(POP_CL = c(11, 22, 33), POP_V = c(44, 55, 66))
   applied <- list()
+  local_mock_nonmem_sim()
   local_mocked_bindings(
-    run_nlme = function(...) .mock_nlme_result(),
     sample_uncertainty_parameters =
       function(model, parameter_estimates, covariance_matrix, n, seed) {
         draws[seq_len(n), , drop = FALSE]

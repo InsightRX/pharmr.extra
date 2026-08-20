@@ -38,11 +38,16 @@ model into Pharmpy first.}
 
 \item{id}{base run id (default a random \verb{sim_*}). Each regimen is run in its
 own subfolder \verb{id/regimen_<i>} (\verb{<i>} = 1-based regimen index), so regimens
-don't overwrite each other's output.}
+don't overwrite each other's output. Under
+\code{uncertainty_engine = "replicates"} each draw gets a folder of its own too,
+\verb{id/uncertainty_<r>/regimen_<i>} (\verb{<r>} = 1-based replicate index), so every
+replicate's NONMEM artifacts can be inspected afterwards and concurrent
+replicates cannot clobber each other.}
 
 \item{path}{folder in which to create the run folder(s). Each regimen is
-run in its own subfolder \verb{id/regimen_<i>}. If \code{NULL} (default), the folder
-is forwarded to \code{\link[=run_nlme]{run_nlme()}} unset, so \code{run_nlme()}'s own default applies.}
+run in its own subfolder \verb{id/regimen_<i>} (see \code{id} for the uncertainty
+layout). If \code{NULL} (default), the folder is forwarded to \code{\link[=run_nlme]{run_nlme()}} unset,
+so \code{run_nlme()}'s own default applies.}
 
 \item{force}{if run folder (\code{id}) exists, should existing results be
 removed before rerunning NONMEM? Default \code{FALSE}.}
@@ -120,10 +125,13 @@ is returned back. If \code{FALSE}, the \code{add_pk_variables} argument will be 
 \item{n_cores}{number of processes to run uncertainty replicates on
 (default \code{1}, i.e. sequential; unchanged behaviour). Values \verb{> 1} spread the
 \code{n_uncertainty} replicates over that many worker processes. For
-\code{uncertainty_engine = "replicates"} this is supported for the \code{nlmixr2} tool
-only; a NONMEM run warns and falls back to sequential. Output is identical
-to a sequential run for the same \code{seed}, since every replicate is run with
-the same \code{seed} and results are reassembled by replicate index.
+\code{uncertainty_engine = "replicates"} both backends are parallelised: the
+replicates are prepared in this process (applying the draw needs Pharmpy for
+NONMEM, rxode2 code generation for nlmixr2) and the workers only run the
+simulation. Output is identical to a sequential run for the same \code{seed},
+since every replicate is run with the same \code{seed} and results are
+reassembled by replicate index. The unit of work is the replicate, not the
+regimen, so more workers than \code{n_uncertainty} buys nothing.
 For \code{uncertainty_engine = "nwpri"} (NONMEM only) it sets how many NONMEM
 jobs the subproblems are split over, one per worker process. NONMEM's own
 RNG produces the draws, so \emph{which} draws you get depends on how the
