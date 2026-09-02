@@ -38,11 +38,21 @@ create_model_from_file <- function(
   ## (e.g. the `.regimen` column create_sim_dataset() attaches). Such a name
   ## cannot be a NONMEM data item, and leaving it in makes Pharmpy's parser
   ## reject the $INPUT token (a leading-dot name is a syntax error, DROP flag or
-  ## not). When we drop any, force a freshly written dataset below so $DATA
-  ## points at a CSV whose columns match the rewritten $INPUT.
+  ## not). Pharmpy's own placeholder names for anonymous dropped columns
+  ## (`_DROP1`, `_DROP2`, ...) are exempt: their leading underscore is not a
+  ## valid symbol either, but sync_input_to_dataset() re-emits them as a bare
+  ## `DROP`, so they must survive to keep the underlying values (e.g. the DV
+  ## that `set_dv()` demoted) round-trippable. When we drop any, force a freshly
+  ## written dataset below so $DATA points at a CSV whose columns match the
+  ## rewritten $INPUT.
   if(!is.null(data)) {
-    valid_input <- grepl("^[A-Za-z][A-Za-z0-9_]*$", names(data))
+    valid_input <- grepl("^[A-Za-z][A-Za-z0-9_]*$", names(data)) |
+      grepl("^_DROP[0-9]*$", names(data))
     if(any(!valid_input)) {
+      dropped <- names(data)[!valid_input]
+      cli::cli_alert_warning(
+        "Dropping column{?s} {.val {dropped}} from the dataset: not a valid NONMEM $INPUT name."
+      )
       data <- data[, valid_input, drop = FALSE]
       dataset_file <- NULL
     }
@@ -91,6 +101,21 @@ create_model_from_file <- function(
   }
   
   if(!is.null(data)) {
+    ## Non-numeric columns end up DROP-flagged in $INPUT (see
+    ## sync_input_to_dataset()), but their text still lands in the CSV NONMEM
+    ## reads, which is written unquoted below. NONMEM splits a data record on
+    ## whitespace as well as commas, so a value like "Cohort A" shifts every
+    ## later item on its row instead of raising an error -- a wrong fit or
+    ## simulation rather than a loud failure. Replace those values with the
+    ## NONMEM missing marker `.` (the column is dropped anyway, so nothing
+    ## NONMEM would have read is lost), and force a fresh dataset so the
+    ## sanitised values are what actually gets written.
+    non_numeric <- names(data)[!vapply(data, is_numeric_column, logical(1))]
+    sanitised <- blank_unreadable_values(data, non_numeric)
+    if(!identical(sanitised, data)) {
+      data <- sanitised
+      dataset_file <- NULL
+    }
     if(is.null(dataset_file)) {
       dataset_file <- tempfile(pattern = "data", fileext = ".csv")
       write.csv(data, dataset_file, quote = F, row.names = F)
@@ -104,7 +129,6 @@ create_model_from_file <- function(
     ## "08/12/2011", "9:00") as numeric and float-converts them, raising a
     ## DatasetError. Instead sync $INPUT to the dataset columns ourselves,
     ## carrying the original tokens (and their DROP flags) over. See #99/#101.
-    non_numeric <- names(data)[!vapply(data, is_numeric_column, logical(1))]
     model_code <- sync_input_to_dataset(model_code, names(data), non_numeric) |>
       change_nonmem_dataset(dataset_file) |>
       fix_eta_dummy_bug()
@@ -147,23 +171,6 @@ fix_eta_dummy_bug <- function(model_code) {
   model_code
 }
 
-#' Align a model's `$INPUT` record with the columns of a dataset
-#'
-#' NONMEM reads datasets positionally, so re-pointing `$DATA` at a CSV written
-#' from a data.frame requires `$INPUT` to list that data.frame's columns in
-#' order. `pharmr::set_dataset(datatype = "nonmem")` does this by regenerating
-#' `$INPUT` from the column names alone, which silently drops any `DROP`
-#' (or `SKIP`) flags the model declared — after which pharmpy tries to
-#' float-convert non-numeric dropped columns and raises a `DatasetError`.
-#'
-#' This keeps the original token for every column the model already named
-#' (so `VISITDATE=DROP` stays `VISITDATE=DROP`), emits a bare `DROP` for
-#' pharmpy's placeholder names for anonymous dropped columns (`_DROP1`, ...),
-#' and appends any genuinely new column under its own name.
-#'
-#' @param code character string with NONMEM model code
-#' @param columns character vector of dataset column names, in dataset order
-#' @returns character string with model code
 #' Is a dataset column numeric as far as NONMEM/Pharmpy is concerned?
 #'
 #' TRUE for a numeric vector, and for a character/factor column whose every
@@ -184,6 +191,50 @@ is_numeric_column <- function(x) {
   !anyNA(suppressWarnings(as.numeric(v)))
 }
 
+#' Blank dataset values NONMEM cannot read out of an unquoted CSV
+#'
+#' NONMEM splits a data record on whitespace as well as commas, so a text value
+#' containing either (`"Cohort A"`) silently shifts every subsequent item on its
+#' row rather than raising an error. Only non-numeric columns can hold such a
+#' value, and every non-numeric column is `DROP`-flagged in `$INPUT` by
+#' [sync_input_to_dataset()], so replacing those values with the NONMEM missing
+#' marker `.` loses nothing NONMEM would have read.
+#'
+#' @param data a data.frame
+#' @param non_numeric character vector of non-numeric column names in `data`
+#' @returns `data`, with unreadable values replaced by `"."`
+#' @noRd
+blank_unreadable_values <- function(data, non_numeric) {
+  for(col in non_numeric) {
+    values <- as.character(data[[col]])
+    bad <- !is.na(values) & grepl("[[:space:],]", values)
+    if(any(bad)) {
+      cli::cli_alert_warning(
+        "Blanking {sum(bad)} value{?s} in column {.val {col}}: whitespace or a comma would shift the remaining items on the NONMEM data record."
+      )
+      values[bad] <- "."
+      data[[col]] <- values
+    }
+  }
+  data
+}
+
+#' Align a model's `$INPUT` record with the columns of a dataset
+#'
+#' NONMEM reads datasets positionally, so re-pointing `$DATA` at a CSV written
+#' from a data.frame requires `$INPUT` to list that data.frame's columns in
+#' order. `pharmr::set_dataset(datatype = "nonmem")` does this by regenerating
+#' `$INPUT` from the column names alone, which silently drops any `DROP`
+#' (or `SKIP`) flags the model declared — after which pharmpy tries to
+#' float-convert non-numeric dropped columns and raises a `DatasetError`.
+#'
+#' This keeps the original token for every column the model already named
+#' (so `VISITDATE=DROP` stays `VISITDATE=DROP`), emits a bare `DROP` for
+#' pharmpy's placeholder names for anonymous dropped columns (`_DROP1`, ...),
+#' and appends any genuinely new column under its own name.
+#'
+#' @param code character string with NONMEM model code
+#' @param columns character vector of dataset column names, in dataset order
 #' @param non_numeric character vector of dataset columns whose values are not
 #'   numeric. A genuinely new column (one the model never named) that is
 #'   non-numeric is emitted as `<col>=DROP` rather than a bare, readable token:
@@ -191,6 +242,7 @@ is_numeric_column <- function(x) {
 #'   leaving it readable makes pharmpy float-convert its text and raise a
 #'   `DatasetError`. New *numeric* columns are still appended bare so they can
 #'   be read (e.g. a covariate added alongside the model).
+#' @returns character string with model code
 #' @noRd
 sync_input_to_dataset <- function(code, columns, non_numeric = character(0)) {
   old_tokens <- unname(get_input_tokens(code))
