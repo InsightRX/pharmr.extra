@@ -210,6 +210,35 @@ test_that("create_model_from_file handles multiple character columns in dataset"
   expect_equal(result$dataset$AGE, c(30, 30, 30))
 })
 
+test_that("create_model_from_file drops a bookkeeping column with an invalid NONMEM name", {
+  local_pharmr.extra_options()
+  mod_file <- testthat::test_path("fixtures", "run_with_ext", "run.mod")
+
+  # `.regimen` is what create_sim_dataset() attaches; its leading dot is an
+  # invalid $INPUT symbol, so a bare (or even DROP-flagged) token makes
+  # Pharmpy's parser reject the model. It must be dropped from the dataset.
+  test_data <- data.frame(
+    ID = 1L,
+    TIME = c(0, 1, 2),
+    DV = c(0, 10, 5),
+    AMT = c(100, 0, 0),
+    CMT = 1L,
+    EVID = c(1L, 0L, 0L),
+    MDV = c(1L, 0L, 0L),
+    check.names = FALSE
+  )
+  test_data[[".regimen"]] <- c(1, 1, 1)
+
+  result <- create_model_from_file(
+    model_file = mod_file,
+    data = test_data,
+    verbose = FALSE
+  )
+
+  expect_s3_class(result, "pharmpy.model.model.Model")
+  expect_false(".regimen" %in% names(result$dataset))
+})
+
 test_that("create_model_from_file circumvents bug in pharmpy with dummy_eta and can add peripheral comparment", {
   local_pharmr.extra_options()
   model <- create_model_from_file(test_path("fixtures", "model_with_dummyeta", "run1.mod"))
@@ -327,6 +356,34 @@ test_that("sync_input_to_dataset preserves DROP flags and appends new columns", 
   )
   # Other records are untouched:
   expect_true(grepl("$DATA data.csv IGNORE=@", out, fixed = TRUE))
+})
+
+test_that("sync_input_to_dataset drops a genuinely new non-numeric column", {
+  code <- paste(
+    "$PROBLEM Test",
+    "$INPUT ID TIME AMT DV MDV",
+    "$DATA data.csv IGNORE=@",
+    sep = "\n"
+  )
+  # WT is numeric (append bare), TRT is a new text column (must be dropped so
+  # Pharmpy does not try to float-convert its labels).
+  out <- sync_input_to_dataset(
+    code,
+    c("ID", "TIME", "AMT", "DV", "MDV", "WT", "TRT"),
+    non_numeric = "TRT"
+  )
+  expect_equal(
+    get_input_tokens(out),
+    c("ID", "TIME", "AMT", "DV", "MDV", "WT", "TRT=DROP")
+  )
+})
+
+test_that("is_numeric_column treats numeric-as-character as numeric", {
+  expect_true(is_numeric_column(c(1, 2, 3)))
+  expect_true(is_numeric_column(c("70", "70", "70")))
+  expect_true(is_numeric_column(c("1", ".", "", NA)))   # NONMEM missing markers
+  expect_false(is_numeric_column(c("Cohort A", "EV+P")))
+  expect_false(is_numeric_column(c("70", "EV+P")))
 })
 
 test_that("sync_input_to_dataset follows dataset column order", {

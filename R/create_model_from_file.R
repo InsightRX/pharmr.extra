@@ -33,7 +33,21 @@ create_model_from_file <- function(
     }
     data <- read.csv(dataset_file)
   }
-  
+
+  ## Drop bookkeeping columns whose names are not valid NONMEM $INPUT symbols
+  ## (e.g. the `.regimen` column create_sim_dataset() attaches). Such a name
+  ## cannot be a NONMEM data item, and leaving it in makes Pharmpy's parser
+  ## reject the $INPUT token (a leading-dot name is a syntax error, DROP flag or
+  ## not). When we drop any, force a freshly written dataset below so $DATA
+  ## points at a CSV whose columns match the rewritten $INPUT.
+  if(!is.null(data)) {
+    valid_input <- grepl("^[A-Za-z][A-Za-z0-9_]*$", names(data))
+    if(any(!valid_input)) {
+      data <- data[, valid_input, drop = FALSE]
+      dataset_file <- NULL
+    }
+  }
+
   ## Create Pharmpy object
   tryCatch({
     model_code <- readLines(model_file) |>
@@ -90,7 +104,8 @@ create_model_from_file <- function(
     ## "08/12/2011", "9:00") as numeric and float-converts them, raising a
     ## DatasetError. Instead sync $INPUT to the dataset columns ourselves,
     ## carrying the original tokens (and their DROP flags) over. See #99/#101.
-    model_code <- sync_input_to_dataset(model_code, names(data)) |>
+    non_numeric <- names(data)[!vapply(data, is_numeric_column, logical(1))]
+    model_code <- sync_input_to_dataset(model_code, names(data), non_numeric) |>
       change_nonmem_dataset(dataset_file) |>
       fix_eta_dummy_bug()
     tryCatch({
@@ -149,8 +164,35 @@ fix_eta_dummy_bug <- function(model_code) {
 #' @param code character string with NONMEM model code
 #' @param columns character vector of dataset column names, in dataset order
 #' @returns character string with model code
+#' Is a dataset column numeric as far as NONMEM/Pharmpy is concerned?
+#'
+#' TRUE for a numeric vector, and for a character/factor column whose every
+#' non-missing value parses as a number (so `"70"` counts as numeric, matching
+#' Pharmpy coercing it to 70). NONMEM missing placeholders (`.`, empty, `NA`)
+#' are ignored. FALSE only when a genuine non-numeric string is present (e.g. a
+#' treatment-arm label like `"Cohort A"`), which is what makes Pharmpy's float
+#' conversion fail.
+#'
+#' @param x a dataset column
+#' @returns TRUE/FALSE
 #' @noRd
-sync_input_to_dataset <- function(code, columns) {
+is_numeric_column <- function(x) {
+  if(is.numeric(x)) return(TRUE)
+  v <- trimws(as.character(x))
+  v <- v[!is.na(v) & v != "" & v != "."]
+  if(length(v) == 0) return(TRUE)
+  !anyNA(suppressWarnings(as.numeric(v)))
+}
+
+#' @param non_numeric character vector of dataset columns whose values are not
+#'   numeric. A genuinely new column (one the model never named) that is
+#'   non-numeric is emitted as `<col>=DROP` rather than a bare, readable token:
+#'   the model cannot reference a column absent from its original `$INPUT`, and
+#'   leaving it readable makes pharmpy float-convert its text and raise a
+#'   `DatasetError`. New *numeric* columns are still appended bare so they can
+#'   be read (e.g. a covariate added alongside the model).
+#' @noRd
+sync_input_to_dataset <- function(code, columns, non_numeric = character(0)) {
   old_tokens <- unname(get_input_tokens(code))
   if(length(old_tokens) == 0 || length(columns) == 0) return(code)
   old_names <- vapply(old_tokens, input_token_name, character(1), USE.NAMES = FALSE)
@@ -172,6 +214,10 @@ sync_input_to_dataset <- function(code, columns) {
     ## the dataset still carries its original name). Keep it dropped rather
     ## than re-introducing a name that may collide with another token.
     if(same_pos && is_anon_drop[i]) return("DROP")
+    ## Genuinely new column the model never named. If it is non-numeric, drop
+    ## it: the model cannot reference it, and leaving it readable makes pharmpy
+    ## float-convert its text and fail. Numeric new columns stay readable.
+    if(column %in% non_numeric) return(paste0(column, "=DROP"))
     column
   }, character(1), USE.NAMES = FALSE)
   if(identical(new_tokens, old_tokens)) return(code)
