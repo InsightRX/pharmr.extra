@@ -378,6 +378,38 @@ test_that("sync_input_to_dataset drops a genuinely new non-numeric column", {
   )
 })
 
+test_that("sync_input_to_dataset re-emits pharmpy's _DROP placeholders", {
+  code <- "$PROBLEM Test\n$INPUT ID TIME DROP AMT DV\n$DATA data.csv"
+  out <- sync_input_to_dataset(
+    code,
+    c("ID", "TIME", "_DROP1", "AMT", "DV"),
+    non_numeric = character(0)
+  )
+  expect_equal(get_input_tokens(out), c("ID", "TIME", "DROP", "AMT", "DV"))
+})
+
+test_that("blank_unreadable_values blanks only values NONMEM cannot read", {
+  data <- data.frame(
+    ID = c(1, 2, 3),
+    TRT = c("Cohort A", "EV+P", "B,C"),
+    VISITDATE = c("08/12/2011", "09/12/2011", "10/12/2011"),
+    stringsAsFactors = FALSE
+  )
+  out <- suppressMessages(
+    blank_unreadable_values(data, non_numeric = c("TRT", "VISITDATE"))
+  )
+  # whitespace and comma values are unreadable; "EV+P" and the dates are fine
+  expect_equal(out$TRT, c(".", "EV+P", "."))
+  expect_equal(out$VISITDATE, data$VISITDATE)
+  # numeric columns are untouched
+  expect_equal(out$ID, data$ID)
+})
+
+test_that("blank_unreadable_values leaves a clean dataset identical", {
+  data <- data.frame(ID = c(1, 2), TRT = c("A", "B"), stringsAsFactors = FALSE)
+  expect_identical(blank_unreadable_values(data, non_numeric = "TRT"), data)
+})
+
 test_that("is_numeric_column treats numeric-as-character as numeric", {
   expect_true(is_numeric_column(c(1, 2, 3)))
   expect_true(is_numeric_column(c("70", "70", "70")))
