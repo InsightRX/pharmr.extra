@@ -24,6 +24,38 @@ test_that("Basic simulation works (using `model` argument, not `fit`)", {
   expect_equal(dim(out), c(744, 9))
 })
 
+test_that("run_sim(keep = ) keeps run.mod and run.lst and removes the run folder", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- pharmr::load_example_model("pheno")
+  pharmr::load_dataset(mod)
+  dat <- mod$dataset |>
+    as.data.frame() |>
+    dplyr::mutate(
+      EVID = ifelse(AMT == 0, 0, 1),
+      MDV = ifelse(DV == 0, 1, 0),
+      CMT = 1
+    )
+  keep <- file.path(tempdir(), "sim_keep_record")
+  withr::defer(unlink(keep, recursive = TRUE))
+  out <- run_sim(
+    model = mod,
+    data = dat,
+    id = "sim_keep_run",
+    variables = c("ID", "TIME", "DV", "EVID", "CIPREDI", "PRED"),
+    keep = keep
+  )
+  expect_equal(dim(out), c(744, 9))
+  expect_true(file.exists(file.path(keep, "regimen_1", "run.mod")))
+  expect_true(file.exists(file.path(keep, "regimen_1", "run.lst")))
+  ## the listing is the one NONMEM wrote, with the simulation step in it
+  expect_true(any(grepl("SIMULATION", readLines(file.path(keep, "regimen_1", "run.lst")))))
+  expect_false(file.exists(file.path(keep, "regimen_1", "data.csv")))
+  expect_false(dir.exists(file.path(tempdir(), "sim_keep_run")))
+})
+
 test_that("Basic simulation works (using model file specified to `model`)", {
   local_pharmr.extra_options()
   skip_if_nonmem_not_available()
