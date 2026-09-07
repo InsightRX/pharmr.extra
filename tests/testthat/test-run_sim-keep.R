@@ -127,6 +127,37 @@ test_that("keep_nonmem_record copes with a run folder that was never created", {
   expect_length(list.files(keep, recursive = TRUE), 0)
 })
 
+test_that("keep_nonmem_record leaves a pre-existing run folder it has nothing of its own in", {
+  ## `created = FALSE`: the run folder was already there when the run started
+  ## and the run never wrote a control stream into it (it aborted before
+  ## reaching NONMEM), so the folder is someone else's to keep.
+  tmp <- withr::local_tempdir()
+  staging <- file.path(tmp, "sim_x")
+  dir.create(staging)
+  writeLines("mine", file.path(staging, "sentinel.txt"))
+  keep <- file.path(tmp, "kept")
+
+  keep_nonmem_record(staging, keep, created = FALSE)
+
+  expect_true(dir.exists(staging))
+  expect_equal(readLines(file.path(staging, "sentinel.txt")), "mine")
+  expect_length(list.files(keep, recursive = TRUE), 0)
+})
+
+test_that("keep_nonmem_record still records a pre-existing run folder the run wrote into", {
+  ## Same `created = FALSE`, but NONMEM did run here: the record is copied out
+  ## and the folder removed, as with any other run.
+  tmp <- withr::local_tempdir()
+  staging <- .make_run_folder(tmp)
+  writeLines("stale", file.path(staging, "sentinel.txt"))
+  keep <- file.path(tmp, "kept")
+
+  keep_nonmem_record(staging, keep, created = FALSE)
+
+  expect_setequal(list.files(keep, recursive = TRUE), .kept_files)
+  expect_false(dir.exists(staging))
+})
+
 test_that("validate_keep_folder refuses a run folder that is not inside its base", {
   ## `id = "."` (or `""`) makes the run folder the working directory itself,
   ## which `keep` then removes.
@@ -277,6 +308,28 @@ test_that("run_sim(keep = ) is checked before anything runs", {
                "not a subfolder")
   expect_false(ran)
   expect_false(dir.exists(file.path(tmp, "sim_keep")))
+})
+
+test_that("run_sim(keep = ) leaves an existing run folder alone when a check fails", {
+  ## The `keep` handler removes the run folder, so it must not be armed while
+  ## arguments are still being checked: an error there would take an existing
+  ## `id` folder -- an earlier run, or whatever else the user keeps in it --
+  ## with it.
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  tmp <- withr::local_tempdir()
+  withr::local_dir(tmp)
+  dir.create(file.path(tmp, "sim_keep"))
+  writeLines("mine", file.path(tmp, "sim_keep", "sentinel.txt"))
+
+  expect_error(
+    run_sim(model = make_model_without_cov(), data = matrix(1:4, ncol = 2),
+            id = "sim_keep", keep = "kept", verbose = FALSE),
+    "must be a data.frame"
+  )
+
+  expect_true(dir.exists(file.path(tmp, "sim_keep")))
+  expect_equal(readLines(file.path(tmp, "sim_keep", "sentinel.txt")), "mine")
 })
 
 test_that("run_sim(keep = ) is accepted, and does nothing, on the nlmixr2 backend", {

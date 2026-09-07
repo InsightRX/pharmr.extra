@@ -158,9 +158,11 @@
 #' it succeeded or aborted, and the run folder is then removed with everything
 #' else in it (datasets, output tables, NONMEM's build files). Relative paths
 #' resolve against the working directory; the folder may already exist, and
-#' only files of the same name are overwritten. `NULL` (default) leaves the
-#' run folder in place. Ignored by the nlmixr2 backend, which writes no run
-#' folders.
+#' only files of the same name are overwritten. A run that aborts before
+#' NONMEM writes anything leaves an already existing run folder in place, so
+#' an argument error never removes a folder the run did not write to. `NULL`
+#' (default) leaves the run folder in place. Ignored by the nlmixr2 backend,
+#' which writes no run folders.
 #'
 #' @returns data.frame with simulation results. When `n_uncertainty` is used,
 #' the result also carries `n_uncertainty_requested` and `n_uncertainty_kept`
@@ -238,14 +240,17 @@ run_sim <- function(
   }
 
   ## `keep`: copy the control streams and listings out of the run folder and
-  ## remove it. Registered this early so a run that aborts still keeps its
-  ## listing; nothing to do for nlmixr2, which writes no run folders.
+  ## remove it. Checked here, with the other arguments, so a bad `keep` errors
+  ## before anything runs -- but only *armed* further down, once the run itself
+  ## is about to start: the handler removes the run folder, so arming it up
+  ## here would have an argument error below remove a pre-existing `id` folder
+  ## this call never wrote to.
+  keep_staging <- NULL
   if(!is.null(keep)) {
-    staging <- file.path(path %||% getwd(), id)
-    keep <- validate_keep_folder(keep, staging = staging, base = path %||% getwd())
-    if(tool == "nonmem") {
-      on.exit(keep_nonmem_record(staging, keep), add = TRUE)
-    }
+    keep_staging <- file.path(path %||% getwd(), id)
+    keep <- validate_keep_folder(
+      keep, staging = keep_staging, base = path %||% getwd()
+    )
   }
 
   ## Check `data` here rather than only inside the engine: parallel uncertainty
@@ -464,6 +469,21 @@ run_sim <- function(
   if(verbose) cli::cli_alert_success("Done")
   out
   } ## end run_sim_engine
+
+  ## Arm `keep` (see the check up top): everything below this point runs the
+  ## simulation, so a run that aborts part-way still keeps the listings NONMEM
+  ## managed to write, while an argument error above leaves the run folder
+  ## alone. `keep_created` records whether the run folder is this run's to
+  ## remove; an already existing one is only removed once a control stream or
+  ## listing of this run has been written into it. Nothing to do for nlmixr2,
+  ## which writes no run folders.
+  if(!is.null(keep) && tool == "nonmem") {
+    keep_created <- !dir.exists(keep_staging)
+    on.exit(
+      keep_nonmem_record(keep_staging, keep, created = keep_created),
+      add = TRUE
+    )
+  }
 
   ## No uncertainty: single pass with point estimates (unchanged behaviour)
   if(is.null(n_uncertainty)) {

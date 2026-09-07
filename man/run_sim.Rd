@@ -206,9 +206,11 @@ copied there at the same relative path once the run has finished, whether
 it succeeded or aborted, and the run folder is then removed with everything
 else in it (datasets, output tables, NONMEM's build files). Relative paths
 resolve against the working directory; the folder may already exist, and
-only files of the same name are overwritten. \code{NULL} (default) leaves the
-run folder in place. Ignored by the nlmixr2 backend, which writes no run
-folders.}
+only files of the same name are overwritten. A run that aborts before
+NONMEM writes anything leaves an already existing run folder in place, so
+an argument error never removes a folder the run did not write to. \code{NULL}
+(default) leaves the run folder in place. Ignored by the nlmixr2 backend,
+which writes no run folders.}
 }
 \value{
 data.frame with simulation results. When \code{n_uncertainty} is used,

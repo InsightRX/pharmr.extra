@@ -10,16 +10,23 @@
 #' out. Need not exist: a run that aborted before creating it leaves nothing
 #' to keep and nothing to remove.
 #' @param keep destination folder, created as needed. `NULL` does nothing.
+#' @param created was the run folder created by this run? A folder that was
+#' already there when the run started is only removed once the run has written
+#' a `run.mod` or `run.lst` into it: without one, nothing says the folder holds
+#' this run rather than an earlier one's results or unrelated files.
 #'
 #' @returns the absolute `keep` path, invisibly (`NULL` when `keep` is `NULL`).
 #' @noRd
-keep_nonmem_record <- function(staging, keep) {
+keep_nonmem_record <- function(staging, keep, created = TRUE) {
   if(is.null(keep)) return(invisible(NULL))
   keep <- validate_keep_folder(keep, staging = staging)
   dir.create(keep, recursive = TRUE, showWarnings = FALSE)
   if(!dir.exists(staging)) return(invisible(keep))
 
   files <- list.files(staging, pattern = "^run\\.(mod|lst)$", recursive = TRUE)
+  ## Nothing of this run's in a folder this run did not create: leave it alone
+  ## rather than remove someone else's files.
+  if(!created && length(files) == 0) return(invisible(keep))
   copied <- vapply(files, function(f) {
     to <- file.path(keep, f)
     dir.create(dirname(to), recursive = TRUE, showWarnings = FALSE)
