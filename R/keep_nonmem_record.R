@@ -1,10 +1,56 @@
+## Which files a run folder's record is made of. Each pattern is matched
+## against a file's path *relative to the run folder*, so a rule can name the
+## subfolder a file has to sit in and not only its name.
+
+#' Files worth keeping from a [run_sim()] run folder
+#'
+#' The control stream and the listing of every regimen / replicate: the
+#' `$SIMULATION` record with its seeds, and the NM-TRAN warnings, are only
+#' there.
+#' @noRd
+keep_pattern_nonmem_sim <- "(^|/)run\\.(mod|lst)$"
+
+#' Files worth keeping from a [run_nlme()] fit folder
+#'
+#' The control stream and listing, plus the estimation output NONMEM writes
+#' beside them, the streamed console files (`console = FALSE`) and the final
+#' estimates. `stderr` is part of the record because an nmfe run that falls
+#' over writes its reason there and nowhere else. `.ext` and friends are
+#' matched by extension rather than as `run.ext`, because a PsN run names them
+#' after its own stem (`psn.ext`). Left behind: the dataset, the output tables
+#' (`sdtab`, `patab`), the iteration/debug files (`.phi`, `.grd`, `.xml`, ...)
+#' and NONMEM's build files.
+#' @noRd
+keep_pattern_nonmem_fit <- paste0(
+  "(^|/)(run\\.(mod|lst)|final\\.mod|stdout|stderr)$",
+  "|\\.(ext|shk|cor|cov)$"
+)
+
+#' Files worth keeping from a [call_pharmpy_tool()] run folder
+#'
+#' A search writes one folder per candidate fit; keeping all of them would
+#' defeat the point. Kept instead: the base fit at the folder's root (written
+#' by the [run_nlme()] call that produced `results`), the tool's own result
+#' summaries, the `final_<tool>.mod` this package writes, and the candidate the
+#' search settled on (`<tool>N/models/final`, or `models/sim` for
+#' `tool = "simulation"`). The candidate's files are matched by extension
+#' because Pharmpy names them after the model, not after `run.mod`.
+#' @noRd
+keep_pattern_pharmpy_tool <- paste0(
+  "^(run\\.(mod|lst)|final\\.mod|stdout|stderr)$|^[^/]*\\.(ext|shk|cor|cov)$",
+  "|^final_[^/]*\\.mod$",
+  "|(^|/)results\\.(csv|json)$",
+  "|(^|/)models/(final|sim)/[^/]*\\.(mod|lst|ext|shk|cor|cov)$"
+)
+
 #' Keep a record of what NONMEM ran, then remove the run folder
 #'
-#' The `keep` argument of [run_sim()]. Every `run.mod` and `run.lst` found
-#' under `staging` is copied to `keep` at the same relative path, and `staging`
-#' is then removed with everything else in it: the datasets, output tables and
-#' NONMEM's build files. Registered as an exit handler by [run_sim()], so a run
-#' that aborts still keeps its listing.
+#' The `keep` argument of [run_sim()], [run_nlme()] and [call_pharmpy_tool()].
+#' Every file under `staging` whose relative path matches `pattern` is copied
+#' to `keep` at that same relative path, and `staging` is then removed with
+#' everything else in it: the datasets, output tables and NONMEM's build files.
+#' Registered as an exit handler by its callers, so a run that aborts still
+#' keeps its listing.
 #'
 #' @param staging the run folder, `file.path(path, id)` as [run_sim()] lays it
 #' out. Need not exist: a run that aborted before creating it leaves nothing
@@ -12,18 +58,31 @@
 #' @param keep destination folder, created as needed. `NULL` does nothing.
 #' @param created was the run folder created by this run? A folder that was
 #' already there when the run started is only removed once the run has written
-#' a `run.mod` or `run.lst` into it: without one, nothing says the folder holds
-#' this run rather than an earlier one's results or unrelated files.
+#' a file matching `pattern` into it: without one, nothing says the folder
+#' holds this run rather than an earlier one's results or unrelated files.
+#' @param pattern regular expression the record is selected by, matched against
+#' each file's path relative to `staging` (`"regimen_1/run.lst"`), so a rule can
+#' name the subfolder a file has to sit in. Defaults to [run_sim()]'s record.
+#' Hidden files and folders are never part of a record.
 #'
 #' @returns the absolute `keep` path, invisibly (`NULL` when `keep` is `NULL`).
 #' @noRd
-keep_nonmem_record <- function(staging, keep, created = TRUE) {
+keep_nonmem_record <- function(
+  staging,
+  keep,
+  created = TRUE,
+  pattern = keep_pattern_nonmem_sim
+) {
   if(is.null(keep)) return(invisible(NULL))
   keep <- validate_keep_folder(keep, staging = staging)
   dir.create(keep, recursive = TRUE, showWarnings = FALSE)
   if(!dir.exists(staging)) return(invisible(keep))
 
-  files <- list.files(staging, pattern = "^run\\.(mod|lst)$", recursive = TRUE)
+  ## Matched on the relative path rather than through `list.files(pattern = )`,
+  ## which only ever sees a file's name: a search's record is "the model under
+  ## models/final", which the name alone cannot express.
+  files <- list.files(staging, recursive = TRUE)
+  files <- files[grepl(pattern, files)]
   ## Nothing of this run's in a folder this run did not create: leave it alone
   ## rather than remove someone else's files.
   if(!created && length(files) == 0) return(invisible(keep))
@@ -45,7 +104,7 @@ keep_nonmem_record <- function(staging, keep, created = TRUE) {
   invisible(keep)
 }
 
-#' Check `run_sim()`'s `keep` argument
+#' Check a caller's `keep` argument
 #'
 #' `keep` must be a single non-empty string, and must not be the run folder or
 #' lie inside it: [keep_nonmem_record()] removes the run folder once the record
@@ -85,8 +144,8 @@ validate_keep_folder <- function(keep, staging, base = NULL) {
     cli::cli_abort(c(
       "{.arg keep} must not be the run folder or lie inside it.",
       x = "{.arg keep} resolves to {.path {keep_abs}}.",
-      i = "The run folder {.path {staging_abs}} is removed once its \\
-           {.file run.mod} and {.file run.lst} have been copied to {.arg keep}."
+      i = "The run folder {.path {staging_abs}} is removed once its record \\
+           has been copied to {.arg keep}."
     ))
   }
   keep_abs

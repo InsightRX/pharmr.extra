@@ -6,8 +6,14 @@
 #' 
 #' @export
 clean_nonmem_folder <- function(path) {
-  files <- dir(path)
+  ## `all.files`: `.modeldb` and `.pharmpy` below are hidden, and `dir()`
+  ## leaves those out by default.
+  files <- dir(path, all.files = TRUE)
   blacklist <- c(
+    ## Pharmpy's scratch, written when the fit is dispatched through it. Both
+    ## are folders, hence the `recursive` unlink below.
+    ".modeldb",
+    ".pharmpy",
     "compile.lnk",
     "FCON",
     "FDATA",
@@ -32,5 +38,5 @@ clean_nonmem_folder <- function(path) {
     "parafile.pnm"
   )
   rm_files <- file.path(path, intersect(blacklist, files))
-  unlink(rm_files)
+  unlink(rm_files, recursive = TRUE)
 }

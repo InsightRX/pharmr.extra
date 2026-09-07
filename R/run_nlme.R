@@ -105,6 +105,21 @@
 #' @param control nlmixr2-only. Optional control list passed verbatim to
 #' [nlmixr2::nlmixr2()] (e.g. [nlmixr2est::foceiControl()] or
 #' [nlmixr2est::saemControl()]). Ignored for NONMEM models.
+#' @param keep NONMEM only: a folder to keep a record of the fit in. When set,
+#' the run folder's `run.mod`, `run.lst`, `final.mod`, `stdout`, `stderr` and
+#' the `.ext` /
+#' `.shk` / `.cor` / `.cov` output files are copied there at the same relative
+#' path once NONMEM has returned, whether it converged or not, and the run
+#' folder is then removed with everything else in it (the dataset, the output
+#' tables, the iteration files, NONMEM's build files). The `<id>_fit_summary.txt`,
+#' `<id>_fit_parameters.csv` and `<id>.rds` files are written beside the run
+#' folder, under `path`, and are left alone. Relative paths resolve against the
+#' working directory; the folder may already exist, and only files of the same
+#' name are overwritten. A run that aborts before NONMEM writes anything leaves
+#' an already existing run folder in place, so an argument error never removes
+#' a folder the run did not write to. `NULL` (default) leaves the run folder in
+#' place. Cannot be combined with `as_job = TRUE`, which returns while NONMEM is
+#' still running. Ignored for nlmixr2 models, which write no NONMEM record.
 #' @param verbose verbose output?
 #'
 #' @returns A Pharmpy `ModelfitResults` object (an nlmixr2-shaped fit list for
@@ -145,6 +160,7 @@ run_nlme <- function(
   mu_reference = "auto",
   threads = NULL,
   control = NULL,
+  keep = NULL,
   verbose = TRUE
 ) {
 
@@ -203,6 +219,28 @@ run_nlme <- function(
     new_name = id
   )
 
+  ## `keep`: copy the record out of the run folder and remove it. Checked here,
+  ## with the other arguments, so a bad `keep` errors before anything runs --
+  ## but only *armed* further down, once the run folder exists and NONMEM is
+  ## about to be called. The handler removes the run folder, so arming it up
+  ## here would have an error below remove a pre-existing `id` folder this call
+  ## never wrote to.
+  keep_staging <- NULL
+  if(!is.null(keep)) {
+    if(isTRUE(as_job)) {
+      ## The job runs in another session and `run_nlme()` returns immediately,
+      ## so the exit handler would take the run folder while NONMEM is still
+      ## writing into it.
+      cli::cli_abort(c(
+        "{.arg keep} cannot be combined with {.code as_job = TRUE}.",
+        i = "The run returns before NONMEM has finished, so there is no \\
+             record to keep yet."
+      ))
+    }
+    keep_staging <- file.path(path, id)
+    keep <- validate_keep_folder(keep, staging = keep_staging, base = path)
+  }
+
   ## Change estimation method, if requested
   if(!is.null(estimation_method)) {
     per_step_options <- if(!is.null(estimation_options)) {
@@ -256,6 +294,10 @@ run_nlme <- function(
     attr(model, "original_data") <- original_data
   }
 
+  ## Whether the run folder is this run's to remove; read before
+  ## `prepare_run_folder()` creates it. See the arming just below.
+  keep_created <- !is.null(keep) && !dir.exists(keep_staging)
+
   ## Make sure data is clean for modelfit
   obj <- prepare_run_folder(
     id = id,
@@ -267,6 +309,23 @@ run_nlme <- function(
     copy_dataset = copy_dataset || data_in_memory,
     verbose = verbose
   )
+
+  ## Arm `keep` (see the check up top): everything below this point runs
+  ## NONMEM, so a run that aborts part-way -- or one that does not converge --
+  ## still keeps the listing, which is where the reason is. An error in
+  ## `prepare_run_folder()` above leaves the run folder alone, and an already
+  ## existing one is only removed once this run has written its own record
+  ## into it.
+  if(!is.null(keep)) {
+    keep <- validate_keep_folder(keep, staging = obj$fit_folder)
+    on.exit(
+      keep_nonmem_record(
+        obj$fit_folder, keep,
+        created = keep_created, pattern = keep_pattern_nonmem_fit
+      ),
+      add = TRUE
+    )
+  }
 
   ## If only `check` requested:
   if(check_only) {

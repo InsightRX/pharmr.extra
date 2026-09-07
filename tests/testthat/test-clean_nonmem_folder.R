@@ -42,3 +42,32 @@ test_that("handles empty directory gracefully", {
   expect_no_error(clean_nonmem_folder(tmp_dir))
   expect_length(list.files(tmp_dir), 0)
 })
+
+test_that("removes Pharmpy's hidden scratch folders", {
+  tmp_dir <- withr::local_tempdir()
+  ## `.modeldb` and `.pharmpy` are folders, and hidden, so removing them needs
+  ## both `dir(all.files = TRUE)` and a recursive unlink.
+  dir.create(file.path(tmp_dir, ".modeldb", "models"), recursive = TRUE)
+  writeLines("cached", file.path(tmp_dir, ".modeldb", "models", "m1.mod"))
+  dir.create(file.path(tmp_dir, ".pharmpy"))
+  writeLines("state", file.path(tmp_dir, ".pharmpy", "state.json"))
+  writeLines("test", file.path(tmp_dir, "run.lst"))
+
+  clean_nonmem_folder(tmp_dir)
+
+  expect_false(dir.exists(file.path(tmp_dir, ".modeldb")))
+  expect_false(dir.exists(file.path(tmp_dir, ".pharmpy")))
+  expect_true(file.exists(file.path(tmp_dir, "run.lst")))
+})
+
+test_that("leaves other hidden entries alone", {
+  tmp_dir <- withr::local_tempdir()
+  dir.create(file.path(tmp_dir, ".datasets"))
+  writeLines("ID,TIME,DV", file.path(tmp_dir, ".datasets", "d1.csv"))
+  writeLines("keep", file.path(tmp_dir, ".Rprofile"))
+
+  clean_nonmem_folder(tmp_dir)
+
+  expect_true(file.exists(file.path(tmp_dir, ".datasets", "d1.csv")))
+  expect_true(file.exists(file.path(tmp_dir, ".Rprofile")))
+})
