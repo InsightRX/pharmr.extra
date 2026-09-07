@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9136</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9138</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -60,7 +60,8 @@
 <span>  verbose <span class="op">=</span> <span class="cn">TRUE</span>,</span>
 <span>  n_cores <span class="op">=</span> <span class="fl">1</span>,</span>
 <span>  uncertainty_engine <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/c.html" class="external-link">c</a></span><span class="op">(</span><span class="st">"auto"</span>, <span class="st">"replicates"</span>, <span class="st">"nwpri"</span><span class="op">)</span>,</span>
-<span>  plev <span class="op">=</span> <span class="fl">0.9999</span></span>
+<span>  plev <span class="op">=</span> <span class="fl">0.9999</span>,</span>
+<span>  keep <span class="op">=</span> <span class="cn">NULL</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
@@ -266,6 +267,20 @@ watch.</p></dd>
 <dt id="arg-plev">plev<a class="anchor" aria-label="anchor" href="#arg-plev"></a></dt>
 <dd><p><code>uncertainty_engine = "nwpri"</code> only: the probability mass the
 THETA draws are truncated to, passed to <code><a href="add_nwpri_prior.html">add_nwpri_prior()</a></code>.</p></dd>
+
+
+<dt id="arg-keep">keep<a class="anchor" aria-label="anchor" href="#arg-keep"></a></dt>
+<dd><p>NONMEM only: a folder to keep a record of what NONMEM ran in.
+When set, every <code>run.mod</code> and <code>run.lst</code> under the run folder (see <code>id</code>) is
+copied there at the same relative path once the run has finished, whether
+it succeeded or aborted, and the run folder is then removed with everything
+else in it (datasets, output tables, NONMEM's build files). Relative paths
+resolve against the working directory; the folder may already exist, and
+only files of the same name are overwritten. A run that aborts before
+NONMEM writes anything leaves an already existing run folder in place, so
+an argument error never removes a folder the run did not write to. <code>NULL</code>
+(default) leaves the run folder in place. Ignored by the nlmixr2 backend,
+which writes no run folders.</p></dd>
 
 </dl></div>
     <div class="section level2">

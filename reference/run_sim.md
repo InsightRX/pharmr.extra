@@ -23,7 +23,8 @@ run_sim(
   verbose = TRUE,
   n_cores = 1,
   uncertainty_engine = c("auto", "replicates", "nwpri"),
-  plev = 0.9999
+  plev = 0.9999,
+  keep = NULL
 )
 ```
 
@@ -250,6 +251,21 @@ run_sim(
   `uncertainty_engine = "nwpri"` only: the probability mass the THETA
   draws are truncated to, passed to
   [`add_nwpri_prior()`](https://insightrx.github.io/pharmr.extra/reference/add_nwpri_prior.md).
+
+- keep:
+
+  NONMEM only: a folder to keep a record of what NONMEM ran in. When
+  set, every `run.mod` and `run.lst` under the run folder (see `id`) is
+  copied there at the same relative path once the run has finished,
+  whether it succeeded or aborted, and the run folder is then removed
+  with everything else in it (datasets, output tables, NONMEM's build
+  files). Relative paths resolve against the working directory; the
+  folder may already exist, and only files of the same name are
+  overwritten. A run that aborts before NONMEM writes anything leaves an
+  already existing run folder in place, so an argument error never
+  removes a folder the run did not write to. `NULL` (default) leaves the
+  run folder in place. Ignored by the nlmixr2 backend, which writes no
+  run folders.
 
 ## Value
 

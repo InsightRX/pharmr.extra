@@ -2,6 +2,16 @@
 
 ## pharmr.extra (development version)
 
+- `run_sim(keep = )` keeps a record of what NONMEM ran. Once the run has
+  finished — whether it succeeded or aborted — every `run.mod` and
+  `run.lst` under the run folder is copied to `keep` at the same
+  relative path (`keep/regimen_1/run.lst`,
+  `keep/uncertainty_2/regimen_1/run.lst`, …) and the run folder is
+  removed with everything else in it: the datasets, the output tables
+  and NONMEM’s build files. The default `keep = NULL` leaves the run
+  folder in place as before. NONMEM only; the nlmixr2 backend writes no
+  run folders.
+
 - `run_sim(n_uncertainty = , n_cores = )` now parallelises the
   `"replicates"` uncertainty engine on the NONMEM backend too (#129); it
   used to warn and fall back to sequential for anything but nlmixr2. The
