@@ -60,8 +60,9 @@ folder is then removed with everything else in it: the datasets and the one
 folder per candidate fit a search leaves behind. Relative paths resolve
 against the working directory; the folder may already exist, and only files
 of the same name are overwritten. A run that aborts before the tool writes
-anything leaves an already existing run folder in place. \code{NULL} (default)
-leaves the run folder in place.}
+anything leaves an already existing run folder in place, base fit and all.
+\code{NULL} (default) leaves the run folder in place. Ignored, with a warning,
+for nlmixr-format models, whose candidate fits are not a NONMEM record.}
 
 \item{uppercase_mfl}{if \code{TRUE} (default), uppercases the model's \verb{$INPUT} /
 datainfo / dataset column names and the \code{options$search_space} string before

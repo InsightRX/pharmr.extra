@@ -43,6 +43,34 @@ keep_pattern_pharmpy_tool <- paste0(
   "|(^|/)models/(final|sim)/[^/]*\\.(mod|lst|ext|shk|cor|cov)$"
 )
 
+#' The record files a run folder holds, with what they looked like
+#'
+#' Taken before a run starts writing, and again by [keep_nonmem_record()] once
+#' it has finished, so the two can be compared: a file that is new, or whose
+#' size or mtime has changed, was written by this run. Matched on the path
+#' relative to `staging` rather than through `list.files(pattern = )`, which
+#' only ever sees a file's name: a search's record is "the model under
+#' models/final", which the name alone cannot express.
+#'
+#' @param staging the run folder. A folder that is not there yet holds nothing.
+#' @param pattern regular expression the record is selected by, as
+#' [keep_nonmem_record()] takes it.
+#'
+#' @returns a character vector of `"<size> <mtime>"`, named by relative path
+#' (empty when the folder holds no record files). Hidden files are never part
+#' of a record: [list.files()] leaves them out.
+#' @noRd
+record_snapshot <- function(staging, pattern = keep_pattern_nonmem_sim) {
+  if(is.null(staging) || !dir.exists(staging)) return(character(0))
+  files <- list.files(staging, recursive = TRUE)
+  files <- files[grepl(pattern, files)]
+  if(length(files) == 0) return(character(0))
+  info <- file.info(file.path(staging, files))
+  stats <- paste(info$size, as.numeric(info$mtime))
+  names(stats) <- files
+  stats
+}
+
 #' Keep a record of what NONMEM ran, then remove the run folder
 #'
 #' The `keep` argument of [run_sim()], [run_nlme()] and [call_pharmpy_tool()].
@@ -60,6 +88,12 @@ keep_pattern_pharmpy_tool <- paste0(
 #' already there when the run started is only removed once the run has written
 #' a file matching `pattern` into it: without one, nothing says the folder
 #' holds this run rather than an earlier one's results or unrelated files.
+#' @param before the record files the folder already held, as
+#' [record_snapshot()] took them before the run started. Used with
+#' `created = FALSE` to tell a file this run wrote from one that was already
+#' there: a folder handed to a search holds the base fit's `run.mod` before the
+#' search writes anything, and those stale files must not stand in for a record
+#' of this run. The default (nothing there before) makes every match count.
 #' @param pattern regular expression the record is selected by, matched against
 #' each file's path relative to `staging` (`"regimen_1/run.lst"`), so a rule can
 #' name the subfolder a file has to sit in. Defaults to [run_sim()]'s record.
@@ -71,21 +105,27 @@ keep_nonmem_record <- function(
   staging,
   keep,
   created = TRUE,
-  pattern = keep_pattern_nonmem_sim
+  pattern = keep_pattern_nonmem_sim,
+  before = character(0)
 ) {
   if(is.null(keep)) return(invisible(NULL))
   keep <- validate_keep_folder(keep, staging = staging)
   dir.create(keep, recursive = TRUE, showWarnings = FALSE)
   if(!dir.exists(staging)) return(invisible(keep))
 
-  ## Matched on the relative path rather than through `list.files(pattern = )`,
-  ## which only ever sees a file's name: a search's record is "the model under
-  ## models/final", which the name alone cannot express.
-  files <- list.files(staging, recursive = TRUE)
-  files <- files[grepl(pattern, files)]
+  now <- record_snapshot(staging, pattern)
+  files <- names(now)
   ## Nothing of this run's in a folder this run did not create: leave it alone
-  ## rather than remove someone else's files.
-  if(!created && length(files) == 0) return(invisible(keep))
+  ## rather than remove someone else's files. "Of this run's" is a file that is
+  ## new or has changed since `before` was taken, not merely one that matches
+  ## the pattern -- a run folder handed to a search already holds the base
+  ## fit's `run.mod`, and a tool that falls over before writing anything must
+  ## not have that stale file stand in for a record of its own.
+  if(!created) {
+    was <- before[files]
+    fresh <- files[is.na(was) | was != now]
+    if(length(fresh) == 0) return(invisible(keep))
+  }
   copied <- vapply(files, function(f) {
     to <- file.path(keep, f)
     dir.create(dirname(to), recursive = TRUE, showWarnings = FALSE)

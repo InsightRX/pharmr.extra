@@ -106,6 +106,71 @@ test_that("keep_nonmem_record leaves a pre-existing fit folder it has nothing of
   expect_equal(readLines(file.path(staging, "sentinel.txt")), "mine")
 })
 
+test_that("keep_nonmem_record does not take a pre-existing folder for a run that wrote nothing", {
+  ## A run folder handed to a search already holds the base fit's `run.mod`.
+  ## A tool that falls over before writing anything must not have those stale
+  ## files stand in for a record of its own, or the folder -- and whatever else
+  ## is in it -- is removed for a record that was never written.
+  tmp <- withr::local_tempdir()
+  staging <- file.path(tmp, "fit1")
+  dir.create(staging)
+  writeLines("$PROBLEM earlier run", file.path(staging, "run.mod"))
+  writeLines("earlier listing", file.path(staging, "run.lst"))
+  writeLines("mine", file.path(staging, "sentinel.txt"))
+  before <- record_snapshot(staging, keep_pattern_nonmem_fit)
+
+  ## ...and now the run falls over without writing anything.
+  keep_nonmem_record(staging, file.path(tmp, "kept"), created = FALSE,
+                     pattern = keep_pattern_nonmem_fit, before = before)
+
+  expect_true(dir.exists(staging))
+  expect_equal(readLines(file.path(staging, "sentinel.txt")), "mine")
+  expect_equal(readLines(file.path(staging, "run.mod")), "$PROBLEM earlier run")
+  expect_setequal(list.files(file.path(tmp, "kept"), recursive = TRUE), character(0))
+})
+
+test_that("keep_nonmem_record keeps a pre-existing folder's record once this run has written to it", {
+  ## The other side of it: the base fit that was already there is part of the
+  ## record, so once the run has written something of its own everything
+  ## matching is copied out and the folder goes.
+  tmp <- withr::local_tempdir()
+  staging <- file.path(tmp, "fit1")
+  dir.create(staging)
+  writeLines("$PROBLEM base fit", file.path(staging, "run.mod"))
+  writeLines("mine", file.path(staging, "sentinel.txt"))
+  before <- record_snapshot(staging, keep_pattern_nonmem_fit)
+
+  ## a file this run wrote
+  writeLines("listing", file.path(staging, "run.lst"))
+
+  keep_nonmem_record(staging, file.path(tmp, "kept"), created = FALSE,
+                     pattern = keep_pattern_nonmem_fit, before = before)
+
+  expect_setequal(list.files(file.path(tmp, "kept"), recursive = TRUE),
+                  c("run.mod", "run.lst"))
+  expect_equal(readLines(file.path(tmp, "kept", "run.mod")), "$PROBLEM base fit")
+  expect_false(dir.exists(staging))
+})
+
+test_that("keep_nonmem_record counts a rewritten file as this run's", {
+  ## A run that overwrites the control stream it found has written a record of
+  ## its own, even though the folder holds no new file names.
+  tmp <- withr::local_tempdir()
+  staging <- file.path(tmp, "fit1")
+  dir.create(staging)
+  writeLines("$PROBLEM earlier run", file.path(staging, "run.mod"))
+  before <- record_snapshot(staging, keep_pattern_nonmem_fit)
+
+  writeLines("$PROBLEM this run, rewritten", file.path(staging, "run.mod"))
+
+  keep_nonmem_record(staging, file.path(tmp, "kept"), created = FALSE,
+                     pattern = keep_pattern_nonmem_fit, before = before)
+
+  expect_equal(readLines(file.path(tmp, "kept", "run.mod")),
+               "$PROBLEM this run, rewritten")
+  expect_false(dir.exists(staging))
+})
+
 # The record of a Pharmpy search -----------------------------------------------
 
 ## A tool run folder as call_pharmpy_tool() leaves one: the base fit at the
@@ -417,4 +482,71 @@ test_that("call_pharmpy_tool(keep = ) is checked before anything runs", {
   )
   expect_false(ran)
   expect_false(dir.exists(file.path(tmp, "search_keep")))
+})
+
+test_that("call_pharmpy_tool(keep = ) leaves a pre-existing run folder alone when the tool writes nothing", {
+  ## The run folder handed to a search holds the base fit run_nlme() wrote. A
+  ## tool that falls over before writing anything of its own must leave it,
+  ## and everything else in it, in place.
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  tmp <- withr::local_tempdir()
+  withr::local_dir(tmp)
+  .write_fit_folder(file.path(tmp, "search_keep"))
+  writeLines("mine", file.path(tmp, "search_keep", "sentinel.txt"))
+
+  stub(call_pharmpy_tool, "remove_tables_from_model", function(m, ...) m)
+  stub(call_pharmpy_tool, "clean_pharmpy_runfolders", function(...) invisible(NULL))
+  ## Stand in for the tool: fall over without writing anything.
+  stub(call_pharmpy_tool, "withr::with_dir", function(new, code) {
+    stop("pharmpy fell over")
+  })
+
+  expect_error(
+    call_pharmpy_tool(id = "search_keep", model = make_model_without_cov(),
+                      tool = "bootstrap", keep = "kept", verbose = FALSE),
+    "Pharmpy error running bootstrap"
+  )
+
+  expect_true(dir.exists(file.path(tmp, "search_keep")))
+  expect_equal(readLines(file.path(tmp, "search_keep", "sentinel.txt")), "mine")
+  expect_equal(readLines(file.path(tmp, "search_keep", "run.lst")),
+               "contents of run.lst")
+  expect_setequal(list.files(file.path(tmp, "kept"), recursive = TRUE), character(0))
+})
+
+test_that("call_pharmpy_tool(keep = ) is ignored for nlmixr-format models", {
+  ## An nlmixr-driven search writes .R / .RData candidate fits, which the
+  ## NONMEM record pattern does not match: keeping the record would copy
+  ## nothing out and then remove the run folder with the fits still in it.
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+  tmp <- withr::local_tempdir()
+  withr::local_dir(tmp)
+
+  stub(call_pharmpy_tool, "get_tool_from_model", function(...) "nlmixr")
+  stub(call_pharmpy_tool, "remove_tables_from_model", function(m, ...) m)
+  stub(call_pharmpy_tool, "clean_pharmpy_runfolders", function(...) invisible(NULL))
+  stub(call_pharmpy_tool, "patch_pharmpy_nlmixr_results", function(...) invisible(NULL))
+  ## Stand in for the tool: leave an nlmixr fit behind, then fall over.
+  stub(call_pharmpy_tool, "withr::with_dir", function(new, code) {
+    dir.create(file.path(new, "bootstrap1", "models", "final"), recursive = TRUE)
+    writeLines("fit", file.path(new, "bootstrap1", "models", "final", "final.R"))
+    stop("pharmpy fell over")
+  })
+
+  expect_warning(
+    expect_error(
+      call_pharmpy_tool(id = "search_keep", model = make_model_without_cov(),
+                        tool = "bootstrap", keep = "kept", verbose = FALSE),
+      "Pharmpy error running bootstrap"
+    ),
+    "Ignoring .*keep.*: it only applies to NONMEM-format models"
+  )
+
+  ## the nlmixr fit is still there, and nothing was copied out
+  expect_true(file.exists(
+    file.path(tmp, "search_keep", "bootstrap1", "models", "final", "final.R")
+  ))
+  expect_false(dir.exists(file.path(tmp, "kept")))
 })

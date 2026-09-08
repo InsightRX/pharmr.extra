@@ -30,8 +30,9 @@
 #' folder per candidate fit a search leaves behind. Relative paths resolve
 #' against the working directory; the folder may already exist, and only files
 #' of the same name are overwritten. A run that aborts before the tool writes
-#' anything leaves an already existing run folder in place. `NULL` (default)
-#' leaves the run folder in place.
+#' anything leaves an already existing run folder in place, base fit and all.
+#' `NULL` (default) leaves the run folder in place. Ignored, with a warning,
+#' for nlmixr-format models, whose candidate fits are not a NONMEM record.
 #' @param uppercase_mfl if `TRUE` (default), uppercases the model's `$INPUT` /
 #' datainfo / dataset column names and the `options$search_space` string before
 #' calling the Pharmpy tool. Works around Pharmpy's MFL parser, which
@@ -144,6 +145,20 @@ call_pharmpy_tool <- function(
       i = "Use a NONMEM-format model for {.val {tool}}."
     ))
   }
+
+  ## `keep` is a record of what NONMEM ran (see `keep_pattern_pharmpy_tool`).
+  ## An nlmixr-driven search writes its candidate fits as `.R` / `.RData`
+  ## instead, which the pattern does not match, so keeping the record here
+  ## would copy nothing out and then remove the run folder with the fits still
+  ## in it. Dropped rather than honoured, the way `run_nlme(keep = )` is a
+  ## no-op for nlmixr-format models.
+  if(!is.null(keep) && engine != "nonmem") {
+    cli::cli_warn(c(
+      "Ignoring {.arg keep}: it only applies to NONMEM-format models.",
+      i = "An nlmixr-format search writes no NONMEM record to keep."
+    ))
+    keep <- NULL
+  }
   ## Pharmpy's nlmixr backend has bugs that make every candidate fit raise
   ## before its results can be read; patch them before dispatching.
   ## See `patch_pharmpy_nlmixr_results()` (#121). Best-effort: on a Pharmpy
@@ -250,10 +265,17 @@ call_pharmpy_tool <- function(
   ## already done, so only "keep is not inside the run folder" is re-run here.
   if(!is.null(keep)) {
     keep <- validate_keep_folder(keep, staging = run_folder)
+    ## What the run folder held before the tool ran: a folder handed to a
+    ## search already holds the base fit `run_nlme()` wrote into it, and a tool
+    ## that falls over before writing anything must not have those files pass
+    ## for a record of its own. They are still copied out once the tool has
+    ## written something -- the base fit is part of a search's record.
+    keep_before <- record_snapshot(run_folder, keep_pattern_pharmpy_tool)
     on.exit(
       keep_nonmem_record(
         run_folder, keep,
-        created = keep_created, pattern = keep_pattern_pharmpy_tool
+        created = keep_created, pattern = keep_pattern_pharmpy_tool,
+        before = keep_before
       ),
       add = TRUE
     )

@@ -294,9 +294,16 @@ run_nlme <- function(
     attr(model, "original_data") <- original_data
   }
 
-  ## Whether the run folder is this run's to remove; read before
-  ## `prepare_run_folder()` creates it. See the arming just below.
+  ## Whether the run folder is this run's to remove, and what an already
+  ## existing one held before this run wrote anything -- so a run that falls
+  ## over early cannot have an earlier run's files pass for its own. Both read
+  ## before `prepare_run_folder()` creates or fills it. See the arming below.
   keep_created <- !is.null(keep) && !dir.exists(keep_staging)
+  keep_before <- if(is.null(keep)) {
+    character(0)
+  } else {
+    record_snapshot(keep_staging, keep_pattern_nonmem_fit)
+  }
 
   ## Make sure data is clean for modelfit
   obj <- prepare_run_folder(
@@ -321,7 +328,8 @@ run_nlme <- function(
     on.exit(
       keep_nonmem_record(
         obj$fit_folder, keep,
-        created = keep_created, pattern = keep_pattern_nonmem_fit
+        created = keep_created, pattern = keep_pattern_nonmem_fit,
+        before = keep_before
       ),
       add = TRUE
     )

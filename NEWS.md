@@ -12,7 +12,11 @@
   `<id>_fit_parameters.csv` and `<id>.rds` files `run_nlme()` writes beside the
   run folder are left alone. The default `keep = NULL` changes nothing.
   `run_nlme(keep = )` rejects `as_job = TRUE`, which returns while NONMEM is
-  still running, and is ignored for nlmixr2 models.
+  still running, and both are ignored for nlmixr2 / nlmixr-format models, whose
+  fits are not a NONMEM record. A run folder that was already there is only
+  removed once this run has written a record file into it that was not there
+  before, so a tool that falls over before writing anything leaves the folder
+  — base fit and all — in place.
 
 * `clean_nonmem_folder()` now also removes Pharmpy's `.modeldb` and `.pharmpy`
   scratch folders from a run folder.
