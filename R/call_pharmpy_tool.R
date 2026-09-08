@@ -19,6 +19,20 @@
 #' parameters via [seed_tmdd_results()] and is *not* forwarded to Pharmpy.
 #' @param remove_tables if `TRUE` (default), removes all `$TABLE` records from the model
 #' before passing it to the Pharmpy tool.
+#' @param keep NONMEM only: a folder to keep a record of the search in. When
+#' set, the run folder's base fit (`run.mod`, `run.lst`, `final.mod`, `stdout`,
+#' `stderr` and the `.ext` / `.shk` / `.cor` / `.cov` files at its root), the tool's own
+#' `results.csv` / `results.json` summaries, the `final_<tool>.mod` written
+#' here, and the candidate the search settled on (`<tool>N/models/final`, or
+#' `models/sim` for `tool = "simulation"`) are copied there at the same relative
+#' path once the tool has returned, whether it succeeded or aborted. The run
+#' folder is then removed with everything else in it: the datasets and the one
+#' folder per candidate fit a search leaves behind. Relative paths resolve
+#' against the working directory; the folder may already exist, and only files
+#' of the same name are overwritten. A run that aborts before the tool writes
+#' anything leaves an already existing run folder in place, base fit and all.
+#' `NULL` (default) leaves the run folder in place. Ignored, with a warning,
+#' for nlmixr-format models, whose candidate fits are not a NONMEM record.
 #' @param uppercase_mfl if `TRUE` (default), uppercases the model's `$INPUT` /
 #' datainfo / dataset column names and the `options$search_space` string before
 #' calling the Pharmpy tool. Works around Pharmpy's MFL parser, which
@@ -60,6 +74,7 @@ call_pharmpy_tool <- function(
   force = FALSE,
   options = list(),
   remove_tables = TRUE,
+  keep = NULL,
   uppercase_mfl = TRUE
 ) {
 
@@ -77,6 +92,25 @@ call_pharmpy_tool <- function(
     } else {
       cli::cli_abort("Please provide `model` to start Pharmpy tool.")
     }
+  }
+
+  ## Resolved here rather than next to the run folder below: `keep` is checked
+  ## against it before the base fit runs.
+  if(is.null(folder)) {
+    folder <- getwd()
+  }
+
+  ## `keep`: copy the record out of the run folder and remove it. Checked here,
+  ## with the other arguments, so a bad `keep` errors before the base fit runs
+  ## -- but only *armed* once the run folder is resolved, since the handler
+  ## removes it. `keep_created` records whether the folder is this call's to
+  ## remove; both candidate locations are checked because the run folder below
+  ## prefers an existing `getwd()/id` over `folder/id`.
+  keep_created <- FALSE
+  if(!is.null(keep)) {
+    validate_keep_folder(keep, staging = file.path(folder, id), base = folder)
+    keep_created <- !dir.exists(file.path(getwd(), id)) &&
+      !dir.exists(file.path(folder, id))
   }
 
   ## Pharmpy can drive nlmixr2 for modelsearch / covsearch / iivsearch /
@@ -110,6 +144,20 @@ call_pharmpy_tool <- function(
       "Pharmpy {.val {tool}} does not currently support nlmixr-format models.",
       i = "Use a NONMEM-format model for {.val {tool}}."
     ))
+  }
+
+  ## `keep` is a record of what NONMEM ran (see `keep_pattern_pharmpy_tool`).
+  ## An nlmixr-driven search writes its candidate fits as `.R` / `.RData`
+  ## instead, which the pattern does not match, so keeping the record here
+  ## would copy nothing out and then remove the run folder with the fits still
+  ## in it. Dropped rather than honoured, the way `run_nlme(keep = )` is a
+  ## no-op for nlmixr-format models.
+  if(!is.null(keep) && engine != "nonmem") {
+    cli::cli_warn(c(
+      "Ignoring {.arg keep}: it only applies to NONMEM-format models.",
+      i = "An nlmixr-format search writes no NONMEM record to keep."
+    ))
+    keep <- NULL
   }
   ## Pharmpy's nlmixr backend has bugs that make every candidate fit raise
   ## before its results can be read; patch them before dispatching.
@@ -206,12 +254,32 @@ call_pharmpy_tool <- function(
   options$kd <- NULL  # `kd` is a pharmr.extra convenience, not a run_structsearch arg
 
   ## Prepare run folder
-  if(is.null(folder)) {
-    folder <- getwd()
-  }
   run_folder <- file.path(getwd(), id)
   if(!dir.exists(run_folder))
     run_folder <- create_run_folder(id, folder, force, verbose)
+
+  ## Arm `keep` (see the check up top): everything below this point runs the
+  ## tool, so a search that aborts part-way still keeps what it managed to
+  ## write, while an argument error above leaves the run folder alone. Checked
+  ## again against the folder actually resolved; the subfolder-of-base check is
+  ## already done, so only "keep is not inside the run folder" is re-run here.
+  if(!is.null(keep)) {
+    keep <- validate_keep_folder(keep, staging = run_folder)
+    ## What the run folder held before the tool ran: a folder handed to a
+    ## search already holds the base fit `run_nlme()` wrote into it, and a tool
+    ## that falls over before writing anything must not have those files pass
+    ## for a record of its own. They are still copied out once the tool has
+    ## written something -- the base fit is part of a search's record.
+    keep_before <- record_snapshot(run_folder, keep_pattern_pharmpy_tool)
+    on.exit(
+      keep_nonmem_record(
+        run_folder, keep,
+        created = keep_created, pattern = keep_pattern_pharmpy_tool,
+        before = keep_before
+      ),
+      add = TRUE
+    )
+  }
 
   ## Clean Pharmpy run folders, if requested
   clean_pharmpy_runfolders(id, folder, tool, remove = clean)

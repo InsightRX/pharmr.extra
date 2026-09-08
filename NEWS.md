@@ -1,5 +1,26 @@
 # pharmr.extra (development version)
 
+* `run_nlme(keep = )` and `call_pharmpy_tool(keep = )` keep a record of a fit
+  and of a search, the way `run_sim(keep = )` does for a simulation. For
+  `run_nlme()` the record is `run.mod`, `run.lst`, `final.mod`, `stdout`,
+  `stderr` and the `.ext` / `.shk` / `.cor` / `.cov` output files; for `call_pharmpy_tool()` it is
+  the base fit at the run folder's root, the tool's `results.csv` /
+  `results.json`, the `final_<tool>.mod`, and the candidate under
+  `<tool>N/models/final`. The run folder is removed once the record is copied
+  out, so the dataset, the output tables and — for a search — the one folder per
+  candidate fit do not stay behind. The `<id>_fit_summary.txt`,
+  `<id>_fit_parameters.csv` and `<id>.rds` files `run_nlme()` writes beside the
+  run folder are left alone. The default `keep = NULL` changes nothing.
+  `run_nlme(keep = )` rejects `as_job = TRUE`, which returns while NONMEM is
+  still running, and both are ignored for nlmixr2 / nlmixr-format models, whose
+  fits are not a NONMEM record. A run folder that was already there is only
+  removed once this run has written a record file into it that was not there
+  before, so a tool that falls over before writing anything leaves the folder
+  — base fit and all — in place.
+
+* `clean_nonmem_folder()` now also removes Pharmpy's `.modeldb` and `.pharmpy`
+  scratch folders from a run folder.
+
 * `run_sim(keep = )` keeps a record of what NONMEM ran. Once the run has
   finished — whether it succeeded or aborted — every `run.mod` and `run.lst`
   under the run folder is copied to `keep` at the same relative path

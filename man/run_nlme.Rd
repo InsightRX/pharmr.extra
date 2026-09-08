@@ -30,6 +30,7 @@ run_nlme(
   mu_reference = "auto",
   threads = NULL,
   control = NULL,
+  keep = NULL,
   verbose = TRUE
 )
 }
@@ -154,6 +155,22 @@ pharmpy's API does not expose a parafile hook.}
 \item{control}{nlmixr2-only. Optional control list passed verbatim to
 \code{\link[nlmixr2:nlmixr2]{nlmixr2::nlmixr2()}} (e.g. \code{\link[nlmixr2est:foceiControl]{nlmixr2est::foceiControl()}} or
 \code{\link[nlmixr2est:saemControl]{nlmixr2est::saemControl()}}). Ignored for NONMEM models.}
+
+\item{keep}{NONMEM only: a folder to keep a record of the fit in. When set,
+the run folder's \code{run.mod}, \code{run.lst}, \code{final.mod}, \code{stdout}, \code{stderr} and
+the \code{.ext} /
+\code{.shk} / \code{.cor} / \code{.cov} output files are copied there at the same relative
+path once NONMEM has returned, whether it converged or not, and the run
+folder is then removed with everything else in it (the dataset, the output
+tables, the iteration files, NONMEM's build files). The \verb{<id>_fit_summary.txt},
+\verb{<id>_fit_parameters.csv} and \verb{<id>.rds} files are written beside the run
+folder, under \code{path}, and are left alone. Relative paths resolve against the
+working directory; the folder may already exist, and only files of the same
+name are overwritten. A run that aborts before NONMEM writes anything leaves
+an already existing run folder in place, so an argument error never removes
+a folder the run did not write to. \code{NULL} (default) leaves the run folder in
+place. Cannot be combined with \code{as_job = TRUE}, which returns while NONMEM is
+still running. Ignored for nlmixr2 models, which write no NONMEM record.}
 
 \item{verbose}{verbose output?}
 }

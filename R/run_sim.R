@@ -479,8 +479,13 @@ run_sim <- function(
   ## which writes no run folders.
   if(!is.null(keep) && tool == "nonmem") {
     keep_created <- !dir.exists(keep_staging)
+    ## What an already existing run folder held before this run wrote anything,
+    ## so a run that falls over early cannot have those files pass for its own.
+    keep_before <- record_snapshot(keep_staging)
     on.exit(
-      keep_nonmem_record(keep_staging, keep, created = keep_created),
+      keep_nonmem_record(
+        keep_staging, keep, created = keep_created, before = keep_before
+      ),
       add = TRUE
     )
   }

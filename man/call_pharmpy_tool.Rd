@@ -16,6 +16,7 @@ call_pharmpy_tool(
   force = FALSE,
   options = list(),
   remove_tables = TRUE,
+  keep = NULL,
   uppercase_mfl = TRUE
 )
 }
@@ -47,6 +48,21 @@ parameters via \code{\link[=seed_tmdd_results]{seed_tmdd_results()}} and is \emp
 
 \item{remove_tables}{if \code{TRUE} (default), removes all \verb{$TABLE} records from the model
 before passing it to the Pharmpy tool.}
+
+\item{keep}{NONMEM only: a folder to keep a record of the search in. When
+set, the run folder's base fit (\code{run.mod}, \code{run.lst}, \code{final.mod}, \code{stdout},
+\code{stderr} and the \code{.ext} / \code{.shk} / \code{.cor} / \code{.cov} files at its root), the tool's own
+\code{results.csv} / \code{results.json} summaries, the \verb{final_<tool>.mod} written
+here, and the candidate the search settled on (\verb{<tool>N/models/final}, or
+\code{models/sim} for \code{tool = "simulation"}) are copied there at the same relative
+path once the tool has returned, whether it succeeded or aborted. The run
+folder is then removed with everything else in it: the datasets and the one
+folder per candidate fit a search leaves behind. Relative paths resolve
+against the working directory; the folder may already exist, and only files
+of the same name are overwritten. A run that aborts before the tool writes
+anything leaves an already existing run folder in place, base fit and all.
+\code{NULL} (default) leaves the run folder in place. Ignored, with a warning,
+for nlmixr-format models, whose candidate fits are not a NONMEM record.}
 
 \item{uppercase_mfl}{if \code{TRUE} (default), uppercases the model's \verb{$INPUT} /
 datainfo / dataset column names and the \code{options$search_space} string before
