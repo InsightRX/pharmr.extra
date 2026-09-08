@@ -17,6 +17,7 @@ call_pharmpy_tool(
   force = FALSE,
   options = list(),
   remove_tables = TRUE,
+  keep = NULL,
   uppercase_mfl = TRUE
 )
 ```
@@ -73,6 +74,25 @@ call_pharmpy_tool(
 
   if `TRUE` (default), removes all `$TABLE` records from the model
   before passing it to the Pharmpy tool.
+
+- keep:
+
+  NONMEM only: a folder to keep a record of the search in. When set, the
+  run folder's base fit (`run.mod`, `run.lst`, `final.mod`, `stdout`,
+  `stderr` and the `.ext` / `.shk` / `.cor` / `.cov` files at its root),
+  the tool's own `results.csv` / `results.json` summaries, the
+  `final_<tool>.mod` written here, and the candidate the search settled
+  on (`<tool>N/models/final`, or `models/sim` for `tool = "simulation"`)
+  are copied there at the same relative path once the tool has returned,
+  whether it succeeded or aborted. The run folder is then removed with
+  everything else in it: the datasets and the one folder per candidate
+  fit a search leaves behind. Relative paths resolve against the working
+  directory; the folder may already exist, and only files of the same
+  name are overwritten. A run that aborts before the tool writes
+  anything leaves an already existing run folder in place, base fit and
+  all. `NULL` (default) leaves the run folder in place. Ignored, with a
+  warning, for nlmixr-format models, whose candidate fits are not a
+  NONMEM record.
 
 - uppercase_mfl:
 

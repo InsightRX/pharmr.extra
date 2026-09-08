@@ -9,7 +9,7 @@ or modelsearch. A separate function is available for fit()"></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9138</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9140</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -56,6 +56,7 @@ or modelsearch. A separate function is available for <code>fit()</code></p>
 <span>  force <span class="op">=</span> <span class="cn">FALSE</span>,</span>
 <span>  options <span class="op">=</span> <span class="fu"><a href="https://rdrr.io/r/base/list.html" class="external-link">list</a></span><span class="op">(</span><span class="op">)</span>,</span>
 <span>  remove_tables <span class="op">=</span> <span class="cn">TRUE</span>,</span>
+<span>  keep <span class="op">=</span> <span class="cn">NULL</span>,</span>
 <span>  uppercase_mfl <span class="op">=</span> <span class="cn">TRUE</span></span>
 <span><span class="op">)</span></span></code></pre></div>
     </div>
@@ -110,6 +111,23 @@ parameters via <code><a href="seed_tmdd_results.html">seed_tmdd_results()</a></c
 <dt id="arg-remove-tables">remove_tables<a class="anchor" aria-label="anchor" href="#arg-remove-tables"></a></dt>
 <dd><p>if <code>TRUE</code> (default), removes all <code>$TABLE</code> records from the model
 before passing it to the Pharmpy tool.</p></dd>
+
+
+<dt id="arg-keep">keep<a class="anchor" aria-label="anchor" href="#arg-keep"></a></dt>
+<dd><p>NONMEM only: a folder to keep a record of the search in. When
+set, the run folder's base fit (<code>run.mod</code>, <code>run.lst</code>, <code>final.mod</code>, <code>stdout</code>,
+<code>stderr</code> and the <code>.ext</code> / <code>.shk</code> / <code>.cor</code> / <code>.cov</code> files at its root), the tool's own
+<code>results.csv</code> / <code>results.json</code> summaries, the <code>final_&lt;tool&gt;.mod</code> written
+here, and the candidate the search settled on (<code>&lt;tool&gt;N/models/final</code>, or
+<code>models/sim</code> for <code>tool = "simulation"</code>) are copied there at the same relative
+path once the tool has returned, whether it succeeded or aborted. The run
+folder is then removed with everything else in it: the datasets and the one
+folder per candidate fit a search leaves behind. Relative paths resolve
+against the working directory; the folder may already exist, and only files
+of the same name are overwritten. A run that aborts before the tool writes
+anything leaves an already existing run folder in place, base fit and all.
+<code>NULL</code> (default) leaves the run folder in place. Ignored, with a warning,
+for nlmixr-format models, whose candidate fits are not a NONMEM record.</p></dd>
 
 
 <dt id="arg-uppercase-mfl">uppercase_mfl<a class="anchor" aria-label="anchor" href="#arg-uppercase-mfl"></a></dt>
