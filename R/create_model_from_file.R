@@ -3,7 +3,11 @@
 #' @param model_file the model file (.mod) to read.
 #' @param ext_file optional path to a .ext file containing final parameter 
 #'   estimates that will be used to update the initial estimates in the model.
-#' @param data the filename of the dataset (or an actual data.frame)
+#' @param data CSV filename or data.frame. Supplied data is written to a separate
+#'   working CSV with unquoted data fields. Its header matches the character IGNORE
+#'   rule (`#` when absent); conditional filters and `$INPUT` DROP flags are
+#'   preserved. R missing values are written as NONMEM null fields. Source
+#'   files are not modified.
 #' @param verbose verbose output
 #' 
 #' @returns a Pharmpy model object
@@ -17,13 +21,16 @@ create_model_from_file <- function(
 ) {
   
   ## Checks
-  dataset_file <- NULL
   if(! inherits(model_file, "character")) {
     cli::cli_abort("Model file should be a string.")
   }
   if(! file.exists(model_file)) {
     cli::cli_abort("Model file {model_file} does not exist")
   }
+  model_code <- readLines(model_file) |>
+    paste(collapse = "\n") |>
+    fix_eta_dummy_bug() |>
+    strip_input_commas()
   if(inherits(data, "data.frame") || inherits(data, "tibble")) {
     ## Do nothing
   } else if (inherits(data, "character")) {
@@ -31,7 +38,8 @@ create_model_from_file <- function(
     if (!file.exists(dataset_file)) {
       cli::cli_abort("Data file {dataset_file} does not exist")
     }
-    data <- read.csv(dataset_file)
+    data <- read.csv(dataset_file, check.names = FALSE, colClasses = "character", na.strings = NULL)
+    data <- strip_nonmem_header_marker(data, model_code)
   }
 
   ## Drop bookkeeping columns whose names are not valid NONMEM $INPUT symbols
@@ -42,9 +50,8 @@ create_model_from_file <- function(
   ## (`_DROP1`, `_DROP2`, ...) are exempt: their leading underscore is not a
   ## valid symbol either, but sync_input_to_dataset() re-emits them as a bare
   ## `DROP`, so they must survive to keep the underlying values (e.g. the DV
-  ## that `set_dv()` demoted) round-trippable. When we drop any, force a freshly
-  ## written dataset below so $DATA points at a CSV whose columns match the
-  ## rewritten $INPUT.
+  ## that `set_dv()` demoted) round-trippable. The working CSV below follows
+  ## the filtered columns so it stays aligned with the rewritten $INPUT.
   if(!is.null(data)) {
     valid_input <- grepl("^[A-Za-z][A-Za-z0-9_]*$", names(data)) |
       grepl("^_DROP[0-9]*$", names(data))
@@ -54,16 +61,11 @@ create_model_from_file <- function(
         "Dropping column{?s} {.val {dropped}} from the dataset: not a valid NONMEM $INPUT name."
       )
       data <- data[, valid_input, drop = FALSE]
-      dataset_file <- NULL
     }
   }
 
   ## Create Pharmpy object
   tryCatch({
-    model_code <- readLines(model_file) |>
-      paste(collapse = "\n") |>
-      fix_eta_dummy_bug() |>
-      strip_input_commas()
     if(!is.null(data)) {
       ## if `data` supplied, then make sure current path is DUMMYPATH
       ## otherwise, if it points to a file that does not exists,
@@ -108,20 +110,10 @@ create_model_from_file <- function(
     ## later item on its row instead of raising an error -- a wrong fit or
     ## simulation rather than a loud failure. Replace those values with the
     ## NONMEM missing marker `.` (the column is dropped anyway, so nothing
-    ## NONMEM would have read is lost), and force a fresh dataset so the
-    ## sanitised values are what actually gets written.
+    ## NONMEM would have read is lost) before writing the working CSV.
     non_numeric <- names(data)[!vapply(data, is_numeric_column, logical(1))]
-    sanitised <- blank_unreadable_values(data, non_numeric)
-    if(!identical(sanitised, data)) {
-      data <- sanitised
-      dataset_file <- NULL
-    }
-    if(is.null(dataset_file)) {
-      dataset_file <- tempfile(pattern = "data", fileext = ".csv")
-      write.csv(data, dataset_file, quote = F, row.names = F)
-    }
+    data <- blank_unreadable_values(data, non_numeric)
     model_code <- model$code
-    model_path <- tempfile(fileext = ".mod")
     ## Deliberately not using pharmr::set_dataset(datatype = "nonmem") here:
     ## it rewrites $INPUT from the dataframe's columns and thereby discards the
     ## DROP flags declared in the model file's original $INPUT. Pharmpy then
@@ -130,7 +122,7 @@ create_model_from_file <- function(
     ## DatasetError. Instead sync $INPUT to the dataset columns ourselves,
     ## carrying the original tokens (and their DROP flags) over. See #99/#101.
     model_code <- sync_input_to_dataset(model_code, names(data), non_numeric) |>
-      change_nonmem_dataset(dataset_file) |>
+      bind_nonmem_dataset(data) |>
       fix_eta_dummy_bug()
     tryCatch({
       model <- pharmr::read_model_from_string(model_code)
@@ -138,6 +130,40 @@ create_model_from_file <- function(
   }
   
   model
+}
+
+# Only undo a header marker when $INPUT confirms the underlying column name.
+strip_nonmem_header_marker <- function(data, code) {
+  first <- input_token_name(unname(get_input_tokens(code))[1])
+  if(toupper(first) %in% c("DROP", "SKIP")) first <- "_DROP1"
+  parser <- reticulate::import("pharmpy.model.external.nonmem.nmtran_parser")$NMTranParser()
+  marker <- parser$parse(code)$get_records("DATA")[[1]]$ignore_character %||% "#"
+  if(marker == "@") marker <- "#"
+  if(identical(names(data)[1], paste0(marker, first)) ||
+     (marker == "," && identical(names(data)[1], ""))) names(data)[1] <- first
+  data
+}
+
+# Preserve character filters too: replacing IGNORE=I with @ can discard valid text rows.
+bind_nonmem_dataset <- function(code, data, dataset_file = tempfile(pattern = "data", fileext = ".csv")) {
+  parser <- reticulate::import("pharmpy.model.external.nonmem.nmtran_parser")$NMTranParser()
+  stream <- parser$parse(code)
+  record <- stream$get_records("DATA")[[1]]
+  marker <- record$ignore_character %||% "#"
+  header <- names(data)
+  skipped <- if(marker == "@") grepl("^[A-Za-z#@]", header[1]) else startsWith(header[1], marker)
+  if(!skipped) {
+    header[1] <- switch(marker,
+      '@' = paste0("#", header[1]),
+      '"' = paste0('"', header[1], '"'),
+      ',' = "",
+      paste0(marker, header[1])
+    )
+  }
+  write.table(data, dataset_file, sep = ",", col.names = header,
+              quote = FALSE, row.names = FALSE, na = "")
+  updated <- record$set_filename(dataset_file)$set_ignore_character(marker)
+  reticulate::py_str(stream$replace_records(list(record), list(updated)))
 }
 
 #' Strip commas from the $INPUT record of NONMEM model code

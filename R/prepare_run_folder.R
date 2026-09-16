@@ -29,6 +29,7 @@ prepare_run_folder <- function(
   model_file <- "run.mod"
   output_file <- "run.lst"
   model_path <- file.path(fit_folder, model_file)
+  model_code <- model$code
 
   ## When a dictionary was applied in create_model(), use the original data
   ## (with original column names) so the CSV is an exact copy of the input.
@@ -62,15 +63,15 @@ prepare_run_folder <- function(
         if(!isTRUE(file.copy(from = data, to = dataset_path))) {
           cli::cli_abort("Failed to copy dataset from {.path {data}} to {.path {dataset_path}}.")
         }
-        ## If the source CSV has quoted headers (e.g. `"ID","TIME",...`), NONMEM
-        ## will try to parse the header row as data. Detect this and rewrite the
-        ## dataset with unquoted headers.
+        ## Normalize a quoted CSV through the same writer used when binding a model.
+        ## Its header must still match any existing character IGNORE rule.
         first_line <- tryCatch(readLines(dataset_path, n = 1), error = function(e) character(0))
         if (length(first_line) && grepl('^["\']', first_line)) {
           if (verbose) cli::cli_alert_info("Stripping quoted column names from dataset header")
-          df <- read.csv(dataset_path, check.names = FALSE)
+          df <- read.csv(dataset_path, check.names = FALSE, colClasses = "character", na.strings = NULL)
           df <- unquote_column_names(df)
-          write.csv(df, file = dataset_path, quote = FALSE, row.names = FALSE)
+          df <- strip_nonmem_header_marker(df, model_code)
+          model_code <- bind_nonmem_dataset(model_code, df, dataset_path)
         }
       }
     } else {
@@ -89,7 +90,7 @@ prepare_run_folder <- function(
         )
       }
       if(verbose) cli::cli_alert_info("Updating model dataset with provided dataset")
-      write.csv(data, file = dataset_path, quote = FALSE, row.names = FALSE)
+      model_code <- bind_nonmem_dataset(model_code, data, dataset_path)
     }
   } else if (!is.null(original_data)) {
     ## When `copy_dataset = FALSE` and the model's $DATA record already points
@@ -112,7 +113,7 @@ prepare_run_folder <- function(
       }
       if (verbose) proc <- cli::cli_process_start("Copying dataset (original column names)")
       original_data <- unquote_column_names(original_data)
-      write.csv(original_data, file = dataset_path, quote = FALSE, row.names = FALSE)
+      model_code <- bind_nonmem_dataset(model_code, original_data, dataset_path)
     }
   } else {
     ## `data` is NULL: resolve dataset from the model. Try the $DATA record
@@ -141,14 +142,13 @@ prepare_run_folder <- function(
         ))
       }
       if (verbose) proc <- cli::cli_process_start("Copying dataset from model object")
-      write.csv(model$dataset, file = dataset_path, quote = FALSE, row.names = FALSE)
+      model_code <- bind_nonmem_dataset(model_code, model$dataset, dataset_path)
     } else {
       cli::cli_abort("No dataset could be resolved: `model$dataset` is NULL and no existing file was found from the model's $DATA record.")
     }
   }
 
   ## Copy modelfile
-  model_code <- model$code
   ## Replace dictionary placeholder column names with DROP
   model_code <- gsub("_DDRP_[A-Za-z0-9_]+", "DROP", model_code, perl = TRUE)
   ## Only rewrite $DATA when the dataset was placed into the run folder. When

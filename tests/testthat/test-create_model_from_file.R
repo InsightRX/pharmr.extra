@@ -462,3 +462,151 @@ test_that("input_token_name resolves plain, labelled and DROP tokens", {
   expect_equal(input_token_name("DROP=VISITDATE"), "VISITDATE")
   expect_equal(input_token_name("CLOCK=SKIP"), "CLOCK")
 })
+
+for (input_kind in c("frame", "quoted CSV", "unquoted CSV")) {
+  for (data_options in c("", "IGNORE=@", "IGNORE='#'", "IGNORE=(ID.EQ.2)",
+                         "ACCEPT=(ID.EQ.1)", "IGNORE=@\n IGNORE=(ID.EQ.2)")) {
+    test_that(paste("dataset binding handles", input_kind, "with", data_options), {
+      local_pharmr.extra_options()
+      tmp <- withr::local_tempdir()
+      dat <- data.frame(ID = c(1, 1, 2), TIME = c(0, 1, 0),
+                        CONC = c(0, 2.5, 4), CLOCK = c("9:00", "10:00", "9:00"))
+      code <- paste("$PROBLEM Header binding", "$INPUT ID TIME DV=CONC CLOCK=DROP",
+                    paste("$DATA dummy", data_options, "; retain data options"),
+                    "$PRED Y=THETA(1)+EPS(1)", "$THETA 1", "$SIGMA 1",
+                    "$ESTIMATION METHOD=0 MAXEVAL=0", sep = "\n")
+      mod_file <- file.path(tmp, "model.mod")
+      writeLines(code, mod_file)
+      csv_file <- file.path(tmp, "input.csv")
+      write.csv(dat, csv_file, row.names = FALSE, quote = input_kind != "unquoted CSV")
+      original <- readBin(csv_file, "raw", n = file.info(csv_file)$size)
+      supplied <- if (input_kind == "frame") dat else csv_file
+
+      model <- create_model_from_file(mod_file, data = supplied, verbose = FALSE)
+
+      retained <- if (grepl("ID.EQ", data_options, fixed = TRUE)) c(1, 2) else 1:3
+      expect_equal(model$dataset$ID, dat$ID[retained])
+      expect_equal(model$dataset$CONC, dat$CONC[retained])
+      expect_equal(names(model$dataset), names(dat))
+      expect_true(grepl("DV=CONC CLOCK=DROP", model$code, fixed = TRUE))
+      if (grepl("ID.EQ", data_options, fixed = TRUE)) {
+        filter <- if (grepl("ACCEPT", data_options)) "ACCEPT=(ID.EQ.1)" else "IGNORE=(ID.EQ.2)"
+        expect_true(grepl(filter, model$code, fixed = TRUE))
+      }
+      expect_equal(readBin(csv_file, "raw", n = file.info(csv_file)$size), original)
+      expect_equal(readLines(mod_file), strsplit(code, "\n", fixed = TRUE)[[1]])
+      copy <- as.character(model$datainfo$path)
+      expect_false(identical(copy, csv_file))
+      expect_equal(read.csv(copy, col.names = names(dat), check.names = FALSE), dat)
+      writeLines(model$code, file.path(tmp, "bound.mod"))
+      rebound <- create_model_from_file(file.path(tmp, "bound.mod"), data = copy, verbose = FALSE)
+      expect_equal(lapply(rebound$dataset, identity), lapply(model$dataset, identity))
+      prepared <- prepare_run_folder("prepared", model, tmp, data = dat, verbose = FALSE)
+      ready <- pharmr::read_model(file.path(prepared$fit_folder, prepared$model_file))
+      expect_equal(lapply(ready$dataset, identity), lapply(model$dataset, identity))
+    })
+  }
+}
+
+test_that("dataset binding preserves CSV null tokens and numeric text", {
+  local_pharmr.extra_options()
+  tmp <- withr::local_tempdir()
+  mod_file <- file.path(tmp, "model.mod")
+  csv_file <- file.path(tmp, "input.csv")
+  writeLines(c("$PROBLEM Null tokens", "$INPUT ID TIME DV",
+               "$DATA dummy NULL=9 IGNORE=@", "$PRED Y=THETA(1)+EPS(1)",
+               "$THETA 1", "$SIGMA 1"), mod_file)
+  writeLines(c('"ID","TIME","DV"', '001,0,.', '001,1,',
+               '001,2,1.2345678901234567'), csv_file)
+
+  model <- create_model_from_file(mod_file, data = csv_file, verbose = FALSE)
+
+  expect_equal(model$dataset$DV, c(9, 9, 1.2345678901234567))
+  expect_true(grepl("NULL=9", model$code, fixed = TRUE))
+  expect_equal(readLines(as.character(model$datainfo$path))[-1], readLines(csv_file)[-1])
+})
+
+test_that("dataset binding writes missing frame values as NONMEM nulls", {
+  local_pharmr.extra_options()
+  tmp <- withr::local_tempdir()
+  mod_file <- file.path(tmp, "model.mod")
+  writeLines(c("$PROBLEM Missing values", "$INPUT ID TIME DV", "$DATA dummy NULL=9",
+               "$PRED Y=THETA(1)+EPS(1)", "$THETA 1", "$SIGMA 1"), mod_file)
+
+  model <- create_model_from_file(
+    mod_file, data = data.frame(ID = 1, TIME = c(0, 1), DV = c(NA, 2)), verbose = FALSE
+  )
+
+  expect_equal(model$dataset$DV, c(9, 2))
+})
+
+test_that("run_sim binds a model filename without a header skip before execution", {
+  local_pharmr.extra_options()
+  tmp <- withr::local_tempdir()
+  withr::local_dir(tmp)
+  code <- sub("IGNORE=@", "", make_model_without_cov()$code, fixed = TRUE)
+  writeLines(code, "model.mod")
+  received <- NULL
+  local_mocked_bindings(
+    run_nlme = function(model, ...) {
+      received <<- model$dataset
+      .mock_nlme_result()
+    },
+    .package = "pharmr.extra"
+  )
+
+  out <- run_sim(model = "model.mod", data = .sim_dat(), update_table = FALSE,
+                 verbose = FALSE)
+
+  expect_equal(received$ID, .sim_dat()$ID)
+  expect_equal(received$DV, .sim_dat()$DV)
+  expect_equal(nrow(out), 3)
+})
+
+for (first_column in c("INDEX", "_DROP1")) {
+  for (marker in c("I", "_", "2", "#", "")) {
+    test_that(paste("dataset binding preserves leading DROP data with", first_column, marker), {
+      local_pharmr.extra_options()
+      tmp <- withr::local_tempdir()
+      dat <- data.frame(INDEX = c("A", "9", "2"), ID = 1:3, TIME = 0, DV = 1:3)
+      names(dat)[1] <- first_column
+      input <- if (first_column == "INDEX") "INDEX=DROP" else "DROP"
+      options <- if (nzchar(marker)) paste0("IGNORE=", marker) else ""
+      code <- paste("$PROBLEM Leading dropped column", paste("$INPUT", input, "ID TIME DV"),
+                    paste("$DATA dummy", options), "$PRED Y=THETA(1)+EPS(1)",
+                    "$THETA 1", "$SIGMA 1", sep = "\n")
+      mod_file <- file.path(tmp, "model.mod")
+      writeLines(code, mod_file)
+
+      model <- create_model_from_file(mod_file, data = dat, verbose = FALSE)
+
+      rows <- if(marker == "2") 1:2 else 1:3
+      expect_equal(model$dataset$ID, dat$ID[rows])
+      expect_equal(model$dataset[[first_column]], dat[[first_column]][rows])
+      writeLines(model$code, mod_file)
+      rebound <- create_model_from_file(mod_file, data = as.character(model$datainfo$path), verbose = FALSE)
+      expect_equal(lapply(rebound$dataset, identity), lapply(model$dataset, identity))
+      prepared <- prepare_run_folder("prepared", model, tmp, data = dat, verbose = FALSE)
+      ready <- pharmr::read_model(file.path(prepared$fit_folder, prepared$model_file))
+      expect_equal(lapply(ready$dataset, identity), lapply(model$dataset, identity))
+    })
+  }
+}
+
+for (marker in c('"', ',')) {
+  test_that(paste("dataset binding round-trips CSV punctuation IGNORE", marker), {
+    local_pharmr.extra_options()
+    tmp <- withr::local_tempdir()
+    mod_file <- file.path(tmp, "model.mod")
+    writeLines(c("$PROBLEM Quoted header", "$INPUT ID TIME DV",
+                 paste0("$DATA dummy IGNORE='", marker, "'"),
+                 "$PRED Y=THETA(1)+EPS(1)", "$THETA 1", "$SIGMA 1"), mod_file)
+    dat <- data.frame(ID = c(1, 2), TIME = 0, DV = c(2, 3))
+
+    model <- create_model_from_file(mod_file, data = dat, verbose = FALSE)
+    writeLines(model$code, mod_file)
+    rebound <- create_model_from_file(mod_file, data = as.character(model$datainfo$path), verbose = FALSE)
+
+    expect_equal(lapply(rebound$dataset, identity), lapply(dat, identity))
+  })
+}

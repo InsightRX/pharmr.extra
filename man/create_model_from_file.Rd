@@ -17,7 +17,11 @@ create_model_from_file(
 \item{ext_file}{optional path to a .ext file containing final parameter
 estimates that will be used to update the initial estimates in the model.}
 
-\item{data}{the filename of the dataset (or an actual data.frame)}
+\item{data}{CSV filename or data.frame. Supplied data is written to a separate
+working CSV with unquoted data fields. Its header matches the character IGNORE
+rule (\verb{#} when absent); conditional filters and \verb{$INPUT} DROP flags are
+preserved. R missing values are written as NONMEM null fields. Source
+files are not modified.}
 
 \item{verbose}{verbose output}
 }
