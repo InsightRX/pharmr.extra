@@ -252,3 +252,71 @@ test_that("call_pharmpy_tool strips `kd` before forwarding args to run_structsea
   expect_false("kd" %in% names(captured$args))
   expect_false(is.null(captured$args$results))   # results still propagate
 })
+
+## ---- iivsearch default search space -----------------------------------------
+
+## Runs call_pharmpy_tool(tool = "iivsearch") up to the Pharmpy call and
+## returns what it hands to it.
+capture_iivsearch_call <- function(options, verbose = FALSE) {
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 1, 2), DV = c(0, 10, 5),
+    AMT = c(100, 0, 0), CMT = 1, EVID = c(1, 0, 0), MDV = c(1, 0, 0)
+  )
+  mod <- create_model(route = "iv", data = dat, tables = "fit", verbose = FALSE)
+  fake_results <- mod
+  attr(fake_results, "model") <- mod
+  run_dir <- withr::local_tempdir()
+
+  captured <- NULL
+  stub(call_pharmpy_tool, "remove_tables_from_model", function(m, ...) m)
+  stub(call_pharmpy_tool, "create_run_folder", function(...) run_dir)
+  stub(call_pharmpy_tool, "clean_pharmpy_runfolders", function(...) invisible(NULL))
+  stub(call_pharmpy_tool, "do.call", function(what, args, ...) {
+    captured <<- list(what = what, args = args)
+    stop("captured before pharmpy call")
+  })
+
+  tryCatch(
+    call_pharmpy_tool(
+      id = "test_iivsearch_args",
+      model = mod,
+      results = fake_results,
+      tool = "iivsearch",
+      options = options,
+      verbose = verbose
+    ),
+    error = function(e) NULL
+  )
+  captured
+}
+
+test_that("call_pharmpy_tool defaults iivsearch to an optional IIV search space", {
+  local_pharmr.extra_options()
+  captured <- capture_iivsearch_call(options = list())
+
+  expect_equal(captured$what, "run_iivsearch")
+  ## `IIV?` (optional), not `IIV` (mandatory): a search, not a single model.
+  expect_identical(captured$args$search_space, "IIV?(@PK,EXP)")
+})
+
+test_that("call_pharmpy_tool reports the iivsearch default it injects", {
+  local_pharmr.extra_options()
+  msgs <- character()
+  withCallingHandlers(
+    capture_iivsearch_call(options = list(), verbose = TRUE),
+    message = function(m) {
+      msgs <<- c(msgs, conditionMessage(m))
+      invokeRestart("muffleMessage")
+    }
+  )
+  expect_true(any(grepl("IIV?(@PK,EXP)", msgs, fixed = TRUE)))
+})
+
+test_that("call_pharmpy_tool leaves an explicit iivsearch search_space alone", {
+  local_pharmr.extra_options()
+  search_space <- "IIV(CL,EXP);IIV?(@PK,EXP);COVARIANCE?(IIV,@IIV)"
+  captured <- capture_iivsearch_call(options = list(search_space = search_space))
+
+  expect_equal(captured$what, "run_iivsearch")
+  expect_identical(captured$args$search_space, search_space)
+})
