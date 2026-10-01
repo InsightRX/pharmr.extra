@@ -1,5 +1,14 @@
 # pharmr.extra (development version)
 
+* `call_pharmpy_tool(tool = "iivsearch")` without a `search_space` now
+  defaults to `IIV?(@PK,EXP)`, which makes IIV on each PK parameter optional,
+  so the search fits a candidate for every subset of the PK parameters. The
+  old default, `IIV(@PK,EXP)`, made IIV on every PK parameter mandatory. That
+  describes a single model, so the search had no candidates to compare it
+  against. To keep IIV on some parameters while searching the rest, or to
+  search covariance structures too, pass `search_space` yourself, e.g.
+  `"IIV(CL,EXP);IIV?(@PK,EXP);COVARIANCE?(IIV,@IIV)"`.
+
 * `run_nlme(keep = )` and `call_pharmpy_tool(keep = )` keep a record of a fit
   and of a search, the way `run_sim(keep = )` does for a simulation. For
   `run_nlme()` the record is `run.mod`, `run.lst`, `final.mod`, `stdout`,

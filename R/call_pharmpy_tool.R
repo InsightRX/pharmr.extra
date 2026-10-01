@@ -301,15 +301,14 @@ call_pharmpy_tool <- function(
     options$n <- NULL
   }
 
-  ## Pharmpy 2.0 regression workaround: run_iivsearch crashes when
-  ## search_space=None (the documented default) because
-  ## ModelFeatures.create(None) raises TypeError. Inject a sensible
-  ## default so the call works out of the box.
+  ## Pharmpy 2.0's run_iivsearch fails on search_space = NULL, so supply one.
+  ## `IIV?` makes each term optional and the search tries every subset;
+  ## `IIV(@PK,EXP)` makes them all mandatory, which is one model and no search.
   if(tool == "iivsearch" && is.null(options$search_space)) {
-    options$search_space <- "IIV(@PK,EXP)"
+    options$search_space <- "IIV?(@PK,EXP)"
     if(verbose)
       cli::cli_alert_info(
-        "No `search_space` provided; defaulting to {.val IIV(@PK,EXP)}"
+        "No `search_space` provided; defaulting to {.val IIV?(@PK,EXP)}, which tries IIV on every subset of the PK parameters."
       )
   }
 
