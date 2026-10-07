@@ -4,12 +4,18 @@
 \alias{calc_pk_variables}
 \title{Calculate some basic PK variables from simulated or observed data}
 \usage{
-calc_pk_variables(data, regimen = NULL)
+calc_pk_variables(data, regimen = NULL, dv_scale = 1)
 }
 \arguments{
 \item{data}{data.frame in NONMEM format}
 
-\item{run_sim}{}
+\item{regimen}{dosing regimen as a list with a \code{dose} element, used to
+derive AUC_SS from the last dose. \code{NULL} skips AUC_SS.}
+
+\item{dv_scale}{multiplier putting \code{dose / CL} into the units the model
+reports concentrations in, i.e. \verb{V / S<n>} for the observation compartment
+(see \code{\link[=get_dv_scale_factor]{get_dv_scale_factor()}}). \code{1} (the default) is the usual
+\verb{S<n> = V} case.}
 }
 \value{
 data.frame

@@ -99,6 +99,15 @@ run_sim_nlmixr <- function(
     cli::cli_abort("Could not extract an nlmixr2 model function from the model code.")
   }
 
+  ## How the model scales the prediction, so AUC_SS (dose/CL) comes out in the
+  ## units of the simulated concentrations. Read off the code rather than the
+  ## model: `create_model(scale_observations = )` injects the
+  ## `S<n> <- <vol>/<scale>` rewrite into the rendered nlmixr code only, and a
+  ## worker process has nothing but that code anyway.
+  dv_scale <- if(add_pk_variables) {
+    get_dv_scale_factor(code = model_code, verbose = verbose)
+  } else 1
+
   unique_regimens <- unique(sim_data[[".regimen"]])
   comb <- list()
   set.seed(seed)
@@ -157,7 +166,8 @@ run_sim_nlmixr <- function(
           regimen_for_pk <- list(dose = dose_rows$AMT)
         }
       }
-      out_df <- calc_pk_variables(data = out_df, regimen = regimen_for_pk)
+      out_df <- calc_pk_variables(data = out_df, regimen = regimen_for_pk,
+                                  dv_scale = dv_scale)
     }
     out_df$regimen_label <- reg_label
     comb[[reg_label]] <- out_df

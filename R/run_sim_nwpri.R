@@ -359,6 +359,8 @@ nwpri_chunk_seeds <- function(seed, n_chunks, spacing = 1000003L) {
 #' @inheritParams run_nwpri_regimen
 #' @param update_table were the `$TABLE` records rebuilt by [run_sim()]?
 #' @param add_pk_variables add derived PK variables to the output table?
+#' @param dv_scale multiplier putting AUC_SS into the units the model reports
+#' concentrations in (see [get_dv_scale_factor()]).
 #'
 #' @returns named list of data.frames, one per output table.
 #' @noRd
@@ -373,6 +375,7 @@ run_nwpri_regimen_tables <- function(
     nmfe,
     update_table = TRUE,
     add_pk_variables = FALSE,
+    dv_scale = 1,
     n_cores = 1L,
     force = TRUE,
     verbose = TRUE
@@ -427,7 +430,8 @@ run_nwpri_regimen_tables <- function(
     ## all draws rather than this draw's.
     tab <- tab |>
       dplyr::group_split(.data$.uncertainty) |>
-      lapply(calc_pk_variables, regimen = regimen_for_pk) |>
+      lapply(calc_pk_variables, regimen = regimen_for_pk,
+             dv_scale = dv_scale) |>
       dplyr::bind_rows() |>
       dplyr::ungroup()
   }

@@ -1,5 +1,18 @@
 # pharmr.extra (development version)
 
+* `run_sim(add_pk_variables = TRUE)` reports AUC_SS in the units the model
+  reports concentrations in. NONMEM predicts `A(n)/S<n>` for the observation
+  compartment, so a model that doses in mg and reports ng/mL writes
+  `S2 = V2/1000` — and AUC_SS was computed as plain `dose / CL`, i.e. off by
+  exactly that factor of 1000. The scaling is now read off the model with the
+  new `get_dv_scale_factor()` and applied, for all four simulation paths
+  (sequential, parallel replicates, NWPRI and nlmixr2). For nlmixr2 models it
+  is read off the rendered model code, where
+  `create_model(scale_observations = )` injects the same
+  `S<n> <- <vol>/<scale>` rewrite. Models with the usual `S<n> = V` are
+  unaffected; a scaling that is not the central volume times or divided by a
+  constant warns and falls back to `dose / CL`.
+
 * `call_pharmpy_tool(tool = "iivsearch")` without a `search_space` now
   defaults to `IIV?(@PK,EXP)`, which makes IIV on each PK parameter optional,
   so the search fits a candidate for every subset of the PK parameters. The
