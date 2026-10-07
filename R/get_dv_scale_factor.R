@@ -123,6 +123,12 @@ dv_scale_from_code <- function(code, verbose = FALSE) {
   ## inline markup as the start of a tag.
   statement <- paste(denominator, "<-", s_expr)
   parsed <- parse_dv_scale(s_expr)
+  ## The factor is only `V / S` if the scaling really is the central volume
+  ## over a constant. `S2 <- WT/1000` parses just as well and is not a unit
+  ## conversion at all, so it has to be rejected rather than applied.
+  if(!is.null(parsed) && ! parsed$variable %in% volume_names_in_code(lines)) {
+    parsed <- NULL
+  }
   if(is.null(parsed)) {
     cli::cli_warn(c(
       "Could not interpret the scaling {.code {statement}} as the central \\
@@ -139,6 +145,48 @@ dv_scale_from_code <- function(code, verbose = FALSE) {
     )
   }
   parsed$factor
+}
+
+#' Names the central volume can go by in nlmixr2 / rxode2 model code
+#'
+#' There is no model object to ask on this path (a worker process has the code
+#' and nothing else), so the volume is identified from the code itself: it is
+#' what the central compartment eliminates through in `d/dt(A_CENTRAL)`, plus
+#' anything aliased to that — pharmpy emits `V <- VC` and then scales `VC` —
+#' plus the names pharmpy and this package generate. Erring towards accepting
+#' a name only costs a warning and the old unscaled `dose / CL`.
+#'
+#' @param lines model code, as lines.
+#'
+#' @returns character vector of candidate volume names.
+#' @noRd
+volume_names_in_code <- function(lines) {
+  var <- "[A-Za-z][A-Za-z0-9_]*"
+  amount <- "A_[A-Za-z0-9_]+"
+  ## `CL*A_CENTRAL/V`, `A_CENTRAL*CL/V`, or `(CL/V)*A_CENTRAL`
+  from_ode <- c(
+    .first_capture(lines, paste0(
+      "^.*\\bCL\\s*\\*\\s*", amount, "\\s*/\\s*(", var, ")\\b.*$"
+    )),
+    .first_capture(lines, paste0(
+      "^.*\\b", amount, "\\s*\\*\\s*CL\\s*/\\s*(", var, ")\\b.*$"
+    )),
+    .first_capture(lines, paste0(
+      "^.*\\bCL\\s*/\\s*(", var, ")\\s*\\)?\\s*\\*\\s*", amount, ".*$"
+    ))
+  )
+  ## One level of aliasing, both ways round: `V <- VC` makes either name the
+  ## volume, whichever of the two the ODE uses.
+  aliases <- unlist(lapply(from_ode, function(volume) {
+    alias_re <- paste0("^\\s*(", var, ")\\s*(?:<-|=)\\s*(", var, ")\\s*$")
+    hits <- regmatches(lines, regexec(alias_re, lines, perl = TRUE))
+    hits <- hits[lengths(hits) > 2]
+    sides <- lapply(hits, function(hit) {
+      if(hit[2] == volume) hit[3] else if(hit[3] == volume) hit[2] else NULL
+    })
+    unlist(sides)
+  }))
+  unique(c(from_ode, aliases, "V", "V1", "V2", "VC"))
 }
 
 #' First capture group matched by `pattern` over `lines`, or `NULL`

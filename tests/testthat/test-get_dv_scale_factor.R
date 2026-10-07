@@ -160,6 +160,61 @@ test_that("dv_scale_from_code: warns and returns 1 for a scaling it cannot read"
   expect_equal(factor, 1)
 })
 
+test_that("dv_scale_from_code: rejects a scaling that is not the central volume", {
+  ## `S2 <- WT/1000` parses as cleanly as `VC/1000`, but the factor on dose/CL
+  ## is `V/S`, which is not a constant here
+  expect_warning(
+    factor <- dv_scale_from_code(c("S2 <- WT/1000", "IPRED <- A_CENTRAL/S2")),
+    "Could not interpret the scaling"
+  )
+  expect_equal(factor, 1)
+  ## nor is a peripheral volume the central one
+  expect_warning(
+    factor <- dv_scale_from_code(c(
+      "d/dt(A_CENTRAL) = -CL*A_CENTRAL/VC",
+      "S2 <- VP/1000",
+      "IPRED <- A_CENTRAL/S2"
+    )),
+    "Could not interpret the scaling"
+  )
+  expect_equal(factor, 1)
+})
+
+test_that("dv_scale_from_code: takes the volume name from the ODE", {
+  ## a volume that is not one of the names pharmpy generates is still the
+  ## central volume if that is what the central compartment eliminates through
+  for(ode in c(
+    "d/dt(A_CENTRAL) = KA*A_DEPOT - CL*A_CENTRAL/VCEN",
+    "d/dt(A_CENTRAL) = -A_CENTRAL*CL/VCEN",
+    "d/dt(A_CENTRAL) = -(CL/VCEN)*A_CENTRAL"
+  )) {
+    expect_equal(
+      dv_scale_from_code(c(ode, "S2 <- VCEN/1000", "IPRED <- A_CENTRAL/S2")),
+      1000
+    )
+  }
+})
+
+test_that("dv_scale_from_code: follows the alias pharmpy emits for the volume", {
+  ## pharmpy writes `V <- VC` and eliminates through `V`, but scales `VC`
+  expect_equal(
+    dv_scale_from_code(c(
+      "VC <- TVV*exp(ETA_VC)",
+      "V <- VC",
+      "S1 <- VC/1000",
+      "d/dt(A_CENTRAL) = -CL*A_CENTRAL/V",
+      "F <- A_CENTRAL/S1"
+    )),
+    1000
+  )
+})
+
+test_that("dv_scale_from_code: reads this package's own nlmixr2 template", {
+  ## `create_model_nlmixr()` carries the `S2 <- V/1000` scaling in its body
+  template <- paste(deparse(create_model_nlmixr), collapse = "\n")
+  expect_equal(dv_scale_from_code(template), 1000)
+})
+
 test_that("get_dv_scale_factor: `code` is read instead of `model`", {
   expect_equal(
     get_dv_scale_factor(code = c("S2 <- VC/1000", "IPRED <- A_CENTRAL/S2")),
