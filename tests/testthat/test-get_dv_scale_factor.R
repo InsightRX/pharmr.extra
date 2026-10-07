@@ -38,6 +38,10 @@ test_that("parse_dv_scale returns NULL for anything it cannot read", {
   ))
 }
 
+## `central_volume_names()` asks pharmpy for the model's topology first, which
+## a stand-in model cannot answer, so it falls through to `find_pk_parameter()`
+## -- mocked here. `volume = NULL` stands for a model whose central volume
+## cannot be read at all.
 .local_nonmem_model <- function(compartment = 2, volume = "V2", env = parent.frame()) {
   local_mocked_bindings(
     get_tool_from_model = function(...) "nonmem",
@@ -80,7 +84,7 @@ test_that("get_dv_scale_factor: 1 when no S<n> is defined", {
 
 test_that("get_dv_scale_factor: reads the observation compartment's S", {
   .local_nonmem_model(compartment = 1, volume = "V1")
-  model <- .fake_model(list(S1 = "V1/1000", S2 = "V2"))
+  model <- .fake_model(list(S1 = "V1/1000", S2 = "V1"))
   expect_equal(get_dv_scale_factor(model), 1000)
   ## explicit `compartment` wins over the inferred one
   expect_equal(get_dv_scale_factor(model, compartment = 2), 1)
@@ -100,9 +104,30 @@ test_that("get_dv_scale_factor: warns and returns 1 for a scaling it cannot read
   expect_equal(factor, 1)
 })
 
-test_that("get_dv_scale_factor: accepts the common central volume names", {
+test_that("get_dv_scale_factor: rejects a volume that is not the central one", {
+  ## `S2 = V3/1000` on a model whose central volume is V2 parses just as
+  ## cleanly, but its factor is `1000 * V2/V3` -- not a constant
+  .local_nonmem_model(volume = "V2")
+  expect_warning(
+    factor <- get_dv_scale_factor(.fake_model(list(S2 = "V3/1000"))),
+    "Could not interpret the scaling"
+  )
+  expect_equal(factor, 1)
+})
+
+test_that("get_dv_scale_factor: accepts an alias of the central volume", {
+  ## pharmpy emits `V = VC` and either name may carry the scaling
+  .local_nonmem_model(volume = "VC")
+  expect_equal(
+    get_dv_scale_factor(.fake_model(list(S2 = "V/1000", V = "VC"))),
+    1000
+  )
+})
+
+test_that("get_dv_scale_factor: falls back to the common volume names", {
+  ## only where the model's own central volume cannot be read at all
   for(volume in c("V", "V1", "V2", "VC")) {
-    .local_nonmem_model(volume = "SOMETHING_ELSE")
+    .local_nonmem_model(volume = NULL)
     expect_equal(
       get_dv_scale_factor(.fake_model(stats::setNames(
         list(paste0(volume, "/1000")), "S2"

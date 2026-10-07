@@ -65,12 +65,14 @@ get_dv_scale_factor <- function(
   if(is.null(s_expr) || is.na(s_expr)) return(1)
 
   parsed <- parse_dv_scale(s_expr)
-  volumes <- c(
-    tryCatch(suppressMessages(find_pk_parameter("V", model)),
-             error = function(e) NULL),
-    "V", "V1", "V2", "VC"
-  )
-  if(is.null(parsed) || ! parsed$variable %in% volumes) {
+  ## The factor is only `V / S` if the scaling really is the central volume
+  ## over a constant: `S1 = V2/1000` on a two-compartment model parses just as
+  ## cleanly, and its factor is `1000 * V1/V2`, which varies by subject.
+  if(!is.null(parsed) &&
+     ! parsed$variable %in% central_volume_names(model, parsed$variable)) {
+    parsed <- NULL
+  }
+  if(is.null(parsed)) {
     cli::cli_warn(c(
       "Could not interpret the scaling {.code {s_name} = {s_expr}} as the \\
        central volume times or divided by a constant.",
@@ -86,6 +88,52 @@ get_dv_scale_factor <- function(
     )
   }
   parsed$factor
+}
+
+#' Names the central volume goes by in a NONMEM model
+#'
+#' From the model's topology, via `pharmr::get_central_volume_and_clearance()`
+#' — the same source `create_model(scale_observations = )` writes the scaling
+#' from. `find_pk_parameter("V", )` is only a fallback for models it cannot
+#' read: that one guesses from ADVAN, and on an ODE model it answers `V2` (a
+#' peripheral volume) for a model whose central volume is `V1`.
+#'
+#' @inheritParams get_dv_scale_factor
+#' @param scaled_with the variable the scaling is written in terms of, checked
+#' for being an alias of the central volume (pharmpy emits `V = VC` and may
+#' scale either name).
+#'
+#' @returns character vector of names that denote the central volume.
+#' @noRd
+central_volume_names <- function(model, scaled_with = NULL) {
+  central <- tryCatch(
+    as.character(pharmr::get_central_volume_and_clearance(model)[[1]]),
+    error = function(e) NULL
+  )
+  if(length(central) == 0) {
+    central <- tryCatch(
+      suppressMessages(find_pk_parameter("V", model)),
+      error = function(e) NULL
+    )
+  }
+  central <- unique(central[!is.na(central) & nzchar(central)])
+  ## Nothing to go on: fall back to the names pharmpy and this package
+  ## generate, rather than refusing every model whose topology cannot be read.
+  if(length(central) == 0) return(c("V", "V1", "V2", "VC"))
+
+  ## One level of aliasing, either way round.
+  expression_of <- function(name) {
+    tryCatch({
+      assignment <- model$statements$find_assignment(name)
+      if(is.null(assignment)) NULL else as.character(assignment$expression)
+    }, error = function(e) NULL)
+  }
+  aliases <- unlist(lapply(central, expression_of))
+  if(!is.null(scaled_with) && length(expression_of(scaled_with)) > 0 &&
+     expression_of(scaled_with) %in% central) {
+    aliases <- c(aliases, scaled_with)
+  }
+  unique(c(central, aliases))
 }
 
 #' Read the observation scaling off nlmixr2 / rxode2 model code
@@ -150,11 +198,12 @@ dv_scale_from_code <- function(code, verbose = FALSE) {
 #' Names the central volume can go by in nlmixr2 / rxode2 model code
 #'
 #' There is no model object to ask on this path (a worker process has the code
-#' and nothing else), so the volume is identified from the code itself: it is
-#' what the central compartment eliminates through in `d/dt(A_CENTRAL)`, plus
-#' anything aliased to that — pharmpy emits `V <- VC` and then scales `VC` —
-#' plus the names pharmpy and this package generate. Erring towards accepting
-#' a name only costs a warning and the old unscaled `dose / CL`.
+#' and nothing else), so the volume is identified from the code itself: what
+#' the central compartment eliminates through in `d/dt(A_CENTRAL)`, plus
+#' anything aliased to that — pharmpy emits `V <- VC` and then scales `VC`.
+#' Only where the ODE yields nothing do the names pharmpy and this package
+#' generate stand in. Rejecting a name only costs a warning and the old
+#' unscaled `dose / CL`.
 #'
 #' @param lines model code, as lines.
 #'
@@ -186,7 +235,13 @@ volume_names_in_code <- function(lines) {
     })
     unlist(sides)
   }))
-  unique(c(from_ode, aliases, "V", "V1", "V2", "VC"))
+  from_ode <- unique(c(from_ode, aliases))
+  ## Only where the ODE says nothing: with explicit evidence that elimination
+  ## runs through `VC`, a scaling written in terms of `V2` is a peripheral
+  ## volume rather than a unit conversion, and generic names must not override
+  ## that.
+  if(length(from_ode) > 0) return(from_ode)
+  c("V", "V1", "V2", "VC")
 }
 
 #' First capture group matched by `pattern` over `lines`, or `NULL`
