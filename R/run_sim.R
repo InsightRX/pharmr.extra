@@ -1111,8 +1111,9 @@ calc_pk_variables <- function(
 #' @param keys columns identifying a subject's profile: `ID`, plus `sim.id`
 #' or `.subproblem` when a simulation has several iterations.
 #'
-#' Where a subject's time restarts (a reset into a new occasion) only its
-#' last occasion is used, of both the doses and the observations.
+#' Where a subject has several occasions -- its time restarts, or it is reset
+#' (`EVID` 3 or 4, from `data` or the regimen's `reset`) -- only its last
+#' occasion is used, of both the doses and the observations.
 #'
 #' @returns data.frame with the `keys` and `CMIN_OBS`, one row per profile
 #' with observations. `CMIN_OBS` is `NA` where the last observation precedes
@@ -1130,18 +1131,32 @@ cmin_per_subject <- function(data, regimen = NULL, keys = "ID") {
   ## Only the last occasion counts: where a subject's time restarts (an EVID
   ## 3/4 reset), earlier occasions' doses and observations would otherwise be
   ## pooled with it on the same clock.
+  ## The last occasion is also what follows a subject's last reset (EVID 3
+  ## or 4), which need not set the time back (stack_encounters() does not).
   in_last_occasion <- function(time) {
     segment <- time_segments(time)
     segment == max(segment, 0L)
   }
-  for_all <- for_all[in_last_occasion(for_all)]
-  per_id <- lapply(per_id, function(t) t[in_last_occasion(t)])
+  last_occasion <- function(time) time[in_last_occasion(time)]
+  for_all <- last_occasion(for_all)
+  per_id <- lapply(per_id, last_occasion)
+  resets <- reset_times_per_subject(regimen, data)
   profiles$CMIN_OBS <- vapply(rows, function(i) {
+    id <- canonical_key(obs$ID[i[1]])
     time <- as.numeric(obs$TIME[i])
     keep <- in_last_occasion(time)
     i <- i[keep]
     time <- time[keep]
-    dose_times <- c(for_all, per_id[[canonical_key(obs$ID[i[1]])]])
+    dose_times <- c(for_all, per_id[[id]])
+    start <- max(
+      -Inf,
+      last_occasion(resets$regimen$time[resets$regimen$id %in% c(id, NA)]),
+      last_occasion(resets$data$time[resets$data$id %in% id])
+    )
+    i <- i[time >= start]
+    time <- time[time >= start]
+    if(length(i) == 0) return(NA_real_)
+    dose_times <- dose_times[dose_times >= start]
     ## number of doses given at or before each observation
     interval <- findInterval(time, sort(unique(dose_times)))
     last <- interval[which.max(time)]
@@ -1150,6 +1165,31 @@ cmin_per_subject <- function(data, regimen = NULL, keys = "ID") {
   }, numeric(1))
   rownames(profiles) <- NULL
   profiles
+}
+
+#' Reset times (`EVID` 3 or 4), from the regimen and from `data`
+#'
+#' @param regimen list with an optional `reset` (see `sim_regimen_doses()`).
+#' @param data table with `ID`, `TIME` and `EVID`.
+#'
+#' @returns `list(regimen = , data = )`, each a `data.frame(id = , time = )` in
+#' dataset order; `id` is `NA` for a reset that applies to every subject.
+#' @noRd
+reset_times_per_subject <- function(regimen, data) {
+  as_resets <- function(id, time) {
+    suppressWarnings(time <- as.numeric(time))
+    id <- if(is.null(id) || length(id) != length(time)) {
+      rep(NA_character_, length(time))
+    } else {
+      ifelse(is.na(id), NA_character_, canonical_key(id))
+    }
+    data.frame(id = id, time = time)[!is.na(time), , drop = FALSE]
+  }
+  rows <- data$EVID %in% c(3, 4)
+  list(
+    regimen = as_resets(regimen$reset$id, regimen$reset$time),
+    data = as_resets(data$ID[rows], data$TIME[rows])
+  )
 }
 
 #' Dose times, from the regimen or else from the dose records in `data`

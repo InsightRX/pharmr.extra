@@ -390,6 +390,23 @@ test_that("calc_pk_variables: CMIN_OBS is taken over the last occasion only", {
   expect_equal(unique(calc_pk_variables(dat)$CMIN_OBS), 1)
 })
 
+test_that("calc_pk_variables: CMIN_OBS honours resets that keep the time going", {
+  ## stacked encounters: an EVID 3 reset at 100, observed but not dosed after
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 6, 23, 100, 101, 102), DV = c(0, 5, 2, 0, 0.5, 0.4),
+    EVID = c(1, 0, 0, 3, 0, 0)
+  )
+  expect_true(is.na(unique(calc_pk_variables(dat)$CMIN_OBS)))
+  ## dosed after the reset: the trough of that occasion
+  dat2 <- rbind(dat, data.frame(ID = 1, TIME = 100, DV = 0, EVID = 1))
+  dat2 <- dat2[order(dat2$TIME, -dat2$EVID %in% 3), ]
+  expect_equal(unique(calc_pk_variables(dat2)$CMIN_OBS), 0.4)
+  ## an observation-only table, the reset coming from the regimen
+  reg <- sim_regimen_doses(transform(dat, AMT = ifelse(EVID == 1, 100, 0)))
+  out <- calc_pk_variables(dat[dat$EVID == 0, ], regimen = reg)
+  expect_true(is.na(unique(out$CMIN_OBS)))
+})
+
 test_that("calc_pk_variables: CMIN_OBS is NA without a dosing interval", {
   dat <- .make_pk_data()
   dat <- dat[dat$EVID == 0, ]
