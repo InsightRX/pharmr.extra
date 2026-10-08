@@ -213,6 +213,12 @@
   : Get all parameters that are defined (from a predefined vector of
   possible parameters)
 
+- [`get_dv_scale_factor()`](https://insightrx.github.io/pharmr.extra/reference/get_dv_scale_factor.md)
+  :
+
+  Factor converting `dose / CL` into the concentration units a model
+  reports
+
 - [`get_estimation_options()`](https://insightrx.github.io/pharmr.extra/reference/get_estimation_options.md)
   : Helper function to combine default estimation options with
   user-specified, and ensure correct format.

@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9141</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9146</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -42,7 +42,7 @@
 
     <div class="section level2">
     <h2 id="ref-usage">Usage<a class="anchor" aria-label="anchor" href="#ref-usage"></a></h2>
-    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">calc_pk_variables</span><span class="op">(</span><span class="va">data</span>, regimen <span class="op">=</span> <span class="cn">NULL</span><span class="op">)</span></span></code></pre></div>
+    <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">calc_pk_variables</span><span class="op">(</span><span class="va">data</span>, regimen <span class="op">=</span> <span class="cn">NULL</span>, dv_scale <span class="op">=</span> <span class="fl">1</span><span class="op">)</span></span></code></pre></div>
     </div>
 
     <div class="section level2">
@@ -53,8 +53,16 @@
 <dd><p>data.frame in NONMEM format</p></dd>
 
 
-<dt id="arg-run-sim">run_sim<a class="anchor" aria-label="anchor" href="#arg-run-sim"></a></dt>
-<dd></dd>
+<dt id="arg-regimen">regimen<a class="anchor" aria-label="anchor" href="#arg-regimen"></a></dt>
+<dd><p>dosing regimen as a list with a <code>dose</code> element, used to
+derive AUC_SS from the last dose. <code>NULL</code> skips AUC_SS.</p></dd>
+
+
+<dt id="arg-dv-scale">dv_scale<a class="anchor" aria-label="anchor" href="#arg-dv-scale"></a></dt>
+<dd><p>multiplier putting <code>dose / CL</code> into the units the model
+reports concentrations in, i.e. <code>V / S&lt;n&gt;</code> for the observation compartment
+(see <code><a href="get_dv_scale_factor.html">get_dv_scale_factor()</a></code>). <code>1</code> (the default) is the usual
+<code>S&lt;n&gt; = V</code> case.</p></dd>
 
 </dl></div>
     <div class="section level2">
