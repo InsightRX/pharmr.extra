@@ -180,6 +180,13 @@ test_that("warn_on_restarting_time warns where a subject's clock restarts", {
   ))
 })
 
+test_that("time_segments follows each subject's own records", {
+  expect_equal(time_segments(c(0, 0, 1, 1), c(1, 2, 1, 2)), c(1L, 1L, 1L, 1L))
+  expect_equal(time_segments(c(0, 0, 1, 0), c(1, 2, 1, 1)), c(1L, 1L, 1L, 2L))
+  expect_equal(time_segments(c(0, 1, 1), reset = c(FALSE, TRUE, FALSE)),
+               c(1L, 2L, 2L))
+})
+
 test_that("sim_regimen_doses expands ADDL without an ID column", {
   dat <- data.frame(TIME = c(0, 30), DV = 0, AMT = c(100, 0), EVID = c(1, 0),
                     ADDL = c(2, 0), II = c(12, 0))

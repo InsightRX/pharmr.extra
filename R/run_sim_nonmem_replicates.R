@@ -236,7 +236,8 @@ expand_addl_doses <- function(dose_rows) {
 
 #' Number the stretches of rows over which time does not go back
 #'
-#' A subject's occasions: a new one starts where its time restarts (a new
+#' A subject's occasions, from its own records in order (they need not be
+#' contiguous): a new one starts where its time restarts (a new
 #' occasion on its own clock, a new simulation subproblem) and at every
 #' `reset` (an `EVID` 3 or 4 record, which need not set the time back).
 #'
@@ -252,13 +253,18 @@ time_segments <- function(time, id = NULL, reset = NULL) {
   n <- length(time)
   if(n == 0) return(integer(0))
   id <- if(is.null(id)) rep("", n) else as.character(id)
-  new_subject <- c(TRUE, id[-1] != id[-n])
-  goes_back <- c(FALSE, !is.na(time[-1]) & !is.na(time[-n]) & time[-1] < time[-n])
-  if(is.null(reset)) reset <- rep(FALSE, n)
-  block <- cumsum(new_subject | goes_back | reset %in% TRUE)
-  first <- !duplicated(block)
-  segment <- stats::ave(seq_along(block[first]), id[first], FUN = seq_along)
-  as.integer(segment[block])
+  reset <- if(is.null(reset)) rep(FALSE, n) else reset %in% TRUE
+  out <- integer(n)
+  ## Each subject on its own: its records need not be contiguous.
+  for(rows in split(seq_len(n), factor(id, levels = unique(id)))) {
+    t <- time[rows]
+    m <- length(t)
+    goes_back <- c(FALSE, !is.na(t[-1]) & !is.na(t[-m]) & t[-1] < t[-m])
+    starts <- goes_back | reset[rows]
+    starts[1] <- FALSE
+    out[rows] <- 1L + cumsum(starts)
+  }
+  out
 }
 
 #' Warn about subjects whose time restarts in a simulation dataset
