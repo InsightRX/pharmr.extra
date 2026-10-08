@@ -65,7 +65,9 @@
 #' `$COVARIANCE` reports.
 #' @param add_pk_variables calculate basic PK variables: CMAX_OBS, TMAX_OBS,
 #' CMIN_OBS, and (when `CL` is in the output table) AUC_SS. AUC_SS is derived
-#' as the last dose in the simulation dataset divided by CL, scaled into the
+#' per subject as `F * dose / CL`: the subject's last dose in the simulation
+#' dataset, times the bioavailability (`F<n>`) of the compartment that dose
+#' goes into, divided by the subject's CL. It is then scaled into the
 #' units the model reports concentrations in: NONMEM predicts `A(n)/S<n>`, so a
 #' model with e.g. `S2 = V2/1000` (mg dosed, ng/mL reported) gets an AUC_SS
 #' 1000x that of plain dose/CL. The equivalent rewrite
@@ -984,19 +986,35 @@ sample_uncertainty_parameters <- function(
 
 #' Calculate some basic PK variables from simulated or observed data
 #'
+#' AUC_SS is derived per subject as `F * dose / CL`, from the subject's last
+#' dose in `regimen`, the bioavailability of the compartment that dose goes
+#' into, and the subject's `CL`, then scaled by `dv_scale`.
+#'
 #' @param data data.frame in NONMEM format
 #' @param regimen dosing regimen as a list with a `dose` element, used to
-#' derive AUC_SS from the last dose. `NULL` skips AUC_SS.
+#' derive AUC_SS from the last dose. When it also has an `id` element (the
+#' subject each dose belongs to) AUC_SS uses each subject's own last dose,
+#' otherwise the last dose overall is used for every subject. An optional `cmt`
+#' element gives the compartment each dose goes into, which decides the
+#' bioavailability that applies (compartment 1 when absent). `NULL` skips
+#' AUC_SS.
 #' @param dv_scale multiplier putting `dose / CL` into the units the model
 #' reports concentrations in, i.e. `V / S<n>` for the observation compartment
 #' (see [get_dv_scale_factor()]). `1` (the default) is the usual
 #' `S<n> = V` case.
+#' @param bioavailability named character vector mapping a dose compartment
+#' (number or name, as in the `CMT` of the dose records) to the column in
+#' `data` holding the bioavailability for that compartment. `NULL` (the
+#' default) maps compartment `n` to a column `F<n>` (`F1`-`F9`, as NONMEM
+#' names them) where `data` has one. Doses into a compartment without a
+#' bioavailability column are taken as fully bioavailable.
 #'
 #' @returns data.frame
 calc_pk_variables <- function(
     data,
     regimen = NULL,
-    dv_scale = 1
+    dv_scale = 1,
+    bioavailability = NULL
 ) {
 
   ## A scaling that cannot be used is no reason to drop AUC_SS altogether:
@@ -1031,18 +1049,18 @@ calc_pk_variables <- function(
       cli::cli_alert_info("Skipping Cmin calculation, some required columns not in output data.")      
     }
 
-    ## Add AUC_SS as dose/CL, if we're simulating a specific regimen. Scaled
-    ## by `dv_scale` so it lands in the units the model reports
+    ## Add AUC_SS as F * dose / CL, if we're simulating a specific regimen.
+    ## Scaled by `dv_scale` so it lands in the units the model reports
     ## concentrations in: NONMEM predicts `A(n)/S<n>`, so a model with
     ## e.g. `S2 = V2/1000` reports concentrations (and therefore AUCs) 1000x
     ## the plain amount/volume units that dose/CL is in.
     if(!is.null(regimen) && "CL" %in% names(data)) {
-      suppressWarnings(
-        last_dose <- as.numeric(utils::tail(regimen$dose, 1))
-      )
-      if(!is.na(last_dose) && last_dose > 0) {
-        data <- data |>
-          dplyr::mutate(AUC_SS = last_dose * dv_scale / .data$CL)
+      last_dose <- last_dose_per_subject(regimen, data)
+      if(!is.null(last_dose) && any(!is.na(last_dose$dose) & last_dose$dose > 0)) {
+        f <- bioavailability_for_doses(data, last_dose$cmt, bioavailability)
+        auc_ss <- last_dose$dose * f * dv_scale / data$CL
+        auc_ss[is.na(last_dose$dose) | last_dose$dose <= 0] <- NA_real_
+        data$AUC_SS <- auc_ss
       } else {
         cli::cli_warn("Could not calculate AUCss, last dose could not be identified.")
       }
@@ -1050,6 +1068,72 @@ calc_pk_variables <- function(
   }
 
   data
+}
+
+#' The last dose, and the compartment it goes into, for every row of `data`
+#'
+#' Per subject when `regimen` says which subject each dose belongs to: a
+#' regimen whose subjects do not all receive the same dose (a weight-based
+#' one, say) would otherwise give every subject the AUC of whichever subject
+#' happens to sort last. Falls back to the last dose overall when it does not.
+#'
+#' @param regimen list with `dose` and optionally `id` and `cmt`, one element
+#' per dose record (see `sim_regimen_doses()`).
+#' @param data the table AUC_SS is added to.
+#'
+#' @returns `list(dose = , cmt = )`, each with one element per row of `data`
+#' (`dose` is `NA` for a subject without dose records), or `NULL` when no
+#' dose could be identified.
+#' @noRd
+last_dose_per_subject <- function(regimen, data) {
+  suppressWarnings(dose <- as.numeric(regimen$dose))
+  if(length(dose) == 0) return(NULL)
+  cmt <- regimen$cmt
+  cmt <- if(is.null(cmt) || length(cmt) != length(dose)) {
+    rep("1", length(dose))
+  } else {
+    as.character(cmt)
+  }
+  id <- regimen$id
+  if(!is.null(id) && length(id) == length(dose) && "ID" %in% names(data)) {
+    ## Last dose record per subject, in dataset order (the simulation dataset
+    ## is sorted by ID and TIME before it gets here).
+    id <- as.character(id)
+    is_last <- !duplicated(id, fromLast = TRUE)
+    idx <- match(as.character(data$ID), id[is_last])
+    list(dose = dose[is_last][idx], cmt = cmt[is_last][idx])
+  } else {
+    n <- nrow(data)
+    list(
+      dose = rep(utils::tail(dose, 1), n),
+      cmt  = rep(utils::tail(cmt, 1), n)
+    )
+  }
+}
+
+#' Bioavailability of each row's dose
+#'
+#' @param data the table AUC_SS is added to.
+#' @param cmt dose compartment for each row of `data` (character).
+#' @param bioavailability named character vector, dose compartment -> column in
+#' `data`, or `NULL` for the `F<n>` columns `data` has.
+#'
+#' @returns numeric vector, one element per row of `data`; `1` where no
+#' bioavailability applies.
+#' @noRd
+bioavailability_for_doses <- function(data, cmt, bioavailability = NULL) {
+  if(is.null(bioavailability)) {
+    f_cols <- grep("^F[1-9]$", names(data), value = TRUE)
+    bioavailability <- stats::setNames(f_cols, sub("^F", "", f_cols))
+  }
+  f <- rep(1, nrow(data))
+  for(compartment in intersect(unique(cmt), names(bioavailability))) {
+    col <- bioavailability[[compartment]]
+    if(!col %in% names(data)) next
+    rows <- which(cmt == compartment)
+    suppressWarnings(f[rows] <- as.numeric(data[[col]][rows]))
+  }
+  f
 }
 
 #' Create dosing records, given a specified regimen as a data frame with

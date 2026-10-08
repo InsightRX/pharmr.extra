@@ -94,6 +94,14 @@ run_sim_nlmixr <- function(
   model_code <- model_code %||%
     attr(model, "nlmixr_code") %||%
     make_nlmixr_saem_safe(model$code)
+  ## AUC_SS needs each subject's bioavailability, which `f(A_X) <- ...` does
+  ## not put in the solve's output. Add an output variable that does.
+  bioavailability <- NULL
+  if(add_pk_variables) {
+    bioav <- add_nlmixr_bioavailability_outputs(model_code)
+    model_code <- bioav$code
+    bioavailability <- bioav$bioavailability
+  }
   nlmixr_fn <- extract_nlmixr_function(model_code)
   if(is.null(nlmixr_fn)) {
     cli::cli_abort("Could not extract an nlmixr2 model function from the model code.")
@@ -152,22 +160,22 @@ run_sim_nlmixr <- function(
     ## by example code.
     out_df <- shape_rxsolve_output(raw_sim, sim_data_regimen, pop_pred = pop_pred)
 
+    bioav_cols <- intersect(unique(unname(bioavailability)), names(out_df))
     if(!is.null(variables)) {
       keep <- intersect(variables, names(out_df))
       always <- intersect(c("ID", "TIME", "DV", "IPRED", "PRED", "EVID", "sim.id"),
                           names(out_df))
-      out_df <- out_df[, unique(c(always, keep)), drop = FALSE]
+      out_df <- out_df[, unique(c(always, keep, bioav_cols)), drop = FALSE]
     }
     if(add_pk_variables) {
-      regimen_for_pk <- NULL
-      if("EVID" %in% names(sim_data_regimen) && "AMT" %in% names(sim_data_regimen)) {
-        dose_rows <- sim_data_regimen[sim_data_regimen$EVID == 1, , drop = FALSE]
-        if(nrow(dose_rows) > 0) {
-          regimen_for_pk <- list(dose = dose_rows$AMT)
-        }
-      }
-      out_df <- calc_pk_variables(data = out_df, regimen = regimen_for_pk,
-                                  dv_scale = dv_scale)
+      out_df <- calc_pk_variables(
+        data = out_df,
+        regimen = sim_regimen_doses(sim_data_regimen),
+        dv_scale = dv_scale,
+        bioavailability = bioavailability
+      )
+      ## Only there for AUC_SS; not a variable of the model's own.
+      out_df <- out_df[, setdiff(names(out_df), bioav_cols), drop = FALSE]
     }
     out_df$regimen_label <- reg_label
     comb[[reg_label]] <- out_df
@@ -176,6 +184,56 @@ run_sim_nlmixr <- function(
   out <- dplyr::bind_rows(comb)
   if(verbose) cli::cli_alert_success("Done")
   out
+}
+
+#' Make an nlmixr2 model's bioavailability show up in its solved output
+#'
+#' rxode2 applies bioavailability through `f(<state>) <- <expr>`, which is not
+#' an output variable, so the solve never reports it. AUC_SS needs it per
+#' subject (`F * dose / CL`, and F can carry IIV), so each such statement gets
+#' a plain assignment of the same expression ahead of it, which the solve
+#' does report.
+#'
+#' @param code rendered nlmixr2 model code.
+#'
+#' @returns `list(code = , bioavailability = )`: the code with the added
+#' assignments, and a named character vector mapping each dose compartment --
+#' by number (the state's position, as a numeric `CMT` refers to it) and by
+#' name -- to its added output variable, or `NULL` where the model has no
+#' `f()` statement.
+#' @noRd
+add_nlmixr_bioavailability_outputs <- function(code) {
+  if(is.null(code) || length(code) == 0) {
+    return(list(code = code, bioavailability = NULL))
+  }
+  lines <- unlist(strsplit(paste(code, collapse = "\n"), "\n", fixed = TRUE))
+  name_rx <- "[A-Za-z.][A-Za-z0-9_.]*"
+  ## rxode2 numbers the states in order of appearance, which in rendered
+  ## Pharmpy code is the order of the `d/dt()` statements.
+  states <- unique(stringr::str_match(
+    lines, paste0("d/dt\\(\\s*(", name_rx, ")\\s*\\)")
+  )[, 2])
+  states <- states[!is.na(states)]
+  f_match <- stringr::str_match(
+    lines,
+    paste0("^(\\s*)f\\(\\s*(", name_rx, ")\\s*\\)\\s*(?:<-|=)\\s*(.+?)\\s*;?\\s*$")
+  )
+  bioavailability <- c()
+  out <- character()
+  for(i in seq_along(lines)) {
+    state <- f_match[i, 3]
+    k <- if(is.na(state)) NA else match(state, states)
+    if(!is.na(k)) {
+      var <- paste0("BIOAV_CMT", k)
+      out <- c(out, paste0(f_match[i, 2], var, " <- ", f_match[i, 4]))
+      bioavailability[c(as.character(k), state)] <- var
+    }
+    out <- c(out, lines[i])
+  }
+  if(length(bioavailability) == 0) {
+    return(list(code = code, bioavailability = NULL))
+  }
+  list(code = paste(out, collapse = "\n"), bioavailability = bioavailability)
 }
 
 #' Shape rxSolve output to match the NONMEM simulation table convention

@@ -84,17 +84,26 @@ resolve_sim_regimens <- function(data, input_data, verbose = TRUE) {
 #' The dosing regimen `calc_pk_variables()` needs, derived from a dataset
 #'
 #' AUC_SS is dose over CL, so the doses have to come from the simulation
-#' dataset rather than from the model.
+#' dataset rather than from the model. Each dose carries the subject it belongs
+#' to, since subjects in one regimen need not receive the same dose (a
+#' weight-based regimen, say), and the compartment it goes into, since that is
+#' what decides which bioavailability (`F<n>`) applies to it.
 #'
 #' @param data one regimen's simulation dataset.
 #'
-#' @returns `list(dose = )`, or `NULL` when the dataset has no dose records.
+#' @returns `list(dose = , id = , cmt = )` with one element per dose record
+#' (`id` is `NULL` without an `ID` column, `cmt` without a `CMT` column), or
+#' `NULL` when the dataset has no dose records.
 #' @noRd
 sim_regimen_doses <- function(data) {
   if(!all(c("EVID", "AMT") %in% names(data))) return(NULL)
-  dose_rows <- data[data$EVID == 1, , drop = FALSE]
+  dose_rows <- data[data$EVID %in% c(1, 4), , drop = FALSE]
   if(nrow(dose_rows) == 0) return(NULL)
-  list(dose = dose_rows$AMT)
+  list(
+    dose = dose_rows$AMT,
+    id   = dose_rows[["ID"]],
+    cmt  = dose_rows[["CMT"]]
+  )
 }
 
 #' Turn a model into a simulation-only model with the requested `$TABLE`
@@ -154,7 +163,14 @@ build_nonmem_sim_model <- function(
       checked_variables <- c(checked_variables, variab)
     }
   }
-  table_variables <- unique(c(checked_variables, parameter_names))
+  ## Bioavailability too: AUC_SS is F * dose / CL, and F is individual
+  ## wherever it carries IIV, so it has to come from the table just like CL.
+  bioavailability_names <- get_defined_pk_parameters(
+    sim_model, possible = paste0("F", 1:9)
+  )
+  table_variables <- unique(
+    c(checked_variables, parameter_names, bioavailability_names)
+  )
   sim_model |>
     remove_tables_from_model(reload_dataset = FALSE) |>
     add_table_to_model(table_variables, file = output_file, reload_dataset = FALSE)

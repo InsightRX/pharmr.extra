@@ -420,11 +420,7 @@ run_nwpri_regimen_tables <- function(
   )
 
   if(update_table && add_pk_variables) {
-    regimen_for_pk <- NULL
-    if(all(c("EVID", "AMT") %in% names(sim_data_regimen))) {
-      dose_rows <- sim_data_regimen[sim_data_regimen$EVID == 1, , drop = FALSE]
-      if(nrow(dose_rows) > 0) regimen_for_pk <- list(dose = dose_rows$AMT)
-    }
+    regimen_for_pk <- sim_regimen_doses(sim_data_regimen)
     ## Per draw, not over the whole table: every subproblem repeats the same
     ## IDs, so a Cmax taken over the concatenation would be the maximum over
     ## all draws rather than this draw's.
