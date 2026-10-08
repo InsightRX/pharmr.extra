@@ -451,6 +451,41 @@ test_that("calc_pk_variables: explicit bioavailability columns by compartment na
   expect_equal(unique(out$AUC_SS), 0.25 * 100 / 5)
 })
 
+test_that("calc_pk_variables: bioavailability is taken at the last dose", {
+  ## F changes over time (a time-varying covariate, say): AUC_SS is what the
+  ## last dose delivers, so the F at that dose applies to every row
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5,
+                       F1 = rep(c(0.2, 0.4, 0.6, 0.8, 1.0), 2))
+  reg <- list(dose = c(100, 100, 200, 200), id = c(1, 1, 2, 2),
+              time = c(0, 12, 0, 18))
+  out <- calc_pk_variables(dat, regimen = reg)
+  ## ID 1 last dosed at t = 12, ID 2 at t = 18 (no dose record in the table:
+  ## the row at that time stands for it)
+  expect_equal(out$AUC_SS[out$ID == 1], rep(0.6 * 100 / 5, 5))
+  expect_equal(out$AUC_SS[out$ID == 2], rep(0.8 * 200 / 5, 5))
+})
+
+test_that("calc_pk_variables: bioavailability at the dose record, per replicate", {
+  ## The same subject twice (two simulated replicates), each with its own F,
+  ## and a dose record in the table at the dose time
+  dat <- data.frame(
+    ID = 1, TIME = rep(c(0, 0, 6, 12), 2), DV = c(0, 0, 5, 2, 0, 0, 6, 3),
+    EVID = rep(c(1, 0, 0, 0), 2), CL = 5,
+    F1 = c(0.5, 0.9, 0.9, 0.9, 0.7, 0.1, 0.1, 0.1)
+  )
+  out <- calc_pk_variables(dat, regimen = list(dose = 100, id = 1, time = 0))
+  expect_equal(out$AUC_SS, rep(c(0.5, 0.7) * 100 / 5, each = 4))
+})
+
+test_that("calc_pk_variables: a dose with a missing CMT goes into compartment 1", {
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5, F1 = 0.5)
+  for(cmt in list(NA, ".", "")) {
+    reg <- list(dose = c(100, 100), id = c(1, 2), cmt = c(cmt, 1))
+    out <- calc_pk_variables(dat, regimen = reg)
+    expect_equal(unique(out$AUC_SS), 0.5 * 100 / 5)
+  }
+})
+
 test_that("calc_pk_variables: no F column means full bioavailability", {
   dat <- dplyr::mutate(.make_pk_data(), CL = 5)
   out <- calc_pk_variables(dat, regimen = list(dose = 100, id = 1, cmt = 1))

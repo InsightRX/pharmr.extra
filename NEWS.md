@@ -7,8 +7,9 @@
   all but that last subject. Affected all four simulation paths.
 
 * AUC_SS now accounts for bioavailability: it is `F * dose / CL`, with `F` the
-  bioavailability of the compartment the subject's last dose goes into (by
-  its `CMT`, compartment 1 when the dataset has none). For NONMEM models the
+  bioavailability that applied to the subject's last dose -- that of the
+  compartment the dose goes into (by its `CMT`, compartment 1 when it has
+  none), taken at the time of the dose. For NONMEM models the
   `F1`-`F9` defined in `$PK` are added to the simulation `$TABLE`, so an `F`
   with IIV is taken per subject; for nlmixr2 models the `f(<state>) <- ...`
   expression is exposed as an output of the solve for the same purpose.

@@ -996,8 +996,9 @@ sample_uncertainty_parameters <- function(
 #' subject each dose belongs to) AUC_SS uses each subject's own last dose,
 #' otherwise the last dose overall is used for every subject. An optional `cmt`
 #' element gives the compartment each dose goes into, which decides the
-#' bioavailability that applies (compartment 1 when absent). `NULL` skips
-#' AUC_SS.
+#' bioavailability that applies (compartment 1 when absent), and an optional
+#' `time` element the dose time, at which that bioavailability is taken.
+#' `NULL` skips AUC_SS.
 #' @param dv_scale multiplier putting `dose / CL` into the units the model
 #' reports concentrations in, i.e. `V / S<n>` for the observation compartment
 #' (see [get_dv_scale_factor()]). `1` (the default) is the usual
@@ -1058,6 +1059,10 @@ calc_pk_variables <- function(
       last_dose <- last_dose_per_subject(regimen, data)
       if(!is.null(last_dose) && any(!is.na(last_dose$dose) & last_dose$dose > 0)) {
         f <- bioavailability_for_doses(data, last_dose$cmt, bioavailability)
+        ## The bioavailability that applied to the last dose, not whatever F
+        ## is on each output row: F can change over time (a time-varying
+        ## covariate, say), and AUC_SS is the exposure that dose delivers.
+        f <- f[rows_at_last_dose(data, last_dose$time)]
         auc_ss <- last_dose$dose * f * dv_scale / data$CL
         auc_ss[is.na(last_dose$dose) | last_dose$dose <= 0] <- NA_real_
         data$AUC_SS <- auc_ss
@@ -1070,30 +1075,36 @@ calc_pk_variables <- function(
   data
 }
 
-#' The last dose, and the compartment it goes into, for every row of `data`
+#' The last dose, its time and the compartment it goes into, for every row of
+#' `data`
 #'
 #' Per subject when `regimen` says which subject each dose belongs to: a
 #' regimen whose subjects do not all receive the same dose (a weight-based
 #' one, say) would otherwise give every subject the AUC of whichever subject
 #' happens to sort last. Falls back to the last dose overall when it does not.
 #'
-#' @param regimen list with `dose` and optionally `id` and `cmt`, one element
-#' per dose record (see `sim_regimen_doses()`).
+#' @param regimen list with `dose` and optionally `id`, `time` and `cmt`, one
+#' element per dose record (see `sim_regimen_doses()`).
 #' @param data the table AUC_SS is added to.
 #'
-#' @returns `list(dose = , cmt = )`, each with one element per row of `data`
-#' (`dose` is `NA` for a subject without dose records), or `NULL` when no
-#' dose could be identified.
+#' @returns `list(dose = , time = , cmt = )`, each with one element per row of
+#' `data` (`dose` is `NA` for a subject without dose records, `time` is `NA`
+#' when `regimen` has no dose times), or `NULL` when no dose could be
+#' identified.
 #' @noRd
 last_dose_per_subject <- function(regimen, data) {
   suppressWarnings(dose <- as.numeric(regimen$dose))
   if(length(dose) == 0) return(NULL)
-  cmt <- regimen$cmt
-  cmt <- if(is.null(cmt) || length(cmt) != length(dose)) {
-    rep("1", length(dose))
-  } else {
-    as.character(cmt)
+  per_dose <- function(x, default) {
+    if(is.null(x) || length(x) != length(dose)) return(rep(default, length(dose)))
+    x
   }
+  ## A dose without a compartment goes into compartment 1, as it does in
+  ## NONMEM -- also where the dataset has a CMT column but leaves it empty
+  ## for this record.
+  cmt <- as.character(per_dose(regimen$cmt, "1"))
+  cmt[is.na(cmt) | trimws(cmt) %in% c("", ".")] <- "1"
+  suppressWarnings(time <- as.numeric(per_dose(regimen$time, NA_real_)))
   id <- regimen$id
   if(!is.null(id) && length(id) == length(dose) && "ID" %in% names(data)) {
     ## Last dose record per subject, in dataset order (the simulation dataset
@@ -1101,14 +1112,62 @@ last_dose_per_subject <- function(regimen, data) {
     id <- as.character(id)
     is_last <- !duplicated(id, fromLast = TRUE)
     idx <- match(as.character(data$ID), id[is_last])
-    list(dose = dose[is_last][idx], cmt = cmt[is_last][idx])
+    list(
+      dose = dose[is_last][idx],
+      time = time[is_last][idx],
+      cmt  = cmt[is_last][idx]
+    )
   } else {
     n <- nrow(data)
     list(
       dose = rep(utils::tail(dose, 1), n),
+      time = rep(utils::tail(time, 1), n),
       cmt  = rep(utils::tail(cmt, 1), n)
     )
   }
+}
+
+#' For every row of `data`, the row that holds its subject's last dose
+#'
+#' Each run of consecutive rows of one subject is one subject in one simulated
+#' replicate (a run ends where `ID` changes or `TIME` goes back, which is
+#' where the next replicate of the same subject starts). Within it, the row
+#' that stands for the dose is the dose record at the last dose time where the
+#' table has one (NONMEM tables do), otherwise the last row at or before that
+#' time, otherwise -- an output with no rows before the last dose -- the
+#' subject's first row.
+#'
+#' @param data the table AUC_SS is added to.
+#' @param time the subject's last dose time, for every row of `data`.
+#'
+#' @returns integer row index into `data`, one element per row. A row whose
+#' last dose time is unknown points at itself.
+#' @noRd
+rows_at_last_dose <- function(data, time) {
+  n <- nrow(data)
+  idx <- seq_len(n)
+  if(n == 0 || !all(c("ID", "TIME") %in% names(data)) || all(is.na(time))) {
+    return(idx)
+  }
+  ids <- as.character(data$ID)
+  t <- data$TIME
+  is_dose <- if("EVID" %in% names(data)) data$EVID %in% c(1, 4) else rep(FALSE, n)
+  new_run <- c(TRUE, ids[-1] != ids[-n] | t[-1] < t[-n])
+  new_run[is.na(new_run)] <- FALSE
+  for(rows in split(idx, cumsum(new_run))) {
+    t_dose <- time[rows[1]]
+    if(is.na(t_dose)) next
+    at_dose <- rows[is_dose[rows] & t[rows] == t_dose]
+    before <- rows[t[rows] <= t_dose]
+    idx[rows] <- if(length(at_dose) > 0) {
+      utils::tail(at_dose, 1)
+    } else if(length(before) > 0) {
+      utils::tail(before, 1)
+    } else {
+      rows[1]
+    }
+  }
+  idx
 }
 
 #' Bioavailability of each row's dose

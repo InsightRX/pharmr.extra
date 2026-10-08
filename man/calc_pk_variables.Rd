@@ -14,8 +14,9 @@ derive AUC_SS from the last dose. When it also has an \code{id} element (the
 subject each dose belongs to) AUC_SS uses each subject's own last dose,
 otherwise the last dose overall is used for every subject. An optional \code{cmt}
 element gives the compartment each dose goes into, which decides the
-bioavailability that applies (compartment 1 when absent). \code{NULL} skips
-AUC_SS.}
+bioavailability that applies (compartment 1 when absent), and an optional
+\code{time} element the dose time, at which that bioavailability is taken.
+\code{NULL} skips AUC_SS.}
 
 \item{dv_scale}{multiplier putting \code{dose / CL} into the units the model
 reports concentrations in, i.e. \verb{V / S<n>} for the observation compartment

@@ -30,8 +30,8 @@ test_that("resolve_sim_regimens splits the dataset by regimen", {
   expect_false(any(vapply(regs, function(r) ".regimen" %in% names(r$data),
                           logical(1))))
   ## and the doses `calc_pk_variables()` needs come along per regimen
-  expect_equal(regs[[1]]$regimen_for_pk, list(dose = 100, id = 1, cmt = NULL))
-  expect_equal(regs[[2]]$regimen_for_pk, list(dose = 200, id = 1, cmt = NULL))
+  expect_equal(regs[[1]]$regimen_for_pk, list(dose = 100, id = 1, time = 0, cmt = NULL))
+  expect_equal(regs[[2]]$regimen_for_pk, list(dose = 200, id = 1, time = 0, cmt = NULL))
 })
 
 test_that("resolve_sim_regimens labels an unlabelled dataset as one regimen", {
@@ -86,7 +86,7 @@ test_that("sim_regimen_doses returns NULL when there is nothing to derive", {
   expect_equal(
     sim_regimen_doses(data.frame(ID = 1, TIME = c(0, 1), DV = 0,
                                  AMT = c(50, 0), EVID = c(1, 0))),
-    list(dose = 50, id = 1, cmt = NULL)
+    list(dose = 50, id = 1, time = 0, cmt = NULL)
   )
 })
 
@@ -98,7 +98,8 @@ test_that("sim_regimen_doses keeps the subject and compartment of each dose", {
   )
   expect_equal(
     sim_regimen_doses(dat),
-    list(dose = c(100, 100, 250, 250), id = c(1, 1, 2, 2), cmt = c(1, 1, 1, 1))
+    list(dose = c(100, 100, 250, 250), id = c(1, 1, 2, 2),
+         time = c(0, 12, 0, 12), cmt = c(1, 1, 1, 1))
   )
 })
 

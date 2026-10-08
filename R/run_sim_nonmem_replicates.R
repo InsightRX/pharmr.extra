@@ -91,9 +91,9 @@ resolve_sim_regimens <- function(data, input_data, verbose = TRUE) {
 #'
 #' @param data one regimen's simulation dataset.
 #'
-#' @returns `list(dose = , id = , cmt = )` with one element per dose record
-#' (`id` is `NULL` without an `ID` column, `cmt` without a `CMT` column), or
-#' `NULL` when the dataset has no dose records.
+#' @returns `list(dose = , id = , time = , cmt = )` with one element per dose
+#' record (`id`, `time` and `cmt` are `NULL` without an `ID`, `TIME` or `CMT`
+#' column), or `NULL` when the dataset has no dose records.
 #' @noRd
 sim_regimen_doses <- function(data) {
   if(!all(c("EVID", "AMT") %in% names(data))) return(NULL)
@@ -102,6 +102,7 @@ sim_regimen_doses <- function(data) {
   list(
     dose = dose_rows$AMT,
     id   = dose_rows[["ID"]],
+    time = dose_rows[["TIME"]],
     cmt  = dose_rows[["CMT"]]
   )
 }
