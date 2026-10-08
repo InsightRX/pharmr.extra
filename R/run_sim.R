@@ -1111,6 +1111,9 @@ calc_pk_variables <- function(
 #' @param keys columns identifying a subject's profile: `ID`, plus `sim.id`
 #' or `.subproblem` when a simulation has several iterations.
 #'
+#' Where a subject's time restarts (a reset into a new occasion) only its
+#' last occasion is used, of both the doses and the observations.
+#'
 #' @returns data.frame with the `keys` and `CMIN_OBS`, one row per profile
 #' with observations. `CMIN_OBS` is `NA` where the last observation precedes
 #' the first dose, as there is no dosing interval to take it over.
@@ -1124,8 +1127,20 @@ cmin_per_subject <- function(data, regimen = NULL, keys = "ID") {
   profile <- do.call(paste, c(obs[, keys, drop = FALSE], sep = "\r"))
   rows <- split(seq_len(nrow(obs)), factor(profile, levels = unique(profile)))
   profiles <- obs[vapply(rows, `[`, integer(1), 1), keys, drop = FALSE]
+  ## Only the last occasion counts: where a subject's time restarts (an EVID
+  ## 3/4 reset), earlier occasions' doses and observations would otherwise be
+  ## pooled with it on the same clock.
+  in_last_occasion <- function(time) {
+    segment <- time_segments(time)
+    segment == max(segment, 0L)
+  }
+  for_all <- for_all[in_last_occasion(for_all)]
+  per_id <- lapply(per_id, function(t) t[in_last_occasion(t)])
   profiles$CMIN_OBS <- vapply(rows, function(i) {
-    time <- obs$TIME[i]
+    time <- as.numeric(obs$TIME[i])
+    keep <- in_last_occasion(time)
+    i <- i[keep]
+    time <- time[keep]
     dose_times <- c(for_all, per_id[[canonical_key(obs$ID[i[1]])]])
     ## number of doses given at or before each observation
     interval <- findInterval(time, sort(unique(dose_times)))
