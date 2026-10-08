@@ -13,6 +13,14 @@
   unaffected; a scaling that is not the central volume times or divided by a
   constant warns and falls back to `dose / CL`.
 
+* `run_sim(n_uncertainty = )` on an nlmixr2 model built with
+  `create_model(scale_observations = )` keeps that scaling. Applying a draw
+  returns a fresh Pharmpy object, which drops the cached nlmixr2 code the
+  `S<n> <- <vol>/<scale>` rewrite lives in, so every uncertainty draw was
+  simulated unscaled — concentrations, and the AUC_SS derived from them, in
+  different units than the same model's point-estimate run. The scaling is now
+  re-applied to each draw, on both the sequential and the parallel path.
+
 * `call_pharmpy_tool(tool = "iivsearch")` without a `search_space` now
   defaults to `IIV?(@PK,EXP)`, which makes IIV on each PK parameter optional,
   so the search fits a candidate for every subset of the PK parameters. The

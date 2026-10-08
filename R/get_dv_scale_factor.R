@@ -150,14 +150,8 @@ central_volume_names <- function(model, scaled_with = NULL) {
 #' @returns single numeric multiplier.
 #' @noRd
 dv_scale_from_code <- function(code, verbose = FALSE) {
-  lines <- unlist(strsplit(paste(as.character(code), collapse = "\n"), "\n",
-                           fixed = TRUE))
-  var <- "[A-Za-z][A-Za-z0-9_]*"
-  pred_re <- paste0(
-    "^\\s*(?:IPRED|F)\\s*(?:<-|=)\\s*", var,
-    "(?:\\([0-9]+\\))?\\s*/\\s*(", var, ")\\s*$"
-  )
-  denominator <- .first_capture(lines, pred_re)
+  lines <- code_lines(code)
+  denominator <- pred_denominator(lines)
   ## No prediction of that shape, or it divides by the volume directly: no
   ## scaling is being applied.
   if(is.null(denominator) || !grepl("^S[0-9]+$", denominator)) return(1)
@@ -211,17 +205,17 @@ dv_scale_from_code <- function(code, verbose = FALSE) {
 #' @noRd
 volume_names_in_code <- function(lines) {
   var <- "[A-Za-z][A-Za-z0-9_]*"
-  amount <- "A_[A-Za-z0-9_]+"
-  ## `CL*A_CENTRAL/V`, `A_CENTRAL*CL/V`, or `(CL/V)*A_CENTRAL`
+  ## The central compartment's derivative is the one clearance appears in, in
+  ## whatever shape it is written: `-CL*A_CENTRAL/V`, `-A_CENTRAL*CL/V`,
+  ## `-(CL/V)*A_CENTRAL`, `(-CL/V - Q/V)*A_CENTRAL` or `-CL*A1/V`. Whatever
+  ## clearance is divided by in such a line is a volume, so the amount is left
+  ## out of the patterns -- it sits anywhere relative to the term.
+  central_ode <- grep("d/dt\\s*\\(", lines, value = TRUE)
+  central_ode <- grep("\\bCL\\b", central_ode, value = TRUE)
   from_ode <- c(
-    .first_capture(lines, paste0(
-      "^.*\\bCL\\s*\\*\\s*", amount, "\\s*/\\s*(", var, ")\\b.*$"
-    )),
-    .first_capture(lines, paste0(
-      "^.*\\b", amount, "\\s*\\*\\s*CL\\s*/\\s*(", var, ")\\b.*$"
-    )),
-    .first_capture(lines, paste0(
-      "^.*\\bCL\\s*/\\s*(", var, ")\\s*\\)?\\s*\\*\\s*", amount, ".*$"
+    .all_captures(central_ode, paste0("\\bCL\\s*/\\s*(", var, ")\\b")),
+    .all_captures(central_ode, paste0(
+      "\\bCL\\s*\\*\\s*", var, "\\s*/\\s*(", var, ")\\b"
     ))
   )
   ## One level of aliasing, both ways round: `V <- VC` makes either name the
@@ -242,6 +236,49 @@ volume_names_in_code <- function(lines) {
   ## that.
   if(length(from_ode) > 0) return(from_ode)
   c("V", "V1", "V2", "VC")
+}
+
+#' Model code as lines, whether it came as one string or as several
+#' @noRd
+code_lines <- function(code) {
+  unlist(strsplit(paste(as.character(code), collapse = "\n"), "\n", fixed = TRUE))
+}
+
+#' What the prediction divides the central amount by, or `NULL`
+#'
+#' `S<n>` where a scaling is applied, the volume itself where none is.
+#'
+#' @param lines model code, as lines.
+#' @noRd
+pred_denominator <- function(lines) {
+  var <- "[A-Za-z][A-Za-z0-9_]*"
+  .first_capture(lines, paste0(
+    "^\\s*(?:IPRED|F)\\s*(?:<-|=)\\s*", var,
+    "(?:\\([0-9]+\\))?\\s*/\\s*(", var, ")\\s*$"
+  ))
+}
+
+#' Does this nlmixr2 code already divide the prediction by an `S<n>`?
+#'
+#' Which is what tells a scaling that is already applied from one that still
+#' has to be injected (`inject_nlmixr_scaling()` would otherwise rewrite
+#' `IPRED <- A_CENTRAL/S2` into the self-referential `S2 <- S2/1000`).
+#'
+#' @param code model code, as a single string or as lines.
+#' @noRd
+nlmixr_pred_is_scaled <- function(code) {
+  denominator <- pred_denominator(code_lines(code))
+  !is.null(denominator) && grepl("^S[0-9]+$", denominator)
+}
+
+#' Every first capture group matched by `pattern` anywhere in `lines`
+#' @noRd
+.all_captures <- function(lines, pattern) {
+  hits <- regmatches(lines, gregexec(pattern, lines, perl = TRUE))
+  captures <- unlist(lapply(hits, function(hit) {
+    if(length(hit) == 0) NULL else as.vector(hit[-1, , drop = FALSE])
+  }))
+  unique(captures[!is.na(captures) & nzchar(captures)])
 }
 
 #' First capture group matched by `pattern` over `lines`, or `NULL`

@@ -246,3 +246,91 @@ test_that("get_dv_scale_factor: `code` is read instead of `model`", {
     1000
   )
 })
+
+test_that("dv_scale_from_code: rejects a peripheral volume in a two-compartment ODE", {
+  ## `(-CL/V1 - Q/V1)*A_CENTRAL` puts another term before the amount, so the
+  ## volume has to come from the clearance term itself rather than from
+  ## whatever sits next to `A_CENTRAL`
+  ode <- "d/dt(A_CENTRAL) = (-CL/V1 - Q/V1)*A_CENTRAL + Q/V2*A_PERIPH"
+  expect_warning(
+    factor <- dv_scale_from_code(c(ode, "S2 <- V2/1000", "IPRED <- A_CENTRAL/S2")),
+    "Could not interpret the scaling"
+  )
+  expect_equal(factor, 1)
+  expect_equal(
+    dv_scale_from_code(c(ode, "S2 <- V1/1000", "IPRED <- A_CENTRAL/S2")),
+    1000
+  )
+})
+
+test_that("nlmixr_pred_is_scaled: tells an applied scaling from none", {
+  expect_true(nlmixr_pred_is_scaled("IPRED <- A_CENTRAL/S2"))
+  expect_false(nlmixr_pred_is_scaled("IPRED <- A_CENTRAL/VC"))
+  expect_false(nlmixr_pred_is_scaled("Y <- IPRED + IPRED*EPS1"))
+})
+
+# ── uncertainty draws keep the observation scaling ──────────────────────────
+
+.nlmixr_model_code <- function(pop_cl = "POP_CL") {
+  paste(c(
+    "mod <- function() {",
+    "  model({",
+    paste0("    CL <- ", pop_cl, "*exp(ETA_CL)"),
+    "    VC <- POP_VC*exp(ETA_VC)",
+    "    d/dt(A_CENTRAL) = -CL*A_CENTRAL/VC",
+    "    IPRED <- A_CENTRAL/VC",
+    "    Y <- IPRED",
+    "  })",
+    "}"
+  ), collapse = "\n")
+}
+
+## A model as `create_model(tool = "nlmixr", scale_observations = )` leaves it:
+## `$code` without the scaling, the cached code with it.
+.scaled_nlmixr_model <- function(scale = 1000) {
+  base <- .nlmixr_model_code()
+  structure(
+    list(code = base),
+    nlmixr_code = inject_nlmixr_scaling(base, scale)
+  )
+}
+
+test_that("nlmixr_scale_observations: recovers the factor from the cached code", {
+  expect_equal(nlmixr_scale_observations(.scaled_nlmixr_model(1000)), 1000)
+  expect_equal(nlmixr_scale_observations(.scaled_nlmixr_model(500)), 500)
+  ## nothing to recover
+  expect_null(nlmixr_scale_observations(structure(
+    list(code = .nlmixr_model_code()), nlmixr_code = .nlmixr_model_code()
+  )))
+  expect_null(nlmixr_scale_observations(list(code = .nlmixr_model_code())))
+})
+
+test_that("render_nlmixr_draw_code: re-applies the scaling to a draw", {
+  model <- .scaled_nlmixr_model(1000)
+  ## the draw as `set_initial_estimates()` returns it: fresh `$code`, no
+  ## cached attribute, and so no scaling
+  draw <- list(code = .nlmixr_model_code("POP_CL_DRAW"))
+  expect_equal(get_dv_scale_factor(code = draw$code), 1)
+
+  code <- render_nlmixr_draw_code(model, draw)
+  expect_equal(get_dv_scale_factor(code = code), 1000)
+  ## and it is still *this* draw's model
+  expect_match(code, "POP_CL_DRAW", fixed = TRUE)
+})
+
+test_that("render_nlmixr_draw_code: leaves an unscaled model unscaled", {
+  model <- structure(
+    list(code = .nlmixr_model_code()), nlmixr_code = .nlmixr_model_code()
+  )
+  code <- render_nlmixr_draw_code(model, list(code = .nlmixr_model_code()))
+  expect_equal(get_dv_scale_factor(code = code), 1)
+  expect_false(nlmixr_pred_is_scaled(code))
+})
+
+test_that("render_nlmixr_draw_code: does not scale a draw that is already scaled", {
+  ## injecting over `IPRED <- A_CENTRAL/S1` would write `S1 <- S1/1000`
+  model <- .scaled_nlmixr_model(1000)
+  code <- render_nlmixr_draw_code(model, list(code = attr(model, "nlmixr_code")))
+  expect_equal(get_dv_scale_factor(code = code), 1000)
+  expect_false(any(grepl("S1 <- S1", code_lines(code))))
+})

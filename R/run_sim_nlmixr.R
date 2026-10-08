@@ -357,3 +357,45 @@ rx_seed_supported <- function() {
   if(is.null(ns)) return(FALSE)
   all(c("rxSetSeed", "rxGetSeed") %in% getNamespaceExports(ns))
 }
+
+#' Render an uncertainty draw's nlmixr2 code, observation scaling included
+#'
+#' `pharmr::set_initial_estimates()` returns a fresh Pharmpy object, so the
+#' `nlmixr_code` attribute — and with it the `S<n> <- <vol>/<scale>` rewrite
+#' `create_model(scale_observations = )` injected — is gone, while `$code`
+#' never carried it in the first place (pharmpy's NONMEM->nlmixr conversion is
+#' unreliable with `S<n>` scaling, which is why it is injected into the
+#' rendered code). Rendering a draw from `$code` alone would simulate it
+#' unscaled: concentrations, and the AUC_SS derived from them, in different
+#' units than the point-estimate run. So the scaling is read back off the
+#' original model's cached code and re-applied to every draw.
+#'
+#' @param model the model the draws were taken from, carrying the cached code.
+#' @param draw_model that model with this draw's estimates applied.
+#'
+#' @returns nlmixr2 model code (character) for this draw.
+#' @noRd
+render_nlmixr_draw_code <- function(model, draw_model) {
+  code <- make_nlmixr_saem_safe(draw_model$code)
+  scale <- nlmixr_scale_observations(model)
+  ## Not when the draw's own code already divides by an `S<n>`: the scaling is
+  ## then in the model's statements and survives on its own, and injecting
+  ## again would rewrite `IPRED <- A_CENTRAL/S2` into `S2 <- S2/1000`.
+  if(!is.null(scale) && !nlmixr_pred_is_scaled(code)) {
+    code <- inject_nlmixr_scaling(code, scale)
+  }
+  code
+}
+
+#' The `scale_observations` factor a model's cached nlmixr2 code carries
+#'
+#' `NULL` when the model has no cached code, or none with a scaling in it.
+#'
+#' @inheritParams render_nlmixr_draw_code
+#' @noRd
+nlmixr_scale_observations <- function(model) {
+  cached <- attr(model, "nlmixr_code")
+  if(is.null(cached)) return(NULL)
+  scale <- suppressWarnings(dv_scale_from_code(cached))
+  if(isTRUE(all.equal(scale, 1))) NULL else scale
+}
