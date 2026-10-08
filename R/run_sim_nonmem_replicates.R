@@ -108,20 +108,31 @@ resolve_sim_regimens <- function(
 #' element per dose (doses implied by `ADDL`/`II` included) in the first four
 #' (`id`, `time` and `cmt` are `NULL` without an `ID`, `TIME` or `CMT`
 #' column), or `NULL` when the dataset has no
-#' dose records.
+#' dose records. A dataset with reset records (`EVID` 3 or 4) adds `reset`,
+#' a `data.frame(id = , time = )` of them.
 #' @noRd
 sim_regimen_doses <- function(data, default_cmt = 1) {
   if(!all(c("EVID", "AMT") %in% names(data))) return(NULL)
   dose_rows <- data[data$EVID %in% c(1, 4), , drop = FALSE]
   if(nrow(dose_rows) == 0) return(NULL)
+  reset_rows <- data[data$EVID %in% c(3, 4), , drop = FALSE]
   dose_rows <- expand_addl_doses(dose_rows)
-  list(
+  out <- list(
     dose = dose_rows$AMT,
     id   = dose_rows[["ID"]],
     time = dose_rows[["TIME"]],
     cmt  = dose_rows[["CMT"]],
     default_cmt = default_cmt
   )
+  ## Where the system is reset (a new occasion): the simulation output need
+  ## not hold these records either.
+  if(nrow(reset_rows) > 0 && "TIME" %in% names(reset_rows)) {
+    out$reset <- data.frame(
+      id = if("ID" %in% names(reset_rows)) reset_rows$ID else NA,
+      time = reset_rows$TIME
+    )
+  }
+  out
 }
 
 #' The compartment a NONMEM model doses into by default

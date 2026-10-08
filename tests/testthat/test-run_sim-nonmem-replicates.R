@@ -135,7 +135,9 @@ test_that("sim_regimen_doses keeps the subject and compartment of each dose", {
   expect_equal(
     sim_regimen_doses(dat),
     list(dose = c(100, 100, 250, 250), id = c(1, 1, 2, 2),
-         time = c(0, 12, 0, 12), cmt = c(1, 1, 1, 1), default_cmt = 1)
+         time = c(0, 12, 0, 12), cmt = c(1, 1, 1, 1), default_cmt = 1,
+         ## the EVID 4 dose is a reset too
+         reset = data.frame(id = 1, time = 12))
   )
 })
 
