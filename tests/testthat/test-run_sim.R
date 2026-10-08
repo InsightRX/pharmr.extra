@@ -434,6 +434,16 @@ test_that("calc_pk_variables: occasions restarting at the same time, observation
   expect_equal(unique(out$CMIN_OBS), 4)
 })
 
+test_that("calc_pk_variables: observation-only occasions follow the dataset's records", {
+  ## one observation per occasion, each at TIME 1, occasions restarting at 0
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 1, 0, 1), DV = c(0, 0.1, 0, 4),
+    EVID = c(1, 0, 4, 0), AMT = c(100, 0, 100, 0)
+  )
+  out <- calc_pk_variables(dat[dat$EVID == 0, ], regimen = sim_regimen_doses(dat))
+  expect_equal(unique(out$CMIN_OBS), 4)
+})
+
 test_that("calc_pk_variables: CMIN_OBS is NA without a dosing interval", {
   dat <- .make_pk_data()
   dat <- dat[dat$EVID == 0, ]

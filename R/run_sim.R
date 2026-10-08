@@ -1106,9 +1106,9 @@ calc_pk_variables <- function(
 #' Only the occasion of the last observation counts (see `time_segments()`),
 #' for both the doses and the observations. Where `data` holds the dose and
 #' reset records the occasions are counted from its rows, as they come;
-#' otherwise from the occasion start times the regimen carries (an
-#' observation-only table, from rxode2, which keeps time going within a
-#' subject).
+#' an observation-only table takes them from the regimen: by position where
+#' it has one row per observation record of the simulation dataset, else
+#' from the occasion start times.
 #'
 #' @param data the table CMIN_OBS is added to, with `ID`, `TIME`, `DV` and
 #' `EVID`.
@@ -1127,6 +1127,11 @@ cmin_per_subject <- function(data, regimen = NULL, keys = "ID") {
   suppressWarnings(data$.time <- as.numeric(data$TIME))
   doses <- regimen_dose_times(regimen)
   starts <- regimen_occasion_starts(regimen)
+  obs_occasions <- regimen$obs_occasion
+  if(!is.null(obs_occasions)) {
+    obs_occasions$id <- ifelse(is.na(obs_occasions$id), NA_character_,
+                               canonical_key(obs_occasions$id))
+  }
   profile <- do.call(paste, c(data[, keys, drop = FALSE], sep = "\r"))
   rows <- split(seq_len(nrow(data)), factor(profile, levels = unique(profile)))
   cmin <- lapply(rows, function(i) {
@@ -1134,7 +1139,10 @@ cmin_per_subject <- function(data, regimen = NULL, keys = "ID") {
     is_obs <- d$EVID %in% 0 & !is.na(d$DV)
     if(!any(is_obs)) return(NULL)
     id <- canonical_key(d$ID[1])
-    occasion <- profile_occasions(d, starts[starts$id %in% c(id, NA), ])
+    occasion <- profile_occasions(
+      d, starts[starts$id %in% c(id, NA), ],
+      obs_occasions$occasion[obs_occasions$id %in% c(id, NA)]
+    )
     last <- occasion[max(which(is_obs))]
     dose_times <- if(!is.null(doses)) {
       sel <- doses$id %in% c(id, NA)
@@ -1173,13 +1181,19 @@ cmin_per_subject <- function(data, regimen = NULL, keys = "ID") {
 #' @param d the rows of one subject's profile, in table order, with `.time`.
 #' @param starts that subject's `data.frame(id = , occasion = , time = )`
 #' occasion start times from the regimen (no rows for none).
+#' @param obs_occasion the occasion of each of that subject's observation
+#' records in the simulation dataset, in order, or `NULL`.
 #'
 #' @returns integer vector, one element per row of `d`.
 #' @noRd
-profile_occasions <- function(d, starts) {
+profile_occasions <- function(d, starts, obs_occasion = NULL) {
   if(any(d$EVID %in% c(1, 3, 4))) {
     ## the table has the events itself
     return(time_segments(d$.time, reset = d$EVID %in% c(3, 4)))
+  }
+  if(length(obs_occasion) > 0 && length(obs_occasion) == nrow(d)) {
+    ## observations only, one row per observation record of the dataset
+    return(as.integer(obs_occasion))
   }
   if(nrow(starts) > 1) {
     starts <- starts[order(starts$occasion), , drop = FALSE]

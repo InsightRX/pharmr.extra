@@ -112,7 +112,9 @@ resolve_sim_regimens <- function(
 #' dose records. A dataset whose subjects have more than one occasion (see
 #' `time_segments()`) adds `occasion`, the occasion of each dose, and
 #' `occasion_start`, a `data.frame(id = , occasion = , time = )` giving the
-#' time each occasion starts at.
+#' time each occasion starts at, and `obs_occasion`, a
+#' `data.frame(id = , occasion = )` with the occasion of every observation
+#' record, in dataset order.
 #' @noRd
 sim_regimen_doses <- function(data, default_cmt = 1) {
   if(!all(c("EVID", "AMT") %in% names(data))) return(NULL)
@@ -141,6 +143,13 @@ sim_regimen_doses <- function(data, default_cmt = 1) {
       id = if("ID" %in% names(data)) data$ID[first] else NA,
       occasion = data$.occasion[first],
       time = time[first]
+    )
+    ## and that of every observation record, in dataset order, for output
+    ## that has the observations only
+    is_obs <- data$EVID %in% 0
+    out$obs_occasion <- data.frame(
+      id = if("ID" %in% names(data)) data$ID[is_obs] else rep(NA, sum(is_obs)),
+      occasion = data$.occasion[is_obs]
     )
   }
   out

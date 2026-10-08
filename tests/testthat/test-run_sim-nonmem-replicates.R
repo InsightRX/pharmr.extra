@@ -139,7 +139,8 @@ test_that("sim_regimen_doses keeps the subject and compartment of each dose", {
          ## the EVID 4 dose starts a new occasion
          occasion = c(1L, 2L, 1L, 1L),
          occasion_start = data.frame(id = c(1, 1, 2), occasion = c(1L, 2L, 1L),
-                                     time = c(0, 12, 0)))
+                                     time = c(0, 12, 0)),
+         obs_occasion = data.frame(id = c(1, 2), occasion = c(2L, 1L)))
   )
 })
 
