@@ -93,16 +93,29 @@ resolve_sim_regimens <- function(data, input_data, verbose = TRUE) {
 #'
 #' @returns `list(dose = , id = , time = , cmt = )` with one element per dose
 #' record (`id`, `time` and `cmt` are `NULL` without an `ID`, `TIME` or `CMT`
-#' column), or `NULL` when the dataset has no dose records.
+#' column; `time` is that of the record's last dose, counting `ADDL`), or
+#' `NULL` when the dataset has no dose records.
 #' @noRd
 sim_regimen_doses <- function(data) {
   if(!all(c("EVID", "AMT") %in% names(data))) return(NULL)
   dose_rows <- data[data$EVID %in% c(1, 4), , drop = FALSE]
   if(nrow(dose_rows) == 0) return(NULL)
+  ## The time of the record's last dose: a record with ADDL additional doses
+  ## every II gives its last one at TIME + ADDL * II.
+  time <- dose_rows[["TIME"]]
+  if(!is.null(time) && all(c("ADDL", "II") %in% names(dose_rows))) {
+    suppressWarnings({
+      addl <- as.numeric(dose_rows$ADDL)
+      ii <- as.numeric(dose_rows$II)
+      time <- as.numeric(time)
+    })
+    extra <- ifelse(!is.na(addl) & addl > 0 & !is.na(ii), addl * ii, 0)
+    time <- time + extra
+  }
   list(
     dose = dose_rows$AMT,
     id   = dose_rows[["ID"]],
-    time = dose_rows[["TIME"]],
+    time = time,
     cmt  = dose_rows[["CMT"]]
   )
 }

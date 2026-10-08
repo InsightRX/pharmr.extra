@@ -224,7 +224,13 @@ add_nlmixr_bioavailability_outputs <- function(code) {
     state <- f_match[i, 3]
     k <- if(is.na(state)) NA else match(state, states)
     if(!is.na(k)) {
+      ## A name the model does not use already: assigning to one of its own
+      ## variables would change the simulation itself.
       var <- paste0("BIOAV_CMT", k)
+      while(any(grepl(paste0("(^|[^A-Za-z0-9_.])", var, "($|[^A-Za-z0-9_.])"),
+                      lines))) {
+        var <- paste0(var, "_")
+      }
       out <- c(out, paste0(f_match[i, 2], var, " <- ", f_match[i, 4]))
       bioavailability[c(as.character(k), state)] <- var
     }

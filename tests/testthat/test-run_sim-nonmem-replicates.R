@@ -90,6 +90,14 @@ test_that("sim_regimen_doses returns NULL when there is nothing to derive", {
   )
 })
 
+test_that("sim_regimen_doses times a record by its last dose, ADDL counted", {
+  dat <- data.frame(
+    ID = c(1, 1, 2), TIME = c(0, 6, 0), DV = 0, AMT = c(100, 0, 100),
+    EVID = c(1, 0, 1), ADDL = c(3, 0, "."), II = c(12, 0, 0)
+  )
+  expect_equal(sim_regimen_doses(dat)$time, c(36, 0))
+})
+
 test_that("sim_regimen_doses keeps the subject and compartment of each dose", {
   dat <- data.frame(
     ID = c(1, 1, 1, 2, 2, 2), TIME = c(0, 12, 24, 0, 12, 24), DV = 0,

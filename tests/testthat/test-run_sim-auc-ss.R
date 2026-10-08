@@ -58,6 +58,18 @@ test_that("add_nlmixr_bioavailability_outputs exposes f() as an output", {
   expect_match(res$code, "BIOAV_CMT2 <- 0.5\n", fixed = TRUE)
 })
 
+test_that("add_nlmixr_bioavailability_outputs does not reuse a model variable", {
+  ## the model has its own BIOAV_CMT1, used in the prediction: assigning to it
+  ## would change the simulation
+  code <- sub("    IPRED <- A_CENTRAL / V\n",
+              "    BIOAV_CMT1 <- 2\n    IPRED <- BIOAV_CMT1 * A_CENTRAL / V\n",
+              .oral_nlmixr_code(), fixed = TRUE)
+  res <- add_nlmixr_bioavailability_outputs(code)
+  expect_equal(unname(res$bioavailability), c("BIOAV_CMT1_", "BIOAV_CMT1_"))
+  expect_match(res$code, "BIOAV_CMT1_ <- F_BIO\n", fixed = TRUE)
+  expect_match(res$code, "BIOAV_CMT1 <- 2\n", fixed = TRUE)
+})
+
 test_that("add_nlmixr_bioavailability_outputs leaves a model without f() alone", {
   code <- .oral_nlmixr_code("")
   res <- add_nlmixr_bioavailability_outputs(code)

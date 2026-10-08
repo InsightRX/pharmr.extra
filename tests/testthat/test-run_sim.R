@@ -510,11 +510,23 @@ test_that("calc_pk_variables: bioavailability at the dose record, per replicate"
 
 test_that("calc_pk_variables: a dose with a missing CMT goes into compartment 1", {
   dat <- dplyr::mutate(.make_pk_data(), CL = 5, F1 = 0.5)
-  for(cmt in list(NA, ".", "")) {
+  ## CMT = 0 is NONMEM's and rxode2's "default dose compartment"
+  for(cmt in list(NA, ".", "", 0, "0")) {
     reg <- list(dose = c(100, 100), id = c(1, 2), cmt = c(cmt, 1))
     out <- calc_pk_variables(dat, regimen = reg)
     expect_equal(unique(out$AUC_SS), 0.5 * 100 / 5)
   }
+})
+
+test_that("calc_pk_variables: the last dose is the latest one, ADDL counted", {
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5,
+                       F1 = rep(c(0.2, 0.4, 0.6, 0.8, 1.0), 2))
+  ## ID 1: a 100 mg record whose ADDL runs to t = 24, then a 50 mg record at
+  ## t = 6 that sorts after it but is not the last dose
+  reg <- list(dose = c(100, 50, 200), id = c(1, 1, 2), time = c(24, 6, 12))
+  out <- calc_pk_variables(dat, regimen = reg)
+  expect_equal(unique(out$AUC_SS[out$ID == 1]), 1.0 * 100 / 5)
+  expect_equal(unique(out$AUC_SS[out$ID == 2]), 0.6 * 200 / 5)
 })
 
 test_that("calc_pk_variables: no F column means full bioavailability", {

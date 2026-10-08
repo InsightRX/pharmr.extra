@@ -1099,24 +1099,25 @@ last_dose_per_subject <- function(regimen, data) {
     if(is.null(x) || length(x) != length(dose)) return(rep(default, length(dose)))
     x
   }
-  ## A dose without a compartment goes into compartment 1, as it does in
-  ## NONMEM -- also where the dataset has a CMT column but leaves it empty
-  ## for this record.
+  ## A dose without a compartment goes into the default dose compartment,
+  ## compartment 1 -- also where the dataset has a CMT column but leaves it
+  ## empty for this record, or sets it to 0, which NONMEM and rxode2 read as
+  ## "the default dose compartment" too.
   cmt <- as.character(per_dose(regimen$cmt, "1"))
   cmt[is.na(cmt) | trimws(cmt) %in% c("", ".")] <- "1"
+  suppressWarnings(cmt_num <- as.numeric(cmt))
+  cmt[!is.na(cmt_num) & cmt_num == 0] <- "1"
   suppressWarnings(time <- as.numeric(per_dose(regimen$time, NA_real_)))
   id <- regimen$id
   if(!is.null(id) && length(id) == length(dose) && "ID" %in% names(data)) {
-    ## Last dose record per subject, in dataset order (the simulation dataset
-    ## is sorted by ID and TIME before it gets here).
+    ## Last dose per subject: the latest by dose time (which counts ADDL, so
+    ## an earlier record can hold the last dose), dataset order breaking ties
+    ## and standing in where there are no times.
     id <- as.character(id)
-    is_last <- !duplicated(id, fromLast = TRUE)
-    idx <- match(as.character(data$ID), id[is_last])
-    list(
-      dose = dose[is_last][idx],
-      time = time[is_last][idx],
-      cmt  = cmt[is_last][idx]
-    )
+    ord <- order(id, time, seq_along(id), na.last = FALSE)
+    last <- ord[!duplicated(id[ord], fromLast = TRUE)]
+    idx <- last[match(as.character(data$ID), id[last])]
+    list(dose = dose[idx], time = time[idx], cmt = cmt[idx])
   } else {
     n <- nrow(data)
     list(
