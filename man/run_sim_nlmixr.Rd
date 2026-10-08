@@ -53,7 +53,12 @@ all variables declared in the NONMEM code.}
 
 \item{add_pk_variables}{calculate basic PK variables: CMAX_OBS, TMAX_OBS,
 CMIN_OBS, and (when \code{CL} is in the output table) AUC_SS. AUC_SS is derived
-as the last dose in the simulation dataset divided by CL.}
+as the last dose in the simulation dataset divided by CL, scaled into the
+units the model reports concentrations in: NONMEM predicts \verb{A(n)/S<n>}, so a
+model with e.g. \code{S2 = V2/1000} (mg dosed, ng/mL reported) gets an AUC_SS
+1000x that of plain dose/CL. The equivalent rewrite
+\code{create_model(scale_observations = )} applies to nlmixr2 models is picked up
+the same way. See \code{\link[=get_dv_scale_factor]{get_dv_scale_factor()}}.}
 
 \item{output_file}{TODO}
 

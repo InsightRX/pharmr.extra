@@ -99,6 +99,15 @@ run_sim_nlmixr <- function(
     cli::cli_abort("Could not extract an nlmixr2 model function from the model code.")
   }
 
+  ## How the model scales the prediction, so AUC_SS (dose/CL) comes out in the
+  ## units of the simulated concentrations. Read off the code rather than the
+  ## model: `create_model(scale_observations = )` injects the
+  ## `S<n> <- <vol>/<scale>` rewrite into the rendered nlmixr code only, and a
+  ## worker process has nothing but that code anyway.
+  dv_scale <- if(add_pk_variables) {
+    get_dv_scale_factor(code = model_code, verbose = verbose)
+  } else 1
+
   unique_regimens <- unique(sim_data[[".regimen"]])
   comb <- list()
   set.seed(seed)
@@ -157,7 +166,8 @@ run_sim_nlmixr <- function(
           regimen_for_pk <- list(dose = dose_rows$AMT)
         }
       }
-      out_df <- calc_pk_variables(data = out_df, regimen = regimen_for_pk)
+      out_df <- calc_pk_variables(data = out_df, regimen = regimen_for_pk,
+                                  dv_scale = dv_scale)
     }
     out_df$regimen_label <- reg_label
     comb[[reg_label]] <- out_df
@@ -346,4 +356,53 @@ rx_seed_supported <- function() {
   ns <- tryCatch(asNamespace("rxode2"), error = function(e) NULL)
   if(is.null(ns)) return(FALSE)
   all(c("rxSetSeed", "rxGetSeed") %in% getNamespaceExports(ns))
+}
+
+#' Re-render a model's nlmixr2 code, observation scaling included
+#'
+#' Every Pharmpy operation — `set_initial_estimates()` for an uncertainty
+#' draw, `mu_reference_model()`, `update_parameters()` for a fitted model —
+#' returns a fresh object, so the `nlmixr_code` attribute is gone, and with it
+#' the `S<n> <- <vol>/<scale>` rewrite `create_model(scale_observations = )`
+#' injected. `$code` never carried that rewrite in the first place: pharmpy's
+#' NONMEM->nlmixr conversion is unreliable with `S<n>` scaling combined with
+#' additive/combined error models, which is why the scaling is injected into
+#' the rendered code rather than set on the model.
+#'
+#' So re-rendering from `$code` alone drops the scaling, and the model is then
+#' fitted or simulated in different units than the one `create_model()`
+#' returned — concentrations, and the AUC_SS derived from them, off by the
+#' scaling factor. This reads the factor back off the code the previous object
+#' carried and re-applies it.
+#'
+#' @param model the object the code is carried over from.
+#' @param new_model what `model` turned into (the draw, the mu-referenced
+#' model, the fitted final model).
+#'
+#' @returns nlmixr2 model code (character) for `new_model`.
+#' @noRd
+rerender_nlmixr_code <- function(model, new_model) {
+  code <- make_nlmixr_saem_safe(new_model$code)
+  scale <- nlmixr_scale_observations(model)
+  ## Not when the new code already divides the prediction by an `S<n>`: the
+  ## scaling is then in the model's own statements and survives on its own,
+  ## and injecting again would rewrite `IPRED <- A_CENTRAL/S2` into the
+  ## self-referential `S2 <- S2/1000`.
+  if(!is.null(scale) && !nlmixr_pred_is_scaled(code)) {
+    code <- inject_nlmixr_scaling(code, scale)
+  }
+  code
+}
+
+#' The `scale_observations` factor a model's cached nlmixr2 code carries
+#'
+#' `NULL` when the model has no cached code, or none with a scaling in it.
+#'
+#' @inheritParams rerender_nlmixr_code
+#' @noRd
+nlmixr_scale_observations <- function(model) {
+  cached <- attr(model, "nlmixr_code")
+  if(is.null(cached)) return(NULL)
+  scale <- suppressWarnings(dv_scale_from_code(cached))
+  if(isTRUE(all.equal(scale, 1))) NULL else scale
 }

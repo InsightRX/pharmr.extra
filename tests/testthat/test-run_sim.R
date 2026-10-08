@@ -379,6 +379,26 @@ test_that("calc_pk_variables: AUC_SS computed when dose is numeric-like characte
   expect_equal(unique(out$AUC_SS), 100 / 5)
 })
 
+test_that("calc_pk_variables: AUC_SS scaled by dv_scale", {
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5)
+  reg <- data.frame(time = c(0, 12), dose = c(100, 100), route = "iv",
+                    regimen = "100mg")
+  ## `S2 = V2/1000`: concentrations (and so AUC) are 1000x the plain
+  ## amount/volume units dose/CL is in
+  out <- calc_pk_variables(dat, regimen = reg, dv_scale = 1000)
+  expect_equal(unique(out$AUC_SS), 1000 * 100 / 5)
+})
+
+test_that("calc_pk_variables: unusable dv_scale falls back to dose/CL", {
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5)
+  reg <- data.frame(time = c(0, 12), dose = c(100, 100), route = "iv",
+                    regimen = "100mg")
+  for(bad in list(NULL, NA, 0, -1, "1000", c(1, 2), Inf)) {
+    out <- calc_pk_variables(dat, regimen = reg, dv_scale = bad)
+    expect_equal(unique(out$AUC_SS), 100 / 5)
+  }
+})
+
 # ── create_dosing_records() ─────────────────────────────────────────────────
 
 .dose_data2 <- function() data.frame(ID = 1:2, TIME = 0, DV = 0, EVID = 1)

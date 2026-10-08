@@ -65,7 +65,12 @@
 #' `$COVARIANCE` reports.
 #' @param add_pk_variables calculate basic PK variables: CMAX_OBS, TMAX_OBS,
 #' CMIN_OBS, and (when `CL` is in the output table) AUC_SS. AUC_SS is derived
-#' as the last dose in the simulation dataset divided by CL.
+#' as the last dose in the simulation dataset divided by CL, scaled into the
+#' units the model reports concentrations in: NONMEM predicts `A(n)/S<n>`, so a
+#' model with e.g. `S2 = V2/1000` (mg dosed, ng/mL reported) gets an AUC_SS
+#' 1000x that of plain dose/CL. The equivalent rewrite
+#' `create_model(scale_observations = )` applies to nlmixr2 models is picked up
+#' the same way. See [get_dv_scale_factor()].
 #' @param update_table should any existing $TABLE records be removed, and a new
 #'  `simtab` be created? This is default. If `FALSE`, it will leave $TABLEs as
 #' specifed in the model. However, in the return object, only the first table
@@ -239,6 +244,15 @@ run_sim <- function(
     cli::cli_abort("Unsupported simulation tool: {tool}.")
   }
 
+  ## How the model scales the observation compartment, so AUC_SS (dose/CL)
+  ## comes out in the same units as the simulated concentrations. Resolved
+  ## once here: it depends on the model only, and every path that computes PK
+  ## variables -- in this process or in a worker -- needs the same number.
+  dv_scale <- 1
+  if(tool == "nonmem" && add_pk_variables && update_table) {
+    dv_scale <- get_dv_scale_factor(model, verbose = verbose)
+  }
+
   ## `keep`: copy the control streams and listings out of the run folder and
   ## remove it. Checked here, with the other arguments, so a bad `keep` errors
   ## before anything runs -- but only *armed* further down, once the run itself
@@ -395,6 +409,7 @@ run_sim <- function(
         nmfe             = nwpri_nmfe,
         update_table     = update_table,
         add_pk_variables = add_pk_variables,
+        dv_scale         = dv_scale,
         n_cores          = n_cores,
         force            = TRUE,
         verbose          = verbose
@@ -440,7 +455,8 @@ run_sim <- function(
       ## computed in calc_pk_variables (needs regimen$dose).
       attr(results, "tables")[[output_file]] <- calc_pk_variables(
         data = attr(results, "tables")[[output_file]],
-        regimen = reg$regimen_for_pk
+        regimen = reg$regimen_for_pk,
+        dv_scale = dv_scale
       )
     }
 
@@ -631,14 +647,17 @@ run_sim <- function(
     replicate_fn <- make_nonmem_replicate_fn(
       nmfe             = nmfe,
       update_table     = update_table,
-      add_pk_variables = add_pk_variables
+      add_pk_variables = add_pk_variables,
+      dv_scale         = dv_scale
     )
   } else if(n_cores > 1L) {
     ## Render every replicate's model here, in the parent: applying a draw is a
     ## Pharmpy (Python) operation and the resulting model object cannot cross a
     ## process boundary, but the nlmixr2 code it renders to (a string) can.
     ## Regenerated rather than read from the cached `nlmixr_code` attribute,
-    ## which still holds the point estimates.
+    ## which still holds the point estimates -- but through
+    ## `rerender_nlmixr_code()`, which puts the observation scaling that
+    ## attribute carries back into the regenerated code.
     if(verbose) {
       cli::cli_alert_info("Preparing {n_replicates} replicate model{?s}")
     }
@@ -646,7 +665,7 @@ run_sim <- function(
       m <- pharmr::set_initial_estimates(
         model, inits = as.list(draws[r, , drop = FALSE])
       )
-      list(index = r, code = make_nlmixr_saem_safe(m$code), seed = seed)
+      list(index = r, code = rerender_nlmixr_code(model, m), seed = seed)
     })
     ## Resolve the dataset in the parent for the same reason (it is identical
     ## across replicates, so this also avoids re-reading it per worker).
@@ -713,11 +732,13 @@ run_sim <- function(
         run_captured(r, function() {
           inits <- as.list(draws[r, , drop = FALSE])
           m <- pharmr::set_initial_estimates(model, inits = inits)
-          ## Force nlmixr2 code to regenerate from the updated estimates: a
-          ## stale cached `nlmixr_code` attribute would otherwise make
-          ## run_sim_nlmixr() silently simulate the point estimates on every
-          ## replicate.
-          attr(m, "nlmixr_code") <- NULL
+          ## Regenerate the nlmixr2 code from the updated estimates: the
+          ## cached `nlmixr_code` attribute still holds the point estimates,
+          ## and leaving it in place would make run_sim_nlmixr() silently
+          ## simulate those on every replicate. Replaced rather than cleared,
+          ## so the observation scaling it carries is re-applied to the draw
+          ## instead of being dropped with it.
+          attr(m, "nlmixr_code") <- rerender_nlmixr_code(model, m)
           ## The *same* seed for every replicate, deliberately: see the note on
           ## common random numbers at the top of this block.
           ## `verbose = FALSE` + `suppressMessages()`: the engine's per-regimen
@@ -964,13 +985,26 @@ sample_uncertainty_parameters <- function(
 #' Calculate some basic PK variables from simulated or observed data
 #'
 #' @param data data.frame in NONMEM format
-#' @param run_sim
+#' @param regimen dosing regimen as a list with a `dose` element, used to
+#' derive AUC_SS from the last dose. `NULL` skips AUC_SS.
+#' @param dv_scale multiplier putting `dose / CL` into the units the model
+#' reports concentrations in, i.e. `V / S<n>` for the observation compartment
+#' (see [get_dv_scale_factor()]). `1` (the default) is the usual
+#' `S<n> = V` case.
 #'
 #' @returns data.frame
 calc_pk_variables <- function(
     data,
-    regimen = NULL
+    regimen = NULL,
+    dv_scale = 1
 ) {
+
+  ## A scaling that cannot be used is no reason to drop AUC_SS altogether:
+  ## fall back to the unscaled dose/CL, as before.
+  if(length(dv_scale) != 1 || !is.numeric(dv_scale) || is.na(dv_scale) ||
+     !is.finite(dv_scale) || dv_scale <= 0) {
+    dv_scale <- 1
+  }
 
   if(!is.null(data)) {
     ## Find cmax/tmax for each ID
@@ -997,14 +1031,18 @@ calc_pk_variables <- function(
       cli::cli_alert_info("Skipping Cmin calculation, some required columns not in output data.")      
     }
 
-    ## Add AUC_SS as CL/dose, if we're simulating a specific regimen
+    ## Add AUC_SS as dose/CL, if we're simulating a specific regimen. Scaled
+    ## by `dv_scale` so it lands in the units the model reports
+    ## concentrations in: NONMEM predicts `A(n)/S<n>`, so a model with
+    ## e.g. `S2 = V2/1000` reports concentrations (and therefore AUCs) 1000x
+    ## the plain amount/volume units that dose/CL is in.
     if(!is.null(regimen) && "CL" %in% names(data)) {
       suppressWarnings(
         last_dose <- as.numeric(utils::tail(regimen$dose, 1))
       )
       if(!is.na(last_dose) && last_dose > 0) {
         data <- data |>
-          dplyr::mutate(AUC_SS = last_dose / .data$CL)
+          dplyr::mutate(AUC_SS = last_dose * dv_scale / .data$CL)
       } else {
         cli::cli_warn("Could not calculate AUCss, last dose could not be identified.")
       }

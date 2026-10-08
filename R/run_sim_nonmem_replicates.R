@@ -391,6 +391,8 @@ prepare_nonmem_replicate_specs <- function(
 #' still reachable.
 #' @param update_table were the `$TABLE` records rebuilt by [run_sim()]?
 #' @param add_pk_variables add derived PK variables to the output table?
+#' @param dv_scale multiplier putting AUC_SS into the units the model reports
+#' concentrations in (see [get_dv_scale_factor()]).
 #' @param clean remove NONMEM's temporary files from each run folder after the
 #' run, as [run_nlme()] does? One folder per replicate per regimen is a lot of
 #' scratch to leave behind.
@@ -403,11 +405,13 @@ make_nonmem_replicate_fn <- function(
     nmfe,
     update_table = TRUE,
     add_pk_variables = FALSE,
+    dv_scale = 1,
     clean = TRUE
 ) {
   force(nmfe)
   force(update_table)
   force(add_pk_variables)
+  force(dv_scale)
   force(clean)
   function(spec) {
     run_captured(spec$index, function() {
@@ -420,7 +424,8 @@ make_nonmem_replicate_fn <- function(
             clean       = clean
           )
           if(update_table && add_pk_variables) {
-            tab <- calc_pk_variables(tab, regimen = reg$regimen_for_pk)
+            tab <- calc_pk_variables(tab, regimen = reg$regimen_for_pk,
+                                     dv_scale = dv_scale)
           }
           tab |>
             dplyr::mutate(regimen_label = reg$label)
