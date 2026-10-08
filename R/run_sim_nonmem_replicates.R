@@ -179,8 +179,9 @@ build_nonmem_sim_model <- function(
   }
   ## Bioavailability too: AUC_SS is F * dose / CL, and F is individual
   ## wherever it carries IIV, so it has to come from the table just like CL.
+  ## NONMEM names are case-insensitive, so `f1` counts as well.
   bioavailability_names <- get_defined_pk_parameters(
-    sim_model, possible = paste0("F", 1:9)
+    sim_model, possible = c(paste0("F", 1:9), paste0("f", 1:9))
   )
   table_variables <- unique(
     c(checked_variables, parameter_names, bioavailability_names)

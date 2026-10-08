@@ -70,6 +70,18 @@ test_that("add_nlmixr_bioavailability_outputs does not reuse a model variable", 
   expect_match(res$code, "BIOAV_CMT1 <- 2\n", fixed = TRUE)
 })
 
+test_that("add_nlmixr_bioavailability_outputs ignores commented-out code", {
+  ## a commented-out state ahead of the real ones must not shift their numbers
+  code <- sub("    d/dt(A_DEPOT)",
+              "    # d/dt(A_OLD) <- 0\n    # f(A_OLD) <- 0.1\n    d/dt(A_DEPOT)",
+              .oral_nlmixr_code(), fixed = TRUE)
+  res <- add_nlmixr_bioavailability_outputs(code)
+  expect_equal(res$bioavailability,
+               c("1" = "BIOAV_CMT1", A_DEPOT = "BIOAV_CMT1"))
+  ## and the commented-out f() gets no output of its own
+  expect_false(grepl("BIOAV_CMT[0-9_]* <- 0.1", res$code))
+})
+
 test_that("add_nlmixr_bioavailability_outputs leaves a model without f() alone", {
   code <- .oral_nlmixr_code("")
   res <- add_nlmixr_bioavailability_outputs(code)

@@ -27,7 +27,7 @@ reports concentrations in, i.e. \verb{V / S<n>} for the observation compartment
 (number or name, as in the \code{CMT} of the dose records) to the column in
 \code{data} holding the bioavailability for that compartment. \code{NULL} (the
 default) maps compartment \code{n} to a column \verb{F<n>} (\code{F1}-\code{F9}, as NONMEM
-names them) where \code{data} has one. Doses into a compartment without a
+names them, in either case) where \code{data} has one. Doses into a compartment without a
 bioavailability column are taken as fully bioavailable.}
 }
 \value{

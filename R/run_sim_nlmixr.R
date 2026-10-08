@@ -208,14 +208,17 @@ add_nlmixr_bioavailability_outputs <- function(code) {
   }
   lines <- unlist(strsplit(paste(code, collapse = "\n"), "\n", fixed = TRUE))
   name_rx <- "[A-Za-z.][A-Za-z0-9_.]*"
+  ## Matched with comments stripped, so a commented-out `d/dt()` neither
+  ## counts as a state nor shifts the numbering of the ones after it.
+  code_lines <- sub("#.*$", "", lines)
   ## rxode2 numbers the states in order of appearance, which in rendered
   ## Pharmpy code is the order of the `d/dt()` statements.
   states <- unique(stringr::str_match(
-    lines, paste0("d/dt\\(\\s*(", name_rx, ")\\s*\\)")
+    code_lines, paste0("d/dt\\(\\s*(", name_rx, ")\\s*\\)")
   )[, 2])
   states <- states[!is.na(states)]
   f_match <- stringr::str_match(
-    lines,
+    code_lines,
     paste0("^(\\s*)f\\(\\s*(", name_rx, ")\\s*\\)\\s*(?:<-|=)\\s*(.+?)\\s*;?\\s*$")
   )
   bioavailability <- c()

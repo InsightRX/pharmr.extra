@@ -1007,7 +1007,7 @@ sample_uncertainty_parameters <- function(
 #' (number or name, as in the `CMT` of the dose records) to the column in
 #' `data` holding the bioavailability for that compartment. `NULL` (the
 #' default) maps compartment `n` to a column `F<n>` (`F1`-`F9`, as NONMEM
-#' names them) where `data` has one. Doses into a compartment without a
+#' names them, in either case) where `data` has one. Doses into a compartment without a
 #' bioavailability column are taken as fully bioavailable.
 #'
 #' @returns data.frame
@@ -1103,20 +1103,18 @@ last_dose_per_subject <- function(regimen, data) {
   ## compartment 1 -- also where the dataset has a CMT column but leaves it
   ## empty for this record, or sets it to 0, which NONMEM and rxode2 read as
   ## "the default dose compartment" too.
-  cmt <- as.character(per_dose(regimen$cmt, "1"))
-  cmt[is.na(cmt) | trimws(cmt) %in% c("", ".")] <- "1"
-  suppressWarnings(cmt_num <- as.numeric(cmt))
-  cmt[!is.na(cmt_num) & cmt_num == 0] <- "1"
+  cmt <- canonical_key(per_dose(regimen$cmt, "1"))
+  cmt[is.na(cmt) | cmt %in% c("", ".", "0")] <- "1"
   suppressWarnings(time <- as.numeric(per_dose(regimen$time, NA_real_)))
   id <- regimen$id
   if(!is.null(id) && length(id) == length(dose) && "ID" %in% names(data)) {
     ## Last dose per subject: the latest by dose time (which counts ADDL, so
     ## an earlier record can hold the last dose), dataset order breaking ties
     ## and standing in where there are no times.
-    id <- as.character(id)
+    id <- canonical_key(id)
     ord <- order(id, time, seq_along(id), na.last = FALSE)
     last <- ord[!duplicated(id[ord], fromLast = TRUE)]
-    idx <- last[match(as.character(data$ID), id[last])]
+    idx <- last[match(canonical_key(data$ID), id[last])]
     list(dose = dose[idx], time = time[idx], cmt = cmt[idx])
   } else {
     n <- nrow(data)
@@ -1126,6 +1124,23 @@ last_dose_per_subject <- function(regimen, data) {
       cmt  = rep(utils::tail(cmt, 1), n)
     )
   }
+}
+
+#' A matching key for an ID or compartment
+#'
+#' Numeric-looking values are keyed by their number, so `"001"`, `"1.0"` and
+#' `1` match: the simulation dataset can spell an ID or CMT one way and the
+#' NONMEM table or rxSolve output (numeric) another. Anything else is keyed by
+#' its trimmed text.
+#'
+#' @param x vector of IDs or compartments.
+#'
+#' @returns character vector, same length as `x`.
+#' @noRd
+canonical_key <- function(x) {
+  txt <- trimws(as.character(x))
+  suppressWarnings(num <- as.numeric(txt))
+  ifelse(is.na(num), txt, as.character(num))
 }
 
 #' For every row of `data`, the row that holds its subject's last dose
@@ -1156,7 +1171,7 @@ rows_at_last_dose <- function(data, time) {
   if(n == 0 || !all(c("ID", "TIME") %in% names(data)) || all(is.na(time))) {
     return(idx)
   }
-  ids <- as.character(data$ID)
+  ids <- canonical_key(data$ID)
   t <- data$TIME
   evid <- if("EVID" %in% names(data)) data$EVID else rep(0, n)
   is_dose <- evid %in% c(1, 4)
@@ -1201,9 +1216,11 @@ rows_at_last_dose <- function(data, time) {
 #' @noRd
 bioavailability_for_doses <- function(data, cmt, bioavailability = NULL) {
   if(is.null(bioavailability)) {
-    f_cols <- grep("^F[1-9]$", names(data), value = TRUE)
-    bioavailability <- stats::setNames(f_cols, sub("^F", "", f_cols))
+    ## NONMEM names are case-insensitive: `f1` is F1 too
+    f_cols <- grep("^[Ff][1-9]$", names(data), value = TRUE)
+    bioavailability <- stats::setNames(f_cols, substring(f_cols, 2))
   }
+  names(bioavailability) <- canonical_key(names(bioavailability))
   f <- rep(1, nrow(data))
   for(compartment in intersect(unique(cmt), names(bioavailability))) {
     col <- bioavailability[[compartment]]

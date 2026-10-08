@@ -529,6 +529,16 @@ test_that("calc_pk_variables: the last dose is the latest one, ADDL counted", {
   expect_equal(unique(out$AUC_SS[out$ID == 2]), 0.6 * 200 / 5)
 })
 
+test_that("calc_pk_variables: IDs and compartments match however they're spelled", {
+  ## "001" in the simulation dataset, 1 in the NONMEM table / rxSolve output;
+  ## "1.0" / "01" for compartment 1; a lowercase NONMEM f1
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5, f1 = 0.5)
+  reg <- list(dose = c(100, 200), id = c("001", "2.0"), cmt = c("1.0", "01"))
+  out <- calc_pk_variables(dat, regimen = reg)
+  expect_equal(unique(out$AUC_SS[out$ID == 1]), 0.5 * 100 / 5)
+  expect_equal(unique(out$AUC_SS[out$ID == 2]), 0.5 * 200 / 5)
+})
+
 test_that("calc_pk_variables: no F column means full bioavailability", {
   dat <- dplyr::mutate(.make_pk_data(), CL = 5)
   out <- calc_pk_variables(dat, regimen = list(dose = 100, id = 1, cmt = 1))
