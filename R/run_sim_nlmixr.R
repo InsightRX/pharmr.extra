@@ -134,8 +134,9 @@ run_sim_nlmixr <- function(
     if(verbose) cli::cli_alert_info("Running simulation ({reg_label})")
     sim_data_regimen <- sim_data |>
       dplyr::filter(.data$.regimen == reg_label) |>
-      dplyr::select(-".regimen") |>
-      sort_nlmixr_events()
+      dplyr::select(-".regimen")
+    warn_on_restarting_time(sim_data_regimen, reg_label)
+    sim_data_regimen <- sort_nlmixr_events(sim_data_regimen)
 
     raw_sim <- rxode2::rxSolve(
       object = nlmixr_fn,

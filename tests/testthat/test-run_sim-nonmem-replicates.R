@@ -158,6 +158,18 @@ test_that("sim_regimen_doses expands the doses ADDL/II imply", {
   )
 })
 
+test_that("warn_on_restarting_time warns where a subject's clock restarts", {
+  dat <- data.frame(ID = 1, TIME = c(0, 1, 0, 1), EVID = c(1, 0, 4, 0))
+  expect_warning(warn_on_restarting_time(dat, "a"), "stack_encounters")
+  expect_no_warning(warn_on_restarting_time(
+    data.frame(ID = c(1, 1, 2), TIME = c(0, 1, 0), EVID = c(1, 0, 1)), "a"
+  ))
+  ## merely out of order: sorted as a matter of course
+  expect_no_warning(warn_on_restarting_time(
+    data.frame(ID = 1, TIME = c(6, 0, 0), EVID = c(0, 0, 1)), "a"
+  ))
+})
+
 test_that("sim_regimen_doses expands ADDL without an ID column", {
   dat <- data.frame(TIME = c(0, 30), DV = 0, AMT = c(100, 0), EVID = c(1, 0),
                     ADDL = c(2, 0), II = c(12, 0))

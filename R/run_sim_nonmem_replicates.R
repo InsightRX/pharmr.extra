@@ -63,6 +63,7 @@ resolve_sim_regimens <- function(
     reg_data <- sim_data |>
       dplyr::filter(.data$.regimen == reg_label) |>
       dplyr::select(-".regimen")
+    warn_on_restarting_time(reg_data, reg_label)
     if("EVID" %in% names(reg_data)) {
       reg_data <- reg_data |>
         dplyr::arrange(.data$ID, .data$TIME, -.data$EVID)
@@ -249,6 +250,43 @@ time_segments <- function(time, id = NULL, reset = NULL) {
   first <- !duplicated(block)
   segment <- stats::ave(seq_along(block[first]), id[first], FUN = seq_along)
   as.integer(segment[block])
+}
+
+#' Warn about subjects whose time restarts in a simulation dataset
+#'
+#' The simulation dataset is sorted by `ID` and `TIME` before it is
+#' simulated, so a subject whose clock restarts at a reset (encounters each
+#' starting at time 0 with an `EVID` 3 or 4 record) has its encounters
+#' interleaved, which simulates something else
+#' than the dataset describes. [stack_encounters()] puts them on one running
+#' clock instead.
+#'
+#' @param data one regimen's simulation dataset, in the order it was given.
+#' @param label the regimen label, for the message.
+#'
+#' @returns `NULL`, invisibly. Called for its side effect of warning.
+#' @noRd
+warn_on_restarting_time <- function(data, label) {
+  if(!all(c("ID", "TIME", "EVID") %in% names(data)) || nrow(data) < 2) {
+    return(invisible(NULL))
+  }
+  ## Time going back at a reset record: a dataset that is merely out of order
+  ## is sorted as a matter of course, but NONMEM only lets the time restart
+  ## at a reset (EVID 3 or 4).
+  n <- nrow(data)
+  suppressWarnings(time <- as.numeric(data$TIME))
+  id <- as.character(data$ID)
+  restarts <- c(FALSE, id[-1] == id[-n] & time[-1] < time[-n] &
+                  data$EVID[-1] %in% c(3, 4))
+  if(any(restarts %in% TRUE)) {
+    cli::cli_warn(c(
+      "Time goes back within a subject in the simulation dataset ({label}).",
+      i = "The dataset is sorted by {.field ID} and {.field TIME} before it is \
+           simulated, which interleaves encounters on a restarting clock. Use \
+           {.fn stack_encounters} to put them on one running clock."
+    ))
+  }
+  invisible(NULL)
 }
 
 #' Turn a model into a simulation-only model with the requested `$TABLE`
