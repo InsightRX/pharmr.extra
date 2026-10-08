@@ -26,7 +26,9 @@ calc_pk_variables(data, regimen = NULL, dv_scale = 1, bioavailability = NULL)
   bioavailability that applies (where absent, the regimen's
   `default_cmt`, else compartment 1), and an optional `time` element the
   dose time, at which that bioavailability is taken. `NULL` skips
-  AUC_SS.
+  AUC_SS. A `time` element is also what CMIN_OBS uses to assign
+  observations to dosing intervals; without it the dose records (`EVID`
+  1 or 4) in `data` are used, if there are any.
 
 - dv_scale:
 

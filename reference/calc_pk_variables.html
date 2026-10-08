@@ -11,7 +11,7 @@ into, and the subject's CL, then scaled by dv_scale."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9147</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9148</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -68,7 +68,10 @@ element gives the compartment each dose goes into, which decides the
 bioavailability that applies (where absent, the regimen's <code>default_cmt</code>,
 else compartment 1), and an optional <code>time</code> element the dose time, at which
 that bioavailability is taken.
-<code>NULL</code> skips AUC_SS.</p></dd>
+<code>NULL</code> skips AUC_SS.
+A <code>time</code> element is also what CMIN_OBS uses to assign observations to
+dosing intervals; without it the dose records (<code>EVID</code> 1 or 4) in <code>data</code>
+are used, if there are any.</p></dd>
 
 
 <dt id="arg-dv-scale">dv_scale<a class="anchor" aria-label="anchor" href="#arg-dv-scale"></a></dt>
