@@ -407,6 +407,23 @@ test_that("calc_pk_variables: CMIN_OBS honours resets that keep the time going",
   expect_true(is.na(unique(out$CMIN_OBS)))
 })
 
+test_that("calc_pk_variables: CMIN_OBS follows occasions, not clock time", {
+  ## an EVID 3 reset restarting the clock, observed but not dosed after
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 1, 2, 0, 1, 2), DV = c(0, 5, 4, 0, 0.5, 0.4),
+    EVID = c(1, 0, 0, 3, 0, 0)
+  )
+  expect_true(is.na(unique(calc_pk_variables(dat)$CMIN_OBS)))
+  ## and with the regimen giving the doses
+  reg <- sim_regimen_doses(transform(dat, AMT = ifelse(EVID == 1, 100, 0)))
+  expect_true(is.na(unique(calc_pk_variables(dat, regimen = reg)$CMIN_OBS)))
+  ## dosed in the last occasion as well
+  dat$EVID[4] <- 4
+  expect_equal(unique(calc_pk_variables(dat)$CMIN_OBS), 0.4)
+  reg <- sim_regimen_doses(transform(dat, AMT = ifelse(EVID %in% c(1, 4), 100, 0)))
+  expect_equal(unique(calc_pk_variables(dat, regimen = reg)$CMIN_OBS), 0.4)
+})
+
 test_that("calc_pk_variables: CMIN_OBS is NA without a dosing interval", {
   dat <- .make_pk_data()
   dat <- dat[dat$EVID == 0, ]

@@ -108,14 +108,22 @@ resolve_sim_regimens <- function(
 #' element per dose (doses implied by `ADDL`/`II` included) in the first four
 #' (`id`, `time` and `cmt` are `NULL` without an `ID`, `TIME` or `CMT`
 #' column), or `NULL` when the dataset has no
-#' dose records. A dataset with reset records (`EVID` 3 or 4) adds `reset`,
-#' a `data.frame(id = , time = )` of them.
+#' dose records. A dataset whose subjects have more than one occasion (see
+#' `time_segments()`) adds `occasion`, the occasion of each dose, and
+#' `occasion_start`, a `data.frame(id = , occasion = , time = )` giving the
+#' time each occasion starts at.
 #' @noRd
 sim_regimen_doses <- function(data, default_cmt = 1) {
   if(!all(c("EVID", "AMT") %in% names(data))) return(NULL)
+  ## The occasion of every record, counted over the whole dataset: the
+  ## simulation output need not hold the dose and reset records it takes.
+  if("TIME" %in% names(data)) {
+    suppressWarnings(time <- as.numeric(data$TIME))
+    data$.occasion <- time_segments(time, data[["ID"]],
+                                    reset = data$EVID %in% c(3, 4))
+  }
   dose_rows <- data[data$EVID %in% c(1, 4), , drop = FALSE]
   if(nrow(dose_rows) == 0) return(NULL)
-  reset_rows <- data[data$EVID %in% c(3, 4), , drop = FALSE]
   dose_rows <- expand_addl_doses(dose_rows)
   out <- list(
     dose = dose_rows$AMT,
@@ -124,12 +132,14 @@ sim_regimen_doses <- function(data, default_cmt = 1) {
     cmt  = dose_rows[["CMT"]],
     default_cmt = default_cmt
   )
-  ## Where the system is reset (a new occasion): the simulation output need
-  ## not hold these records either.
-  if(nrow(reset_rows) > 0 && "TIME" %in% names(reset_rows)) {
-    out$reset <- data.frame(
-      id = if("ID" %in% names(reset_rows)) reset_rows$ID else NA,
-      time = reset_rows$TIME
+  if(".occasion" %in% names(data) && any(data$.occasion > 1)) {
+    first <- !duplicated(data[, intersect(c("ID", ".occasion"), names(data)),
+                              drop = FALSE])
+    out$occasion <- dose_rows$.occasion
+    out$occasion_start <- data.frame(
+      id = if("ID" %in% names(data)) data$ID[first] else NA,
+      occasion = data$.occasion[first],
+      time = time[first]
     )
   }
   out
@@ -201,10 +211,14 @@ expand_addl_doses <- function(dose_rows) {
   } else {
     rep(1L, nrow(out))
   }
-  occasion <- time_segments(
-    as.numeric(dose_rows$TIME), dose_rows[["ID"]],
-    reset = dose_rows[["EVID"]] %in% 4
-  )[idx]
+  occasion <- if(".occasion" %in% names(dose_rows)) {
+    dose_rows$.occasion[idx]
+  } else {
+    time_segments(
+      suppressWarnings(as.numeric(dose_rows$TIME)), dose_rows[["ID"]],
+      reset = dose_rows[["EVID"]] %in% 4
+    )[idx]
+  }
   out <- out[order(subject, occasion, out$TIME), , drop = FALSE]
   rownames(out) <- NULL
   out
@@ -212,8 +226,9 @@ expand_addl_doses <- function(dose_rows) {
 
 #' Number the stretches of rows over which time does not go back
 #'
-#' A subject's time restarting (an `EVID` 3/4 reset into a new occasion, a
-#' new simulation subproblem) starts a new stretch.
+#' A subject's occasions: a new one starts where its time restarts (a new
+#' occasion on its own clock, a new simulation subproblem) and at every
+#' `reset` (an `EVID` 3 or 4 record, which need not set the time back).
 #'
 #' @param time numeric vector, in dataset order.
 #' @param id subject of each element, or `NULL` for a single subject.
