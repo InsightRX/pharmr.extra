@@ -656,7 +656,7 @@ run_sim <- function(
     ## process boundary, but the nlmixr2 code it renders to (a string) can.
     ## Regenerated rather than read from the cached `nlmixr_code` attribute,
     ## which still holds the point estimates -- but through
-    ## `render_nlmixr_draw_code()`, which puts the observation scaling that
+    ## `rerender_nlmixr_code()`, which puts the observation scaling that
     ## attribute carries back into the regenerated code.
     if(verbose) {
       cli::cli_alert_info("Preparing {n_replicates} replicate model{?s}")
@@ -665,7 +665,7 @@ run_sim <- function(
       m <- pharmr::set_initial_estimates(
         model, inits = as.list(draws[r, , drop = FALSE])
       )
-      list(index = r, code = render_nlmixr_draw_code(model, m), seed = seed)
+      list(index = r, code = rerender_nlmixr_code(model, m), seed = seed)
     })
     ## Resolve the dataset in the parent for the same reason (it is identical
     ## across replicates, so this also avoids re-reading it per worker).
@@ -738,7 +738,7 @@ run_sim <- function(
           ## simulate those on every replicate. Replaced rather than cleared,
           ## so the observation scaling it carries is re-applied to the draw
           ## instead of being dropped with it.
-          attr(m, "nlmixr_code") <- render_nlmixr_draw_code(model, m)
+          attr(m, "nlmixr_code") <- rerender_nlmixr_code(model, m)
           ## The *same* seed for every replicate, deliberately: see the note on
           ## common random numbers at the top of this block.
           ## `verbose = FALSE` + `suppressMessages()`: the engine's per-regimen

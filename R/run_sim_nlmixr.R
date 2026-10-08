@@ -358,29 +358,36 @@ rx_seed_supported <- function() {
   all(c("rxSetSeed", "rxGetSeed") %in% getNamespaceExports(ns))
 }
 
-#' Render an uncertainty draw's nlmixr2 code, observation scaling included
+#' Re-render a model's nlmixr2 code, observation scaling included
 #'
-#' `pharmr::set_initial_estimates()` returns a fresh Pharmpy object, so the
-#' `nlmixr_code` attribute — and with it the `S<n> <- <vol>/<scale>` rewrite
-#' `create_model(scale_observations = )` injected — is gone, while `$code`
-#' never carried it in the first place (pharmpy's NONMEM->nlmixr conversion is
-#' unreliable with `S<n>` scaling, which is why it is injected into the
-#' rendered code). Rendering a draw from `$code` alone would simulate it
-#' unscaled: concentrations, and the AUC_SS derived from them, in different
-#' units than the point-estimate run. So the scaling is read back off the
-#' original model's cached code and re-applied to every draw.
+#' Every Pharmpy operation — `set_initial_estimates()` for an uncertainty
+#' draw, `mu_reference_model()`, `update_parameters()` for a fitted model —
+#' returns a fresh object, so the `nlmixr_code` attribute is gone, and with it
+#' the `S<n> <- <vol>/<scale>` rewrite `create_model(scale_observations = )`
+#' injected. `$code` never carried that rewrite in the first place: pharmpy's
+#' NONMEM->nlmixr conversion is unreliable with `S<n>` scaling combined with
+#' additive/combined error models, which is why the scaling is injected into
+#' the rendered code rather than set on the model.
 #'
-#' @param model the model the draws were taken from, carrying the cached code.
-#' @param draw_model that model with this draw's estimates applied.
+#' So re-rendering from `$code` alone drops the scaling, and the model is then
+#' fitted or simulated in different units than the one `create_model()`
+#' returned — concentrations, and the AUC_SS derived from them, off by the
+#' scaling factor. This reads the factor back off the code the previous object
+#' carried and re-applies it.
 #'
-#' @returns nlmixr2 model code (character) for this draw.
+#' @param model the object the code is carried over from.
+#' @param new_model what `model` turned into (the draw, the mu-referenced
+#' model, the fitted final model).
+#'
+#' @returns nlmixr2 model code (character) for `new_model`.
 #' @noRd
-render_nlmixr_draw_code <- function(model, draw_model) {
-  code <- make_nlmixr_saem_safe(draw_model$code)
+rerender_nlmixr_code <- function(model, new_model) {
+  code <- make_nlmixr_saem_safe(new_model$code)
   scale <- nlmixr_scale_observations(model)
-  ## Not when the draw's own code already divides by an `S<n>`: the scaling is
-  ## then in the model's statements and survives on its own, and injecting
-  ## again would rewrite `IPRED <- A_CENTRAL/S2` into `S2 <- S2/1000`.
+  ## Not when the new code already divides the prediction by an `S<n>`: the
+  ## scaling is then in the model's own statements and survives on its own,
+  ## and injecting again would rewrite `IPRED <- A_CENTRAL/S2` into the
+  ## self-referential `S2 <- S2/1000`.
   if(!is.null(scale) && !nlmixr_pred_is_scaled(code)) {
     code <- inject_nlmixr_scaling(code, scale)
   }
@@ -391,7 +398,7 @@ render_nlmixr_draw_code <- function(model, draw_model) {
 #'
 #' `NULL` when the model has no cached code, or none with a scaling in it.
 #'
-#' @inheritParams render_nlmixr_draw_code
+#' @inheritParams rerender_nlmixr_code
 #' @noRd
 nlmixr_scale_observations <- function(model) {
   cached <- attr(model, "nlmixr_code")

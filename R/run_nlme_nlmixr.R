@@ -50,10 +50,14 @@ run_nlme_nlmixr <- function(
   is_mu_ref <- isTRUE(pharmr::has_mu_reference(model))
   if((isTRUE(mu_reference) || (identical(mu_reference, "auto") && is_saem)) && !is_mu_ref) {
     if(verbose) cli::cli_alert_info("Applying mu-referencing to model.")
+    ## The mu-ref rewrite changes model$code, so the cached SAEM-safe code has
+    ## to be rebuilt (it was computed against the un-mu-referenced form) --
+    ## carrying over the observation scaling it holds, which lives nowhere
+    ## else and would otherwise be dropped, fitting the model in different
+    ## units than `create_model(scale_observations = )` built it in.
+    pre_mu_model <- model
     model <- pharmr::mu_reference_model(model)
-    ## The mu-ref rewrite changes model$code, so invalidate any cached
-    ## SAEM-safe code (it was computed against the un-mu-referenced form).
-    attr(model, "nlmixr_code") <- NULL
+    attr(model, "nlmixr_code") <- rerender_nlmixr_code(pre_mu_model, model)
   } else if(isFALSE(mu_reference) && is_saem && !is_mu_ref) {
     cli::cli_warn(
       "nlmixr2 SAEM benefits significantly from mu-referencing — without it the M-step can drift positive THETAs through zero. Consider {.code mu_reference = \"auto\"}."
@@ -173,8 +177,10 @@ run_nlme_nlmixr <- function(
     if(!is.null(data)) attr(final_model, "original_data") <- fit_data
     ## update_parameters() returns a fresh pharmpy object — re-cache the
     ## SAEM-safe code so any later run_nlme()/run_sim() on the final model
-    ## doesn't fall back to the raw alias pattern.
-    attr(final_model, "nlmixr_code") <- make_nlmixr_saem_safe(final_model$code)
+    ## doesn't fall back to the raw alias pattern, and so the observation
+    ## scaling survives into the simulations run off this fit (the usual
+    ## `fit <- run_nlme(...); run_sim(fit = fit)` route).
+    attr(final_model, "nlmixr_code") <- rerender_nlmixr_code(model, final_model)
     attr(fit, "final_model") <- final_model
     if(save_final) {
       writeLines(attr(final_model, "nlmixr_code"), file.path(fit_folder, "final.R"))

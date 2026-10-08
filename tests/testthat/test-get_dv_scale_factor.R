@@ -305,32 +305,59 @@ test_that("nlmixr_scale_observations: recovers the factor from the cached code",
   expect_null(nlmixr_scale_observations(list(code = .nlmixr_model_code())))
 })
 
-test_that("render_nlmixr_draw_code: re-applies the scaling to a draw", {
+test_that("rerender_nlmixr_code: re-applies the scaling to a draw", {
   model <- .scaled_nlmixr_model(1000)
   ## the draw as `set_initial_estimates()` returns it: fresh `$code`, no
   ## cached attribute, and so no scaling
   draw <- list(code = .nlmixr_model_code("POP_CL_DRAW"))
   expect_equal(get_dv_scale_factor(code = draw$code), 1)
 
-  code <- render_nlmixr_draw_code(model, draw)
+  code <- rerender_nlmixr_code(model, draw)
   expect_equal(get_dv_scale_factor(code = code), 1000)
   ## and it is still *this* draw's model
   expect_match(code, "POP_CL_DRAW", fixed = TRUE)
 })
 
-test_that("render_nlmixr_draw_code: leaves an unscaled model unscaled", {
+test_that("rerender_nlmixr_code: leaves an unscaled model unscaled", {
   model <- structure(
     list(code = .nlmixr_model_code()), nlmixr_code = .nlmixr_model_code()
   )
-  code <- render_nlmixr_draw_code(model, list(code = .nlmixr_model_code()))
+  code <- rerender_nlmixr_code(model, list(code = .nlmixr_model_code()))
   expect_equal(get_dv_scale_factor(code = code), 1)
   expect_false(nlmixr_pred_is_scaled(code))
 })
 
-test_that("render_nlmixr_draw_code: does not scale a draw that is already scaled", {
+test_that("rerender_nlmixr_code: does not scale a draw that is already scaled", {
   ## injecting over `IPRED <- A_CENTRAL/S1` would write `S1 <- S1/1000`
   model <- .scaled_nlmixr_model(1000)
-  code <- render_nlmixr_draw_code(model, list(code = attr(model, "nlmixr_code")))
+  code <- rerender_nlmixr_code(model, list(code = attr(model, "nlmixr_code")))
   expect_equal(get_dv_scale_factor(code = code), 1000)
   expect_false(any(grepl("S1 <- S1", code_lines(code))))
+})
+
+test_that("rerender_nlmixr_code: carries the scaling along the whole chain", {
+  ## create_model() -> mu_reference_model() -> update_parameters() (the fitted
+  ## final model run_sim(fit = ) uses) -> set_initial_estimates() (a draw).
+  ## Every step returns a fresh Pharmpy object whose `$code` has no scaling,
+  ## so each one has to carry it over from the step before.
+  built <- .scaled_nlmixr_model(1000)
+
+  mu_referenced <- list(code = sub("ETA_CL", "ETA_CL + mu_1",
+                                   .nlmixr_model_code(), fixed = TRUE))
+  mu_code <- rerender_nlmixr_code(built, mu_referenced)
+  expect_equal(get_dv_scale_factor(code = mu_code), 1000)
+
+  fitted <- list(code = .nlmixr_model_code("POP_CL_FINAL"))
+  final_code <- rerender_nlmixr_code(
+    structure(mu_referenced, nlmixr_code = mu_code), fitted
+  )
+  expect_equal(get_dv_scale_factor(code = final_code), 1000)
+  expect_match(final_code, "POP_CL_FINAL", fixed = TRUE)
+
+  draw <- list(code = .nlmixr_model_code("POP_CL_DRAW"))
+  draw_code <- rerender_nlmixr_code(
+    structure(fitted, nlmixr_code = final_code), draw
+  )
+  expect_equal(get_dv_scale_factor(code = draw_code), 1000)
+  expect_match(draw_code, "POP_CL_DRAW", fixed = TRUE)
 })

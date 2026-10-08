@@ -19,7 +19,12 @@
   `S<n> <- <vol>/<scale>` rewrite lives in, so every uncertainty draw was
   simulated unscaled — concentrations, and the AUC_SS derived from them, in
   different units than the same model's point-estimate run. The scaling is now
-  re-applied to each draw, on both the sequential and the parallel path.
+  re-applied to each draw, on both the sequential and the parallel path. The
+  same applies to the `fit <- run_nlme(...); run_sim(fit = fit)` route and to
+  mu-referencing: `update_parameters()` and `mu_reference_model()` return
+  fresh Pharmpy objects too, so the fitted final model carried no scaling
+  either, and a mu-referenced model was *fitted* unscaled. All four
+  transitions now go through the same re-render.
 
 * `call_pharmpy_tool(tool = "iivsearch")` without a `search_space` now
   defaults to `IIV?(@PK,EXP)`, which makes IIV on each PK parameter optional,
