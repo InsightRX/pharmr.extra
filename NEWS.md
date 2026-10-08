@@ -1,5 +1,20 @@
 # pharmr.extra (development version)
 
+* `run_sim(add_pk_variables = TRUE)` computes AUC_SS from each subject's own
+  last dose. It used the last dose record of the whole regimen dataset -- i.e.
+  the last subject's -- for every subject, so any regimen in which subjects
+  get different doses (weight-based dosing, say) reported the wrong AUC_SS for
+  all but that last subject. Affected all four simulation paths.
+
+* AUC_SS now accounts for bioavailability: it is `F * dose / CL`, with `F` the
+  bioavailability that applied to the subject's last dose -- that of the
+  compartment the dose goes into (by its `CMT`, compartment 1 when it has
+  none), taken at the time of the dose. For NONMEM models the
+  `F1`-`F9` defined in `$PK` are added to the simulation `$TABLE`, so an `F`
+  with IIV is taken per subject; for nlmixr2 models the `f(<state>) <- ...`
+  expression is exposed as an output of the solve for the same purpose.
+  Models without bioavailability are unaffected.
+
 * `run_sim(add_pk_variables = TRUE)` reports AUC_SS in the units the model
   reports concentrations in. NONMEM predicts `A(n)/S<n>` for the observation
   compartment, so a model that doses in mg and reports ng/mL writes

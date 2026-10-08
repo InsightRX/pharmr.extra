@@ -399,6 +399,169 @@ test_that("calc_pk_variables: unusable dv_scale falls back to dose/CL", {
   }
 })
 
+test_that("calc_pk_variables: AUC_SS uses each subject's own last dose", {
+  ## Not everyone in a regimen gets the same dose (weight-based dosing, say).
+  ## AUC_SS used to take the last dose of the whole dataset -- the last
+  ## subject's -- for every subject.
+  dat <- dplyr::mutate(.make_pk_data(), CL = c(rep(5, 5), rep(4, 5)))
+  reg <- list(dose = c(100, 150, 200, 300), id = c(1, 1, 2, 2))
+  out <- calc_pk_variables(dat, regimen = reg)
+  expect_equal(unique(out$AUC_SS[out$ID == 1]), 150 / 5)
+  expect_equal(unique(out$AUC_SS[out$ID == 2]), 300 / 4)
+})
+
+test_that("calc_pk_variables: AUC_SS is NA for a subject without doses", {
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5)
+  reg <- list(dose = c(100, 100), id = c(1, 1))
+  out <- calc_pk_variables(dat, regimen = reg)
+  expect_equal(unique(out$AUC_SS[out$ID == 1]), 100 / 5)
+  expect_true(all(is.na(out$AUC_SS[out$ID == 2])))
+})
+
+test_that("calc_pk_variables: AUC_SS uses the subject's bioavailability", {
+  ## F1 with IIV: individual per subject, and per row since it comes from the
+  ## table just like CL
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5,
+                       F1 = c(rep(0.5, 5), rep(0.8, 5)))
+  reg <- list(dose = c(100, 200), id = c(1, 2), cmt = c(1, 1))
+  out <- calc_pk_variables(dat, regimen = reg, dv_scale = 1000)
+  expect_equal(unique(out$AUC_SS[out$ID == 1]), 1000 * 0.5 * 100 / 5)
+  expect_equal(unique(out$AUC_SS[out$ID == 2]), 1000 * 0.8 * 200 / 5)
+})
+
+test_that("calc_pk_variables: bioavailability follows the dose compartment", {
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5, F1 = 0.5, F2 = 0.9)
+  ## no CMT: dosed into compartment 1, so F1 applies
+  out <- calc_pk_variables(dat, regimen = list(dose = 100, id = 1))
+  expect_equal(unique(out$AUC_SS[out$ID == 1]), 0.5 * 100 / 5)
+  ## ID 1 dosed into 2 (F2), ID 2 into 3 (no F3: fully bioavailable)
+  reg <- list(dose = c(100, 100), id = c(1, 2), cmt = c(2, 3))
+  out <- calc_pk_variables(dat, regimen = reg)
+  expect_equal(unique(out$AUC_SS[out$ID == 1]), 0.9 * 100 / 5)
+  expect_equal(unique(out$AUC_SS[out$ID == 2]), 100 / 5)
+})
+
+test_that("calc_pk_variables: explicit bioavailability columns by compartment name", {
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5, BIOAV_CMT1 = 0.25)
+  reg <- list(dose = c(100, 100), id = c(1, 2), cmt = c("A_DEPOT", "1"))
+  out <- calc_pk_variables(
+    dat, regimen = reg,
+    bioavailability = c("1" = "BIOAV_CMT1", A_DEPOT = "BIOAV_CMT1")
+  )
+  expect_equal(unique(out$AUC_SS), 0.25 * 100 / 5)
+})
+
+test_that("calc_pk_variables: bioavailability is taken at the last dose", {
+  ## F changes over time (a time-varying covariate, say): AUC_SS is what the
+  ## last dose delivers, so the F at that dose applies to every row
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5,
+                       F1 = rep(c(0.2, 0.4, 0.6, 0.8, 1.0), 2))
+  reg <- list(dose = c(100, 100, 200, 200), id = c(1, 1, 2, 2),
+              time = c(0, 12, 0, 18))
+  out <- calc_pk_variables(dat, regimen = reg)
+  ## ID 1 last dosed at t = 12, ID 2 at t = 18 (no dose record in the table:
+  ## the row at that time stands for it)
+  expect_equal(out$AUC_SS[out$ID == 1], rep(0.6 * 100 / 5, 5))
+  expect_equal(out$AUC_SS[out$ID == 2], rep(0.8 * 200 / 5, 5))
+  ## a dose between two rows: what the dose record set is in effect from the
+  ## dose on, so the first row after it applies, not the one before
+  reg$time <- c(0, 10, 0, 20)
+  out <- calc_pk_variables(dat, regimen = reg)
+  expect_equal(out$AUC_SS[out$ID == 1], rep(0.6 * 100 / 5, 5))
+  expect_equal(out$AUC_SS[out$ID == 2], rep(1.0 * 200 / 5, 5))
+  ## dosed after the last row: the last row is all there is
+  reg$time <- c(0, 30, 0, 30)
+  out <- calc_pk_variables(dat, regimen = reg)
+  expect_equal(out$AUC_SS[out$ID == 1], rep(1.0 * 100 / 5, 5))
+})
+
+test_that("calc_pk_variables: replicates of a single-time subject are told apart", {
+  ## Dose and observation at one time point, two replicates back to back:
+  ## neither ID nor TIME changes between them, but EVID going back up does
+  dat <- data.frame(
+    ID = 1, TIME = 0, DV = c(0, 5, 0, 6), EVID = c(1, 0, 1, 0), CL = 5,
+    F1 = c(0.5, 0.5, 0.7, 0.7)
+  )
+  out <- calc_pk_variables(dat, regimen = list(dose = 100, id = 1, time = 0))
+  expect_equal(out$AUC_SS, rep(c(0.5, 0.7) * 100 / 5, each = 2))
+  ## nlmixr2 output: observation rows only, replicates marked by sim.id
+  dat <- data.frame(
+    sim.id = c(1, 1, 2, 2), ID = 1, TIME = c(1, 1, 1, 1), DV = 1, EVID = 0,
+    CL = 5, BIOAV_CMT1 = c(0.5, 0.5, 0.7, 0.7)
+  )
+  out <- calc_pk_variables(
+    dat, regimen = list(dose = 100, id = 1, time = 0),
+    bioavailability = c("1" = "BIOAV_CMT1")
+  )
+  expect_equal(out$AUC_SS, rep(c(0.5, 0.7) * 100 / 5, each = 2))
+})
+
+test_that("calc_pk_variables: bioavailability at the dose record, per replicate", {
+  ## The same subject twice (two simulated replicates), each with its own F,
+  ## and a dose record in the table at the dose time
+  dat <- data.frame(
+    ID = 1, TIME = rep(c(0, 0, 6, 12), 2), DV = c(0, 0, 5, 2, 0, 0, 6, 3),
+    EVID = rep(c(1, 0, 0, 0), 2), CL = 5,
+    F1 = c(0.5, 0.9, 0.9, 0.9, 0.7, 0.1, 0.1, 0.1)
+  )
+  out <- calc_pk_variables(dat, regimen = list(dose = 100, id = 1, time = 0))
+  expect_equal(out$AUC_SS, rep(c(0.5, 0.7) * 100 / 5, each = 4))
+})
+
+test_that("calc_pk_variables: a dose with a missing CMT goes into compartment 1", {
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5, F1 = 0.5)
+  ## CMT = 0 is NONMEM's and rxode2's "default dose compartment"
+  for(cmt in list(NA, ".", "", 0, "0")) {
+    reg <- list(dose = c(100, 100), id = c(1, 2), cmt = c(cmt, 1))
+    out <- calc_pk_variables(dat, regimen = reg)
+    expect_equal(unique(out$AUC_SS), 0.5 * 100 / 5)
+  }
+})
+
+test_that("calc_pk_variables: the last dose is the latest one, ADDL counted", {
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5,
+                       F1 = rep(c(0.2, 0.4, 0.6, 0.8, 1.0), 2))
+  ## ID 1: a 100 mg record whose ADDL runs to t = 24, then a 50 mg record at
+  ## t = 6 that sorts after it but is not the last dose
+  reg <- list(dose = c(100, 50, 200), id = c(1, 1, 2), time = c(24, 6, 12))
+  out <- calc_pk_variables(dat, regimen = reg)
+  expect_equal(unique(out$AUC_SS[out$ID == 1]), 1.0 * 100 / 5)
+  expect_equal(unique(out$AUC_SS[out$ID == 2]), 0.6 * 200 / 5)
+})
+
+test_that("calc_pk_variables: IDs and compartments match however they're spelled", {
+  ## "001" in the simulation dataset, 1 in the NONMEM table / rxSolve output;
+  ## "1.0" / "01" for compartment 1; a lowercase NONMEM f1
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5, f1 = 0.5)
+  reg <- list(dose = c(100, 200), id = c("001", "2.0"), cmt = c("1.0", "01"))
+  out <- calc_pk_variables(dat, regimen = reg)
+  expect_equal(unique(out$AUC_SS[out$ID == 1]), 0.5 * 100 / 5)
+  expect_equal(unique(out$AUC_SS[out$ID == 2]), 0.5 * 200 / 5)
+})
+
+test_that("calc_pk_variables: a dose without CMT goes into the default compartment", {
+  ## DEFDOSE on compartment 2: F2 applies to doses without a compartment
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5, F1 = 0.5, F2 = 0.8)
+  reg <- list(dose = c(100, 100), id = c(1, 2), cmt = c(NA, 0), default_cmt = 2)
+  out <- calc_pk_variables(dat, regimen = reg)
+  expect_equal(unique(out$AUC_SS), 0.8 * 100 / 5)
+  reg$cmt <- NULL
+  out <- calc_pk_variables(dat, regimen = reg)
+  expect_equal(unique(out$AUC_SS), 0.8 * 100 / 5)
+})
+
+test_that("calc_pk_variables: bioavailability for compartments past 9", {
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5, F1 = 0.5, F12 = 0.3)
+  out <- calc_pk_variables(dat, regimen = list(dose = 100, id = 1, cmt = 12))
+  expect_equal(unique(out$AUC_SS[out$ID == 1]), 0.3 * 100 / 5)
+})
+
+test_that("calc_pk_variables: no F column means full bioavailability", {
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5)
+  out <- calc_pk_variables(dat, regimen = list(dose = 100, id = 1, cmt = 1))
+  expect_equal(unique(out$AUC_SS[out$ID == 1]), 100 / 5)
+})
+
 # ── create_dosing_records() ─────────────────────────────────────────────────
 
 .dose_data2 <- function() data.frame(ID = 1:2, TIME = 0, DV = 0, EVID = 1)

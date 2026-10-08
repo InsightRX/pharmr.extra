@@ -4,22 +4,38 @@
 \alias{calc_pk_variables}
 \title{Calculate some basic PK variables from simulated or observed data}
 \usage{
-calc_pk_variables(data, regimen = NULL, dv_scale = 1)
+calc_pk_variables(data, regimen = NULL, dv_scale = 1, bioavailability = NULL)
 }
 \arguments{
 \item{data}{data.frame in NONMEM format}
 
 \item{regimen}{dosing regimen as a list with a \code{dose} element, used to
-derive AUC_SS from the last dose. \code{NULL} skips AUC_SS.}
+derive AUC_SS from the last dose. When it also has an \code{id} element (the
+subject each dose belongs to) AUC_SS uses each subject's own last dose,
+otherwise the last dose overall is used for every subject. An optional \code{cmt}
+element gives the compartment each dose goes into, which decides the
+bioavailability that applies (where absent, the regimen's \code{default_cmt},
+else compartment 1), and an optional \code{time} element the dose time, at which
+that bioavailability is taken.
+\code{NULL} skips AUC_SS.}
 
 \item{dv_scale}{multiplier putting \code{dose / CL} into the units the model
 reports concentrations in, i.e. \verb{V / S<n>} for the observation compartment
 (see \code{\link[=get_dv_scale_factor]{get_dv_scale_factor()}}). \code{1} (the default) is the usual
 \verb{S<n> = V} case.}
+
+\item{bioavailability}{named character vector mapping a dose compartment
+(number or name, as in the \code{CMT} of the dose records) to the column in
+\code{data} holding the bioavailability for that compartment. \code{NULL} (the
+default) maps compartment \code{n} to a column \verb{F<n>} (as NONMEM names them, in
+either case) where \code{data} has one. Doses into a compartment without a
+bioavailability column are taken as fully bioavailable.}
 }
 \value{
 data.frame
 }
 \description{
-Calculate some basic PK variables from simulated or observed data
+AUC_SS is derived per subject as \code{F * dose / CL}, from the subject's last
+dose in \code{regimen}, the bioavailability of the compartment that dose goes
+into, and the subject's \code{CL}, then scaled by \code{dv_scale}.
 }

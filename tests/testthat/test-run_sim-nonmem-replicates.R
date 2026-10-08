@@ -30,8 +30,8 @@ test_that("resolve_sim_regimens splits the dataset by regimen", {
   expect_false(any(vapply(regs, function(r) ".regimen" %in% names(r$data),
                           logical(1))))
   ## and the doses `calc_pk_variables()` needs come along per regimen
-  expect_equal(regs[[1]]$regimen_for_pk, list(dose = 100))
-  expect_equal(regs[[2]]$regimen_for_pk, list(dose = 200))
+  expect_equal(regs[[1]]$regimen_for_pk, list(dose = 100, id = 1, time = 0, cmt = NULL, default_cmt = 1))
+  expect_equal(regs[[2]]$regimen_for_pk, list(dose = 200, id = 1, time = 0, cmt = NULL, default_cmt = 1))
 })
 
 test_that("resolve_sim_regimens labels an unlabelled dataset as one regimen", {
@@ -86,7 +86,54 @@ test_that("sim_regimen_doses returns NULL when there is nothing to derive", {
   expect_equal(
     sim_regimen_doses(data.frame(ID = 1, TIME = c(0, 1), DV = 0,
                                  AMT = c(50, 0), EVID = c(1, 0))),
-    list(dose = 50)
+    list(dose = 50, id = 1, time = 0, cmt = NULL, default_cmt = 1)
+  )
+})
+
+test_that("get_default_dose_compartment reads DEFDOSE off $MODEL", {
+  ## predefined ADVAN, no $MODEL: compartment 1
+  expect_equal(
+    get_default_dose_compartment("$PROBLEM x\n$SUBROUTINES ADVAN2 TRANS2\n"),
+    1
+  )
+  ## the compartment marked DEFDOSE, not one a comment mentions it on
+  code <- paste(
+    "$PROBLEM x", "$SUBROUTINES ADVAN13 TOL=9", "$MODEL NCOMPARTMENTS=3",
+    " COMP=(DEPOT) ; not DEFDOSE", " COMP=(CENTRAL DEFDOSE DEFOBS)",
+    " COMP=PERIPH", "$PK", "CL = THETA(1)", sep = "\n"
+  )
+  expect_equal(get_default_dose_compartment(code), 2)
+  ## none marked: compartment 1
+  expect_equal(
+    get_default_dose_compartment("$MODEL COMP=(DEPOT) COMP=(CENTRAL)\n$DES\n"),
+    1
+  )
+})
+
+test_that("resolve_sim_regimens carries the default dose compartment", {
+  regs <- resolve_sim_regimens(.two_regimen_dat(), input_data = NULL,
+                               default_dose_cmt = 2, verbose = FALSE)
+  expect_equal(regs[[1]]$regimen_for_pk$default_cmt, 2)
+})
+
+test_that("sim_regimen_doses times a record by its last dose, ADDL counted", {
+  dat <- data.frame(
+    ID = c(1, 1, 2), TIME = c(0, 6, 0), DV = 0, AMT = c(100, 0, 100),
+    EVID = c(1, 0, 1), ADDL = c(3, 0, "."), II = c(12, 0, 0)
+  )
+  expect_equal(sim_regimen_doses(dat)$time, c(36, 0))
+})
+
+test_that("sim_regimen_doses keeps the subject and compartment of each dose", {
+  dat <- data.frame(
+    ID = c(1, 1, 1, 2, 2, 2), TIME = c(0, 12, 24, 0, 12, 24), DV = 0,
+    AMT = c(100, 100, 0, 250, 250, 0), EVID = c(1, 4, 0, 1, 1, 0),
+    CMT = c(1, 1, 2, 1, 1, 2)
+  )
+  expect_equal(
+    sim_regimen_doses(dat),
+    list(dose = c(100, 100, 250, 250), id = c(1, 1, 2, 2),
+         time = c(0, 12, 0, 12), cmt = c(1, 1, 1, 1), default_cmt = 1)
   )
 })
 

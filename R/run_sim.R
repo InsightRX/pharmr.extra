@@ -65,7 +65,9 @@
 #' `$COVARIANCE` reports.
 #' @param add_pk_variables calculate basic PK variables: CMAX_OBS, TMAX_OBS,
 #' CMIN_OBS, and (when `CL` is in the output table) AUC_SS. AUC_SS is derived
-#' as the last dose in the simulation dataset divided by CL, scaled into the
+#' per subject as `F * dose / CL`: the subject's last dose in the simulation
+#' dataset, times the bioavailability (`F<n>`) of the compartment that dose
+#' goes into, divided by the subject's CL. It is then scaled into the
 #' units the model reports concentrations in: NONMEM predicts `A(n)/S<n>`, so a
 #' model with e.g. `S2 = V2/1000` (mg dosed, ng/mL reported) gets an AUC_SS
 #' 1000x that of plain dose/CL. The equivalent rewrite
@@ -249,8 +251,12 @@ run_sim <- function(
   ## once here: it depends on the model only, and every path that computes PK
   ## variables -- in this process or in a worker -- needs the same number.
   dv_scale <- 1
+  ## Likewise the compartment a dose record without a CMT goes into, which
+  ## decides the bioavailability AUC_SS applies to it.
+  default_dose_cmt <- 1
   if(tool == "nonmem" && add_pk_variables && update_table) {
     dv_scale <- get_dv_scale_factor(model, verbose = verbose)
+    default_dose_cmt <- get_default_dose_compartment(model$code)
   }
 
   ## `keep`: copy the control streams and listings out of the run folder and
@@ -367,7 +373,9 @@ run_sim <- function(
   ## regimen is run in its own run folder (`id/regimen_<i>`) so regimens don't
   ## overwrite each other's output. Numeric indexing avoids sanitizing user
   ## labels that may contain spaces NONMEM cannot handle in `$DATA` paths.
-  regimens <- resolve_sim_regimens(data, input_data, verbose = verbose)
+  regimens <- resolve_sim_regimens(
+    data, input_data, default_dose_cmt = default_dose_cmt, verbose = verbose
+  )
 
   ## Turn the model into a simulation-only model, with the requested $TABLE.
   ## Built once rather than once per regimen: it depends on the model, the seed
@@ -410,6 +418,7 @@ run_sim <- function(
         update_table     = update_table,
         add_pk_variables = add_pk_variables,
         dv_scale         = dv_scale,
+        regimen_for_pk   = reg$regimen_for_pk,
         n_cores          = n_cores,
         force            = TRUE,
         verbose          = verbose
@@ -613,7 +622,10 @@ run_sim <- function(
     ## Resolved here, in the parent, for the same reason: locating nmfe goes
     ## through the Pharmpy configuration.
     nmfe <- get_nmfe_location(verbose = verbose)
-    regimens <- resolve_sim_regimens(data, model$dataset, verbose = verbose)
+    regimens <- resolve_sim_regimens(
+      data, model$dataset, default_dose_cmt = default_dose_cmt,
+      verbose = verbose
+    )
     ctx <- prepare_nonmem_replicate_context(
       model        = model,
       draws        = draws,
@@ -984,19 +996,37 @@ sample_uncertainty_parameters <- function(
 
 #' Calculate some basic PK variables from simulated or observed data
 #'
+#' AUC_SS is derived per subject as `F * dose / CL`, from the subject's last
+#' dose in `regimen`, the bioavailability of the compartment that dose goes
+#' into, and the subject's `CL`, then scaled by `dv_scale`.
+#'
 #' @param data data.frame in NONMEM format
 #' @param regimen dosing regimen as a list with a `dose` element, used to
-#' derive AUC_SS from the last dose. `NULL` skips AUC_SS.
+#' derive AUC_SS from the last dose. When it also has an `id` element (the
+#' subject each dose belongs to) AUC_SS uses each subject's own last dose,
+#' otherwise the last dose overall is used for every subject. An optional `cmt`
+#' element gives the compartment each dose goes into, which decides the
+#' bioavailability that applies (where absent, the regimen's `default_cmt`,
+#' else compartment 1), and an optional `time` element the dose time, at which
+#' that bioavailability is taken.
+#' `NULL` skips AUC_SS.
 #' @param dv_scale multiplier putting `dose / CL` into the units the model
 #' reports concentrations in, i.e. `V / S<n>` for the observation compartment
 #' (see [get_dv_scale_factor()]). `1` (the default) is the usual
 #' `S<n> = V` case.
+#' @param bioavailability named character vector mapping a dose compartment
+#' (number or name, as in the `CMT` of the dose records) to the column in
+#' `data` holding the bioavailability for that compartment. `NULL` (the
+#' default) maps compartment `n` to a column `F<n>` (as NONMEM names them, in
+#' either case) where `data` has one. Doses into a compartment without a
+#' bioavailability column are taken as fully bioavailable.
 #'
 #' @returns data.frame
 calc_pk_variables <- function(
     data,
     regimen = NULL,
-    dv_scale = 1
+    dv_scale = 1,
+    bioavailability = NULL
 ) {
 
   ## A scaling that cannot be used is no reason to drop AUC_SS altogether:
@@ -1031,18 +1061,22 @@ calc_pk_variables <- function(
       cli::cli_alert_info("Skipping Cmin calculation, some required columns not in output data.")      
     }
 
-    ## Add AUC_SS as dose/CL, if we're simulating a specific regimen. Scaled
-    ## by `dv_scale` so it lands in the units the model reports
+    ## Add AUC_SS as F * dose / CL, if we're simulating a specific regimen.
+    ## Scaled by `dv_scale` so it lands in the units the model reports
     ## concentrations in: NONMEM predicts `A(n)/S<n>`, so a model with
     ## e.g. `S2 = V2/1000` reports concentrations (and therefore AUCs) 1000x
     ## the plain amount/volume units that dose/CL is in.
     if(!is.null(regimen) && "CL" %in% names(data)) {
-      suppressWarnings(
-        last_dose <- as.numeric(utils::tail(regimen$dose, 1))
-      )
-      if(!is.na(last_dose) && last_dose > 0) {
-        data <- data |>
-          dplyr::mutate(AUC_SS = last_dose * dv_scale / .data$CL)
+      last_dose <- last_dose_per_subject(regimen, data)
+      if(!is.null(last_dose) && any(!is.na(last_dose$dose) & last_dose$dose > 0)) {
+        f <- bioavailability_for_doses(data, last_dose$cmt, bioavailability)
+        ## The bioavailability that applied to the last dose, not whatever F
+        ## is on each output row: F can change over time (a time-varying
+        ## covariate, say), and AUC_SS is the exposure that dose delivers.
+        f <- f[rows_at_last_dose(data, last_dose$time)]
+        auc_ss <- last_dose$dose * f * dv_scale / data$CL
+        auc_ss[is.na(last_dose$dose) | last_dose$dose <= 0] <- NA_real_
+        data$AUC_SS <- auc_ss
       } else {
         cli::cli_warn("Could not calculate AUCss, last dose could not be identified.")
       }
@@ -1050,6 +1084,164 @@ calc_pk_variables <- function(
   }
 
   data
+}
+
+#' The last dose, its time and the compartment it goes into, for every row of
+#' `data`
+#'
+#' Per subject when `regimen` says which subject each dose belongs to: a
+#' regimen whose subjects do not all receive the same dose (a weight-based
+#' one, say) would otherwise give every subject the AUC of whichever subject
+#' happens to sort last. Falls back to the last dose overall when it does not.
+#'
+#' @param regimen list with `dose` and optionally `id`, `time` and `cmt`, one
+#' element per dose record (see `sim_regimen_doses()`).
+#' @param data the table AUC_SS is added to.
+#'
+#' @returns `list(dose = , time = , cmt = )`, each with one element per row of
+#' `data` (`dose` is `NA` for a subject without dose records, `time` is `NA`
+#' when `regimen` has no dose times), or `NULL` when no dose could be
+#' identified.
+#' @noRd
+last_dose_per_subject <- function(regimen, data) {
+  suppressWarnings(dose <- as.numeric(regimen$dose))
+  if(length(dose) == 0) return(NULL)
+  per_dose <- function(x, default) {
+    if(is.null(x) || length(x) != length(dose)) return(rep(default, length(dose)))
+    x
+  }
+  ## A dose without a compartment goes into the default dose compartment
+  ## (`regimen$default_cmt`, compartment 1 unless the model says otherwise)
+  ## -- also where the dataset has a CMT column but leaves it
+  ## empty for this record, or sets it to 0, which NONMEM and rxode2 read as
+  ## "the default dose compartment" too.
+  default_cmt <- canonical_key(regimen$default_cmt %||% 1)
+  cmt <- canonical_key(per_dose(regimen$cmt, default_cmt))
+  cmt[is.na(cmt) | cmt %in% c("", ".", "0")] <- default_cmt
+  suppressWarnings(time <- as.numeric(per_dose(regimen$time, NA_real_)))
+  id <- regimen$id
+  if(!is.null(id) && length(id) == length(dose) && "ID" %in% names(data)) {
+    ## Last dose per subject: the latest by dose time (which counts ADDL, so
+    ## an earlier record can hold the last dose), dataset order breaking ties
+    ## and standing in where there are no times.
+    id <- canonical_key(id)
+    ord <- order(id, time, seq_along(id), na.last = FALSE)
+    last <- ord[!duplicated(id[ord], fromLast = TRUE)]
+    idx <- last[match(canonical_key(data$ID), id[last])]
+    list(dose = dose[idx], time = time[idx], cmt = cmt[idx])
+  } else {
+    n <- nrow(data)
+    list(
+      dose = rep(utils::tail(dose, 1), n),
+      time = rep(utils::tail(time, 1), n),
+      cmt  = rep(utils::tail(cmt, 1), n)
+    )
+  }
+}
+
+#' A matching key for an ID or compartment
+#'
+#' Numeric-looking values are keyed by their number, so `"001"`, `"1.0"` and
+#' `1` match: the simulation dataset can spell an ID or CMT one way and the
+#' NONMEM table or rxSolve output (numeric) another. Anything else is keyed by
+#' its trimmed text.
+#'
+#' @param x vector of IDs or compartments.
+#'
+#' @returns character vector, same length as `x`.
+#' @noRd
+canonical_key <- function(x) {
+  txt <- trimws(as.character(x))
+  suppressWarnings(num <- as.numeric(txt))
+  ifelse(is.na(num), txt, as.character(num))
+}
+
+#' For every row of `data`, the row that holds its subject's last dose
+#'
+#' Rows are first split into one subject in one simulated replicate: by
+#' `sim.id` where the table has it (nlmixr2), and within that into runs of
+#' consecutive rows of one subject. A run ends where `ID` changes, where `TIME`
+#' goes back, or where `EVID` goes up at an unchanged `TIME` -- the simulation
+#' dataset is sorted by `ID`, `TIME` and descending `EVID`, so within one
+#' replicate neither happens, and that is where the next replicate of the same
+#' subject starts.
+#'
+#' Within a run, the row that stands for the dose is the dose record at the
+#' last dose time where the table has one (NONMEM tables do). Otherwise
+#' (nlmixr2 output has observation rows only) it is the first row at or after
+#' that time, since what a dose record sets -- a time-varying covariate, say --
+#' is in effect from the dose onwards, and failing that the last row before it.
+#'
+#' @param data the table AUC_SS is added to.
+#' @param time the subject's last dose time, for every row of `data`.
+#'
+#' @returns integer row index into `data`, one element per row. A row whose
+#' last dose time is unknown points at itself.
+#' @noRd
+rows_at_last_dose <- function(data, time) {
+  n <- nrow(data)
+  idx <- seq_len(n)
+  if(n == 0 || !all(c("ID", "TIME") %in% names(data)) || all(is.na(time))) {
+    return(idx)
+  }
+  ids <- canonical_key(data$ID)
+  t <- data$TIME
+  evid <- if("EVID" %in% names(data)) data$EVID else rep(0, n)
+  is_dose <- evid %in% c(1, 4)
+  replicate <- if("sim.id" %in% names(data)) {
+    as.character(data[["sim.id"]])
+  } else {
+    rep("1", n)
+  }
+  new_run <- c(
+    TRUE,
+    replicate[-1] != replicate[-n] |
+      ids[-1] != ids[-n] |
+      t[-1] < t[-n] |
+      (t[-1] == t[-n] & evid[-1] > evid[-n])
+  )
+  new_run[is.na(new_run)] <- FALSE
+  for(rows in split(idx, cumsum(new_run))) {
+    t_dose <- time[rows[1]]
+    if(is.na(t_dose)) next
+    at_dose <- rows[is_dose[rows] & t[rows] == t_dose]
+    after <- rows[t[rows] >= t_dose]
+    idx[rows] <- if(length(at_dose) > 0) {
+      utils::tail(at_dose, 1)
+    } else if(length(after) > 0) {
+      after[1]
+    } else {
+      utils::tail(rows, 1)
+    }
+  }
+  idx
+}
+
+#' Bioavailability of each row's dose
+#'
+#' @param data the table AUC_SS is added to.
+#' @param cmt dose compartment for each row of `data` (character).
+#' @param bioavailability named character vector, dose compartment -> column in
+#' `data`, or `NULL` for the `F<n>` columns `data` has.
+#'
+#' @returns numeric vector, one element per row of `data`; `1` where no
+#' bioavailability applies.
+#' @noRd
+bioavailability_for_doses <- function(data, cmt, bioavailability = NULL) {
+  if(is.null(bioavailability)) {
+    ## NONMEM names are case-insensitive: `f1` is F1 too
+    f_cols <- grep("^[Ff][1-9][0-9]*$", names(data), value = TRUE)
+    bioavailability <- stats::setNames(f_cols, substring(f_cols, 2))
+  }
+  names(bioavailability) <- canonical_key(names(bioavailability))
+  f <- rep(1, nrow(data))
+  for(compartment in intersect(unique(cmt), names(bioavailability))) {
+    col <- bioavailability[[compartment]]
+    if(!col %in% names(data)) next
+    rows <- which(cmt == compartment)
+    suppressWarnings(f[rows] <- as.numeric(data[[col]][rows]))
+  }
+  f
 }
 
 #' Create dosing records, given a specified regimen as a data frame with
