@@ -282,11 +282,12 @@ warn_on_restarting_time <- function(data, label) {
   ## Time going back at a reset record: a dataset that is merely out of order
   ## is sorted as a matter of course, but NONMEM only lets the time restart
   ## at a reset (EVID 3 or 4).
-  n <- nrow(data)
+  ## Each record against its subject's previous one: subjects' records need
+  ## not be contiguous in a dataset that is still to be sorted.
   suppressWarnings(time <- as.numeric(data$TIME))
-  id <- as.character(data$ID)
-  restarts <- c(FALSE, id[-1] == id[-n] & time[-1] < time[-n] &
-                  data$EVID[-1] %in% c(3, 4))
+  previous <- stats::ave(time, as.character(data$ID),
+                         FUN = function(t) c(NA, t[-length(t)]))
+  restarts <- !is.na(previous) & time < previous & data$EVID %in% c(3, 4)
   if(any(restarts %in% TRUE)) {
     cli::cli_warn(c(
       "Time goes back within a subject in the simulation dataset ({label}).",

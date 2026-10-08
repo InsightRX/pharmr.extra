@@ -165,6 +165,11 @@ test_that("warn_on_restarting_time warns where a subject's clock restarts", {
   expect_no_warning(warn_on_restarting_time(
     data.frame(ID = c(1, 1, 2), TIME = c(0, 1, 0), EVID = c(1, 0, 1)), "a"
   ))
+  ## subjects interleaved
+  expect_warning(warn_on_restarting_time(
+    data.frame(ID = c(1, 2, 1, 2, 1, 2), TIME = c(0, 0, 1, 1, 0, 0),
+               EVID = c(1, 1, 0, 0, 4, 4)), "a"
+  ), "stack_encounters")
   ## merely out of order: sorted as a matter of course
   expect_no_warning(warn_on_restarting_time(
     data.frame(ID = 1, TIME = c(6, 0, 0), EVID = c(0, 0, 1)), "a"
