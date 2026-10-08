@@ -369,6 +369,90 @@ test_that("calc_pk_variables: CMIN_OBS counts the doses ADDL implies", {
   expect_equal(unique(calc_pk_variables(dat)$CMIN_OBS), 2)
 })
 
+test_that("calc_pk_variables: CMIN_OBS is taken over the last occasion only", {
+  ## two occasions, time reset by an EVID 4 dose; the first has the lower trough
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 1, 2, 0, 1, 2), DV = c(0, 1, 0.1, 0, 5, 4),
+    EVID = c(4, 0, 0, 4, 0, 0)
+  )
+  expect_equal(unique(calc_pk_variables(dat)$CMIN_OBS), 4)
+  ## same from the regimen, against an observation-only table
+  reg <- list(dose = c(100, 100), id = c(1, 1), time = c(0, 0))
+  out <- calc_pk_variables(dat[dat$EVID == 0, ], regimen = reg)
+  expect_equal(unique(out$CMIN_OBS), 4)
+  ## a later dose of an earlier occasion does not split the last one
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 12, 13, 0, 6, 18, 23), DV = c(0, 0, 9, 0, 6, 3, 2),
+    EVID = c(1, 1, 0, 4, 0, 0, 0)
+  )
+  expect_equal(unique(calc_pk_variables(dat)$CMIN_OBS), 2)
+  dat$DV[dat$TIME == 6] <- 1
+  expect_equal(unique(calc_pk_variables(dat)$CMIN_OBS), 1)
+})
+
+test_that("calc_pk_variables: CMIN_OBS honours resets that keep the time going", {
+  ## stacked encounters: an EVID 3 reset at 100, observed but not dosed after
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 6, 23, 100, 101, 102), DV = c(0, 5, 2, 0, 0.5, 0.4),
+    EVID = c(1, 0, 0, 3, 0, 0)
+  )
+  expect_true(is.na(unique(calc_pk_variables(dat)$CMIN_OBS)))
+  ## dosed after the reset: the trough of that occasion
+  dat2 <- rbind(dat, data.frame(ID = 1, TIME = 100, DV = 0, EVID = 1))
+  dat2 <- dat2[order(dat2$TIME, -dat2$EVID %in% 3), ]
+  expect_equal(unique(calc_pk_variables(dat2)$CMIN_OBS), 0.4)
+  ## an observation-only table, the reset coming from the regimen
+  reg <- sim_regimen_doses(transform(dat, AMT = ifelse(EVID == 1, 100, 0)))
+  out <- calc_pk_variables(dat[dat$EVID == 0, ], regimen = reg)
+  expect_true(is.na(unique(out$CMIN_OBS)))
+})
+
+test_that("calc_pk_variables: CMIN_OBS follows occasions, not clock time", {
+  ## an EVID 3 reset restarting the clock, observed but not dosed after
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 1, 2, 0, 1, 2), DV = c(0, 5, 4, 0, 0.5, 0.4),
+    EVID = c(1, 0, 0, 3, 0, 0)
+  )
+  expect_true(is.na(unique(calc_pk_variables(dat)$CMIN_OBS)))
+  ## and with the regimen giving the doses
+  reg <- sim_regimen_doses(transform(dat, AMT = ifelse(EVID == 1, 100, 0)))
+  expect_true(is.na(unique(calc_pk_variables(dat, regimen = reg)$CMIN_OBS)))
+  ## dosed in the last occasion as well
+  dat$EVID[4] <- 4
+  expect_equal(unique(calc_pk_variables(dat)$CMIN_OBS), 0.4)
+  reg <- sim_regimen_doses(transform(dat, AMT = ifelse(EVID %in% c(1, 4), 100, 0)))
+  expect_equal(unique(calc_pk_variables(dat, regimen = reg)$CMIN_OBS), 0.4)
+})
+
+test_that("calc_pk_variables: occasions restarting at the same time, observation-only table", {
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 1, 2, 0, 1, 2), DV = c(0, 1, 0.1, 0, 5, 4),
+    EVID = c(1, 0, 0, 4, 0, 0), AMT = c(100, 0, 0, 100, 0, 0)
+  )
+  reg <- sim_regimen_doses(dat)
+  out <- calc_pk_variables(dat[dat$EVID == 0, ], regimen = reg)
+  expect_equal(unique(out$CMIN_OBS), 4)
+})
+
+test_that("calc_pk_variables: observation-only occasions follow the dataset's records", {
+  ## one observation per occasion, each at TIME 1, occasions restarting at 0
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 1, 0, 1), DV = c(0, 0.1, 0, 4),
+    EVID = c(1, 0, 4, 0), AMT = c(100, 0, 100, 0)
+  )
+  out <- calc_pk_variables(dat[dat$EVID == 0, ], regimen = sim_regimen_doses(dat))
+  expect_equal(unique(out$CMIN_OBS), 4)
+})
+
+test_that("calc_pk_variables: a regimen without occasions defers to the table's", {
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 6, 23, 100, 101, 102), DV = c(0, 5, 2, 0, 0.5, 0.4),
+    EVID = c(1, 0, 0, 3, 0, 0)
+  )
+  reg <- list(dose = 100, id = 1, time = 0)
+  expect_true(is.na(unique(calc_pk_variables(dat, regimen = reg)$CMIN_OBS)))
+})
+
 test_that("calc_pk_variables: CMIN_OBS is NA without a dosing interval", {
   dat <- .make_pk_data()
   dat <- dat[dat$EVID == 0, ]

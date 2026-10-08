@@ -1103,66 +1103,190 @@ calc_pk_variables <- function(
 #' dose records, but nlmixr2's output only has observation rows, so counting
 #' would put every observation before the first dose.
 #'
+#' Only the occasion of the last observation counts (see `time_segments()`),
+#' for both the doses and the observations. Where `data` holds the dose and
+#' reset records the occasions are counted from its rows, as they come;
+#' an observation-only table takes them from the regimen: by position where
+#' it has one row per observation record of the simulation dataset, else
+#' from the occasion start times.
+#'
 #' @param data the table CMIN_OBS is added to, with `ID`, `TIME`, `DV` and
 #' `EVID`.
-#' @param regimen list with `time` and optionally `id`, one element per dose
-#' record (see `sim_regimen_doses()`), or `NULL` to take the dose times from
-#' the dose records in `data`.
+#' @param regimen list with `time` and optionally `id`, `occasion` and
+#' `occasion_start` (see `sim_regimen_doses()`), or `NULL` to take the dose
+#' times from the dose records in `data`.
 #' @param keys columns identifying a subject's profile: `ID`, plus `sim.id`
 #' or `.subproblem` when a simulation has several iterations.
 #'
 #' @returns data.frame with the `keys` and `CMIN_OBS`, one row per profile
 #' with observations. `CMIN_OBS` is `NA` where the last observation precedes
-#' the first dose, as there is no dosing interval to take it over.
+#' the occasion's first dose, as there is no dosing interval to take it over.
 #' @noRd
 cmin_per_subject <- function(data, regimen = NULL, keys = "ID") {
   data <- as.data.frame(dplyr::ungroup(data))
-  obs <- data[data$EVID %in% 0 & !is.na(data$DV), , drop = FALSE]
-  doses <- dose_times_per_subject(regimen, data)
-  for_all <- doses$time[is.na(doses$id)]
-  per_id <- split(doses$time[!is.na(doses$id)], doses$id[!is.na(doses$id)])
-  profile <- do.call(paste, c(obs[, keys, drop = FALSE], sep = "\r"))
-  rows <- split(seq_len(nrow(obs)), factor(profile, levels = unique(profile)))
-  profiles <- obs[vapply(rows, `[`, integer(1), 1), keys, drop = FALSE]
-  profiles$CMIN_OBS <- vapply(rows, function(i) {
-    time <- obs$TIME[i]
-    dose_times <- c(for_all, per_id[[canonical_key(obs$ID[i[1]])]])
+  suppressWarnings(data$.time <- as.numeric(data$TIME))
+  ## The regimen's tables, indexed by subject once rather than searched for
+  ## every profile.
+  all_doses <- regimen_dose_times(regimen)
+  has_dose_occasions <- !is.null(all_doses) && !all(is.na(all_doses$occasion))
+  doses_for <- index_by_id(all_doses)
+  starts_for <- index_by_id(regimen_occasion_starts(regimen))
+  obs_occasions <- regimen$obs_occasion
+  if(!is.null(obs_occasions)) {
+    obs_occasions$id <- ifelse(is.na(obs_occasions$id), NA_character_,
+                               canonical_key(obs_occasions$id))
+  }
+  obs_occasions_for <- index_by_id(obs_occasions)
+  profile <- do.call(paste, c(data[, keys, drop = FALSE], sep = "\r"))
+  rows <- split(seq_len(nrow(data)), factor(profile, levels = unique(profile)))
+  cmin <- vapply(rows, function(i) {
+    d <- data[i, , drop = FALSE]
+    is_obs <- d$EVID %in% 0 & !is.na(d$DV)
+    if(!any(is_obs)) return(NA_real_)
+    id <- canonical_key(d$ID[1])
+    starts <- starts_for(id)
+    occasion <- profile_occasions(d, starts, obs_occasions_for(id)$occasion)
+    last <- occasion[max(which(is_obs))]
+    own_doses <- d$EVID %in% c(1, 4)
+    doses <- doses_for(id)
+    ## A regimen that does not say which occasion a dose belongs to cannot
+    ## pick the last occasion's: the table's own dose records can, else the
+    ## regimen's doses from the reset opening that occasion on, or from the
+    ## last time its dose times restart.
+    no_occasions <- !is.null(all_doses) && !has_dose_occasions &&
+      max(occasion) > 1
+    use_regimen <- !is.null(all_doses) && !(no_occasions && any(own_doses))
+    dose_times <- if(use_regimen) {
+      sel <- rep(TRUE, nrow(doses))
+      if(has_dose_occasions) {
+        ## the regimen numbers each subject's occasions once; a table that
+        ## repeats them (subproblems it could not tell apart) wraps around
+        n_occ <- max(doses$occasion, starts$occasion, 1L, na.rm = TRUE)
+        sel <- doses$occasion %in% ((last - 1L) %% n_occ + 1L)
+      }
+      times <- doses$time[sel]
+      if(no_occasions) {
+        resets <- d$EVID %in% c(3, 4) & occasion == last
+        times <- if(any(resets)) {
+          ## from the reset that opens the last occasion on
+          times[times >= min(d$.time[resets])]
+        } else {
+          ## the last run of dose times that does not go back in time
+          segment <- time_segments(times)
+          times[segment == max(segment, 0L)]
+        }
+      }
+      times
+    } else {
+      own <- d[own_doses & occasion == last, , drop = FALSE]
+      suppressWarnings(as.numeric(expand_addl_doses(own)$TIME))
+    }
+    in_last <- is_obs & occasion == last
+    time <- d$.time[in_last]
     ## number of doses given at or before each observation
-    interval <- findInterval(time, sort(unique(dose_times)))
-    last <- interval[which.max(time)]
-    if(last == 0) return(NA_real_)
-    min(as.numeric(obs$DV[i][interval == last]))
+    interval <- findInterval(time, sort(unique(dose_times[!is.na(dose_times)])))
+    k <- interval[which.max(time)]
+    if(length(k) == 0 || k == 0) return(NA_real_)
+    min(as.numeric(d$DV[in_last][interval == k]))
   }, numeric(1))
-  rownames(profiles) <- NULL
-  profiles
+  ## one row per profile with observations
+  first <- vapply(rows, `[`, integer(1), 1)
+  has_obs <- vapply(rows, function(i) any(data$EVID[i] %in% 0 & !is.na(data$DV[i])),
+                    logical(1))
+  out <- data[first[has_obs], keys, drop = FALSE]
+  out$CMIN_OBS <- unname(cmin[has_obs])
+  rownames(out) <- NULL
+  out
 }
 
-#' Dose times, from the regimen or else from the dose records in `data`
+#' Look up the rows of a regimen table by subject
 #'
-#' Doses implied by `ADDL`/`II` in the dose records of `data` are included.
+#' @param x data.frame with a character `id` column (`NA` for rows that apply
+#' to every subject), or `NULL`.
 #'
-#' @param regimen list with `time` and optionally `id`, or `NULL`.
-#' @param data table with `ID`, `TIME` and `EVID`.
-#'
-#' @returns `data.frame(id = , time = )`, one row per dose; `id` is `NA` for a
-#' dose that applies to every subject.
+#' @returns a function of one canonical subject ID returning that subject's
+#' rows of `x` (the rows for every subject first), in their original order.
 #' @noRd
-dose_times_per_subject <- function(regimen, data) {
-  suppressWarnings(time <- as.numeric(regimen$time))
-  if(length(time) > 0) {
-    id <- regimen$id
-    id <- if(!is.null(id) && length(id) == length(time)) {
-      canonical_key(id)
-    } else {
-      rep(NA_character_, length(time))
-    }
-  } else {
-    dose_rows <- expand_addl_doses(data[data$EVID %in% c(1, 4), , drop = FALSE])
-    suppressWarnings(time <- as.numeric(dose_rows$TIME))
-    id <- canonical_key(dose_rows$ID)
+index_by_id <- function(x) {
+  if(is.null(x)) return(function(id) NULL)
+  for_all <- x[is.na(x$id), , drop = FALSE]
+  per_id <- split(x[!is.na(x$id), , drop = FALSE], x$id[!is.na(x$id)])
+  function(id) {
+    own <- per_id[[id]]
+    if(is.null(own)) for_all else if(nrow(for_all) == 0) own else rbind(for_all, own)
   }
-  keep <- !is.na(time)
-  data.frame(id = id[keep], time = time[keep])
+}
+
+#' The occasion of every row of one profile
+#'
+#' @param d the rows of one subject's profile, in table order, with `.time`.
+#' @param starts that subject's `data.frame(id = , occasion = , time = )`
+#' occasion start times from the regimen (no rows for none).
+#' @param obs_occasion the occasion of each of that subject's observation
+#' records in the simulation dataset, in order, or `NULL`.
+#'
+#' @returns integer vector, one element per row of `d`.
+#' @noRd
+profile_occasions <- function(d, starts, obs_occasion = NULL) {
+  if(any(d$EVID %in% c(1, 3, 4))) {
+    ## the table has the events itself
+    return(time_segments(d$.time, reset = d$EVID %in% c(3, 4)))
+  }
+  if(length(obs_occasion) > 0 && length(obs_occasion) == nrow(d)) {
+    ## observations only, one row per observation record of the dataset
+    return(as.integer(obs_occasion))
+  }
+  if(nrow(starts) > 1) {
+    starts <- starts[order(starts$occasion), , drop = FALSE]
+    ## occasions on one running clock; where they restart it (two starting at
+    ## the same time, say) the rows' own order tells them apart instead
+    if(!is.unsorted(starts$time, strictly = TRUE)) {
+      at <- pmax(1L, findInterval(d$.time, starts$time))
+      return(as.integer(starts$occasion[at]))
+    }
+  }
+  time_segments(d$.time)
+}
+
+#' Dose times from the regimen
+#'
+#' @param regimen list with `time` and optionally `id` and `occasion`, or
+#' `NULL`.
+#'
+#' @returns `data.frame(id = , time = , occasion = )`, one row per dose (`id`
+#' `NA` for a dose that applies to every subject, `occasion` `NA` where the
+#' regimen has a single one), or `NULL` without dose times.
+#' @noRd
+regimen_dose_times <- function(regimen) {
+  suppressWarnings(time <- as.numeric(regimen$time))
+  n <- length(time)
+  if(n == 0) return(NULL)
+  per_dose <- function(x) if(!is.null(x) && length(x) == n) x else rep(NA, n)
+  id <- per_dose(regimen$id)
+  data.frame(
+    id = ifelse(is.na(id), NA_character_, canonical_key(id)),
+    time = time,
+    occasion = as.integer(per_dose(regimen$occasion))
+  )[!is.na(time), , drop = FALSE]
+}
+
+#' Occasion start times from the regimen
+#'
+#' @param regimen list with an optional `occasion_start`, or `NULL`.
+#'
+#' @returns `data.frame(id = , occasion = , time = )`, possibly without rows.
+#' @noRd
+regimen_occasion_starts <- function(regimen) {
+  st <- regimen$occasion_start
+  if(is.null(st) || nrow(st) == 0) {
+    return(data.frame(id = character(0), occasion = integer(0),
+                      time = numeric(0)))
+  }
+  data.frame(
+    id = ifelse(is.na(st$id), NA_character_, canonical_key(st$id)),
+    occasion = as.integer(st$occasion),
+    time = suppressWarnings(as.numeric(st$time))
+  )
 }
 
 #' The last dose, its time and the compartment it goes into, for every row of

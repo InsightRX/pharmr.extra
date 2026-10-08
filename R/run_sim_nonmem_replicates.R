@@ -63,6 +63,7 @@ resolve_sim_regimens <- function(
     reg_data <- sim_data |>
       dplyr::filter(.data$.regimen == reg_label) |>
       dplyr::select(-".regimen")
+    warn_on_restarting_time(reg_data, reg_label)
     if("EVID" %in% names(reg_data)) {
       reg_data <- reg_data |>
         dplyr::arrange(.data$ID, .data$TIME, -.data$EVID)
@@ -108,20 +109,50 @@ resolve_sim_regimens <- function(
 #' element per dose (doses implied by `ADDL`/`II` included) in the first four
 #' (`id`, `time` and `cmt` are `NULL` without an `ID`, `TIME` or `CMT`
 #' column), or `NULL` when the dataset has no
-#' dose records.
+#' dose records. A dataset whose subjects have more than one occasion (see
+#' `time_segments()`) adds `occasion`, the occasion of each dose, and
+#' `occasion_start`, a `data.frame(id = , occasion = , time = )` giving the
+#' time each occasion starts at, and `obs_occasion`, a
+#' `data.frame(id = , occasion = )` with the occasion of every observation
+#' record, in dataset order.
 #' @noRd
 sim_regimen_doses <- function(data, default_cmt = 1) {
   if(!all(c("EVID", "AMT") %in% names(data))) return(NULL)
+  ## The occasion of every record, counted over the whole dataset: the
+  ## simulation output need not hold the dose and reset records it takes.
+  if("TIME" %in% names(data)) {
+    suppressWarnings(time <- as.numeric(data$TIME))
+    data$.occasion <- time_segments(time, data[["ID"]],
+                                    reset = data$EVID %in% c(3, 4))
+  }
   dose_rows <- data[data$EVID %in% c(1, 4), , drop = FALSE]
   if(nrow(dose_rows) == 0) return(NULL)
   dose_rows <- expand_addl_doses(dose_rows)
-  list(
+  out <- list(
     dose = dose_rows$AMT,
     id   = dose_rows[["ID"]],
     time = dose_rows[["TIME"]],
     cmt  = dose_rows[["CMT"]],
     default_cmt = default_cmt
   )
+  if(".occasion" %in% names(data) && any(data$.occasion > 1)) {
+    first <- !duplicated(data[, intersect(c("ID", ".occasion"), names(data)),
+                              drop = FALSE])
+    out$occasion <- dose_rows$.occasion
+    out$occasion_start <- data.frame(
+      id = if("ID" %in% names(data)) data$ID[first] else NA,
+      occasion = data$.occasion[first],
+      time = time[first]
+    )
+    ## and that of every observation record, in dataset order, for output
+    ## that has the observations only
+    is_obs <- data$EVID %in% 0
+    out$obs_occasion <- data.frame(
+      id = if("ID" %in% names(data)) data$ID[is_obs] else rep(NA, sum(is_obs)),
+      occasion = data$.occasion[is_obs]
+    )
+  }
+  out
 }
 
 #' The compartment a NONMEM model doses into by default
@@ -162,7 +193,7 @@ get_default_dose_compartment <- function(code) {
 #' `ADDL` and `II`.
 #'
 #' @returns `dose_rows`, with an extra record for every implied dose, in
-#' order of subject and time.
+#' order of subject, occasion (see `time_segments()`) and time.
 #' @noRd
 expand_addl_doses <- function(dose_rows) {
   if(!all(c("TIME", "ADDL", "II") %in% names(dose_rows))) return(dose_rows)
@@ -183,10 +214,106 @@ expand_addl_doses <- function(dose_rows) {
   time[is_copy] <- time[is_copy] + k[is_copy] * ii[idx][is_copy]
   out$TIME <- time
   out$ADDL <- 0
-  subject <- if("ID" %in% names(out)) match(out$ID, unique(out$ID)) else 1
-  out <- out[order(subject, out$TIME), , drop = FALSE]
+  ## Sorted by time within each subject and occasion: a subject whose time
+  ## restarts (a reset, a new occasion) keeps its occasions in dataset order.
+  subject <- if("ID" %in% names(out)) {
+    match(out$ID, unique(out$ID))
+  } else {
+    rep(1L, nrow(out))
+  }
+  occasion <- if(".occasion" %in% names(dose_rows)) {
+    dose_rows$.occasion[idx]
+  } else {
+    time_segments(
+      suppressWarnings(as.numeric(dose_rows$TIME)), dose_rows[["ID"]],
+      reset = dose_rows[["EVID"]] %in% 4
+    )[idx]
+  }
+  out <- out[order(subject, occasion, out$TIME), , drop = FALSE]
   rownames(out) <- NULL
   out
+}
+
+#' Number the stretches of rows over which time does not go back
+#'
+#' A subject's occasions, from its own records in order (they need not be
+#' contiguous): a new one starts where its time restarts (a new
+#' occasion on its own clock, a new simulation subproblem) and at every
+#' `reset` (an `EVID` 3 or 4 record, which need not set the time back).
+#'
+#' @param time numeric vector, in dataset order.
+#' @param id subject of each element, or `NULL` for a single subject.
+#' @param reset logical, elements that start a new stretch regardless of time
+#' (an `EVID` 4 dose), or `NULL`.
+#'
+#' @returns integer vector the length of `time`: 1 for each subject's first
+#' stretch, 2 for its second, and so on.
+#' @noRd
+time_segments <- function(time, id = NULL, reset = NULL) {
+  n <- length(time)
+  if(n == 0) return(integer(0))
+  id <- if(is.null(id)) rep("", n) else as.character(id)
+  reset <- if(is.null(reset)) rep(FALSE, n) else reset %in% TRUE
+  out <- integer(n)
+  ## Each subject on its own: its records need not be contiguous.
+  for(rows in split(seq_len(n), factor(id, levels = unique(id)))) {
+    t <- time[rows]
+    m <- length(t)
+    goes_back <- c(FALSE, !is.na(t[-1]) & !is.na(t[-m]) & t[-1] < t[-m])
+    starts <- goes_back | reset[rows]
+    starts[1] <- FALSE
+    out[rows] <- 1L + cumsum(starts)
+  }
+  out
+}
+
+#' Warn about subjects whose time restarts in a simulation dataset
+#'
+#' The simulation dataset is sorted by `ID` and `TIME` before it is
+#' simulated, so a subject whose clock restarts at a reset (encounters each
+#' starting at time 0 with an `EVID` 3 or 4 record) has its encounters
+#' interleaved, which simulates something else
+#' than the dataset describes. [stack_encounters()] puts them on one running
+#' clock instead.
+#'
+#' @param data one regimen's simulation dataset, in the order it was given.
+#' @param label the regimen label, for the message.
+#'
+#' @returns `NULL`, invisibly. Called for its side effect of warning.
+#' @noRd
+warn_on_restarting_time <- function(data, label) {
+  if(!all(c("ID", "TIME", "EVID") %in% names(data)) || nrow(data) < 2) {
+    return(invisible(NULL))
+  }
+  ## Time going back at a reset record: a dataset that is merely out of order
+  ## is sorted as a matter of course, but NONMEM only lets the time restart
+  ## at a reset (EVID 3 or 4).
+  ## Each record against its subject's previous one (subjects' records need
+  ## not be contiguous in a dataset that is still to be sorted): the sort by
+  ## TIME and descending EVID puts it first where its time is earlier, or the
+  ## same with a higher EVID. That only changes what is simulated where a
+  ## reset is involved.
+  suppressWarnings({
+    time <- as.numeric(data$TIME)
+    evid <- as.numeric(data$EVID)
+  })
+  id <- as.character(data$ID)
+  lag <- function(x) stats::ave(x, id, FUN = function(v) c(NA, v[-length(v)]))
+  prev_time <- lag(time)
+  prev_evid <- lag(evid)
+  moves <- !is.na(prev_time) &
+    (time < prev_time | (time == prev_time & evid > prev_evid))
+  restarts <- moves & (evid %in% c(3, 4) | prev_evid %in% c(3, 4))
+  if(any(restarts %in% TRUE)) {
+    cli::cli_warn(c(
+      "A reset record is out of time order within a subject in the \
+       simulation dataset ({label}).",
+      i = "The dataset is sorted by {.field ID} and {.field TIME} before it is \
+           simulated, which interleaves encounters on a restarting clock. Use \
+           {.fn stack_encounters} to put them on one running clock."
+    ))
+  }
+  invisible(NULL)
 }
 
 #' Turn a model into a simulation-only model with the requested `$TABLE`

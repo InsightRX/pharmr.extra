@@ -135,7 +135,12 @@ test_that("sim_regimen_doses keeps the subject and compartment of each dose", {
   expect_equal(
     sim_regimen_doses(dat),
     list(dose = c(100, 100, 250, 250), id = c(1, 1, 2, 2),
-         time = c(0, 12, 0, 12), cmt = c(1, 1, 1, 1), default_cmt = 1)
+         time = c(0, 12, 0, 12), cmt = c(1, 1, 1, 1), default_cmt = 1,
+         ## the EVID 4 dose starts a new occasion
+         occasion = c(1L, 2L, 1L, 1L),
+         occasion_start = data.frame(id = c(1, 1, 2), occasion = c(1L, 2L, 1L),
+                                     time = c(0, 12, 0)),
+         obs_occasion = data.frame(id = c(1, 2), occasion = c(2L, 1L)))
   )
 })
 
@@ -152,6 +157,49 @@ test_that("sim_regimen_doses expands the doses ADDL/II imply", {
          time = c(0, 12, 24, 36, 0, 12, 24, 36),
          cmt = rep(1, 8), default_cmt = 1)
   )
+})
+
+test_that("warn_on_restarting_time warns where a subject's clock restarts", {
+  dat <- data.frame(ID = 1, TIME = c(0, 1, 0, 1), EVID = c(1, 0, 4, 0))
+  expect_warning(warn_on_restarting_time(dat, "a"), "stack_encounters")
+  expect_no_warning(warn_on_restarting_time(
+    data.frame(ID = c(1, 1, 2), TIME = c(0, 1, 0), EVID = c(1, 0, 1)), "a"
+  ))
+  ## subjects interleaved
+  expect_warning(warn_on_restarting_time(
+    data.frame(ID = c(1, 2, 1, 2, 1, 2), TIME = c(0, 0, 1, 1, 0, 0),
+               EVID = c(1, 1, 0, 0, 4, 4)), "a"
+  ), "stack_encounters")
+  ## a reset right after an observation at the same time
+  expect_warning(warn_on_restarting_time(
+    data.frame(ID = 1, TIME = c(0, 5, 5, 6), EVID = c(1, 0, 3, 0)), "a"
+  ), "stack_encounters")
+  ## merely out of order: sorted as a matter of course
+  expect_no_warning(warn_on_restarting_time(
+    data.frame(ID = 1, TIME = c(6, 0, 0), EVID = c(0, 0, 1)), "a"
+  ))
+})
+
+test_that("time_segments follows each subject's own records", {
+  expect_equal(time_segments(c(0, 0, 1, 1), c(1, 2, 1, 2)), c(1L, 1L, 1L, 1L))
+  expect_equal(time_segments(c(0, 0, 1, 0), c(1, 2, 1, 1)), c(1L, 1L, 1L, 2L))
+  expect_equal(time_segments(c(0, 1, 1), reset = c(FALSE, TRUE, FALSE)),
+               c(1L, 2L, 2L))
+})
+
+test_that("sim_regimen_doses expands ADDL without an ID column", {
+  dat <- data.frame(TIME = c(0, 30), DV = 0, AMT = c(100, 0), EVID = c(1, 0),
+                    ADDL = c(2, 0), II = c(12, 0))
+  expect_equal(sim_regimen_doses(dat)$time, c(0, 12, 24))
+})
+
+test_that("sim_regimen_doses keeps occasions in order when time restarts", {
+  dat <- data.frame(ID = 1, TIME = c(0, 30, 0, 30), DV = 0,
+                    AMT = c(100, 0, 50, 0), EVID = c(1, 0, 4, 0),
+                    ADDL = c(1, 0, 1, 0), II = c(12, 0, 12, 0))
+  res <- sim_regimen_doses(dat)
+  expect_equal(res$time, c(0, 12, 0, 12))
+  expect_equal(res$dose, c(100, 100, 50, 50))
 })
 
 test_that("sim_regimen_doses keeps the time of doses without II", {
