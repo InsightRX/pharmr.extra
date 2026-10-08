@@ -142,8 +142,10 @@ run_sim(
 - add_pk_variables:
 
   calculate basic PK variables: CMAX_OBS, TMAX_OBS, CMIN_OBS, and (when
-  `CL` is in the output table) AUC_SS. AUC_SS is derived as the last
-  dose in the simulation dataset divided by CL, scaled into the units
+  `CL` is in the output table) AUC_SS. AUC_SS is derived per subject as
+  `F * dose / CL`: the subject's last dose in the simulation dataset,
+  times the bioavailability (`F<n>`) of the compartment that dose goes
+  into, divided by the subject's CL. It is then scaled into the units
   the model reports concentrations in: NONMEM predicts `A(n)/S<n>`, so a
   model with e.g. `S2 = V2/1000` (mg dosed, ng/mL reported) gets an
   AUC_SS 1000x that of plain dose/CL. The equivalent rewrite

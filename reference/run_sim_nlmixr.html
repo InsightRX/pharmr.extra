@@ -13,7 +13,7 @@ requires the Python pyreadr package)."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9146</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9147</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -119,7 +119,9 @@ all variables declared in the NONMEM code.</p></dd>
 <dt id="arg-add-pk-variables">add_pk_variables<a class="anchor" aria-label="anchor" href="#arg-add-pk-variables"></a></dt>
 <dd><p>calculate basic PK variables: CMAX_OBS, TMAX_OBS,
 CMIN_OBS, and (when <code>CL</code> is in the output table) AUC_SS. AUC_SS is derived
-as the last dose in the simulation dataset divided by CL, scaled into the
+per subject as <code>F * dose / CL</code>: the subject's last dose in the simulation
+dataset, times the bioavailability (<code>F&lt;n&gt;</code>) of the compartment that dose
+goes into, divided by the subject's CL. It is then scaled into the
 units the model reports concentrations in: NONMEM predicts <code>A(n)/S&lt;n&gt;</code>, so a
 model with e.g. <code>S2 = V2/1000</code> (mg dosed, ng/mL reported) gets an AUC_SS
 1000x that of plain dose/CL. The equivalent rewrite
