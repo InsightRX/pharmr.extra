@@ -463,6 +463,37 @@ test_that("calc_pk_variables: bioavailability is taken at the last dose", {
   ## the row at that time stands for it)
   expect_equal(out$AUC_SS[out$ID == 1], rep(0.6 * 100 / 5, 5))
   expect_equal(out$AUC_SS[out$ID == 2], rep(0.8 * 200 / 5, 5))
+  ## a dose between two rows: what the dose record set is in effect from the
+  ## dose on, so the first row after it applies, not the one before
+  reg$time <- c(0, 10, 0, 20)
+  out <- calc_pk_variables(dat, regimen = reg)
+  expect_equal(out$AUC_SS[out$ID == 1], rep(0.6 * 100 / 5, 5))
+  expect_equal(out$AUC_SS[out$ID == 2], rep(1.0 * 200 / 5, 5))
+  ## dosed after the last row: the last row is all there is
+  reg$time <- c(0, 30, 0, 30)
+  out <- calc_pk_variables(dat, regimen = reg)
+  expect_equal(out$AUC_SS[out$ID == 1], rep(1.0 * 100 / 5, 5))
+})
+
+test_that("calc_pk_variables: replicates of a single-time subject are told apart", {
+  ## Dose and observation at one time point, two replicates back to back:
+  ## neither ID nor TIME changes between them, but EVID going back up does
+  dat <- data.frame(
+    ID = 1, TIME = 0, DV = c(0, 5, 0, 6), EVID = c(1, 0, 1, 0), CL = 5,
+    F1 = c(0.5, 0.5, 0.7, 0.7)
+  )
+  out <- calc_pk_variables(dat, regimen = list(dose = 100, id = 1, time = 0))
+  expect_equal(out$AUC_SS, rep(c(0.5, 0.7) * 100 / 5, each = 2))
+  ## nlmixr2 output: observation rows only, replicates marked by sim.id
+  dat <- data.frame(
+    sim.id = c(1, 1, 2, 2), ID = 1, TIME = c(1, 1, 1, 1), DV = 1, EVID = 0,
+    CL = 5, BIOAV_CMT1 = c(0.5, 0.5, 0.7, 0.7)
+  )
+  out <- calc_pk_variables(
+    dat, regimen = list(dose = 100, id = 1, time = 0),
+    bioavailability = c("1" = "BIOAV_CMT1")
+  )
+  expect_equal(out$AUC_SS, rep(c(0.5, 0.7) * 100 / 5, each = 2))
 })
 
 test_that("calc_pk_variables: bioavailability at the dose record, per replicate", {

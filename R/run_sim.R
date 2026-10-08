@@ -1129,13 +1129,19 @@ last_dose_per_subject <- function(regimen, data) {
 
 #' For every row of `data`, the row that holds its subject's last dose
 #'
-#' Each run of consecutive rows of one subject is one subject in one simulated
-#' replicate (a run ends where `ID` changes or `TIME` goes back, which is
-#' where the next replicate of the same subject starts). Within it, the row
-#' that stands for the dose is the dose record at the last dose time where the
-#' table has one (NONMEM tables do), otherwise the last row at or before that
-#' time, otherwise -- an output with no rows before the last dose -- the
-#' subject's first row.
+#' Rows are first split into one subject in one simulated replicate: by
+#' `sim.id` where the table has it (nlmixr2), and within that into runs of
+#' consecutive rows of one subject. A run ends where `ID` changes, where `TIME`
+#' goes back, or where `EVID` goes up at an unchanged `TIME` -- the simulation
+#' dataset is sorted by `ID`, `TIME` and descending `EVID`, so within one
+#' replicate neither happens, and that is where the next replicate of the same
+#' subject starts.
+#'
+#' Within a run, the row that stands for the dose is the dose record at the
+#' last dose time where the table has one (NONMEM tables do). Otherwise
+#' (nlmixr2 output has observation rows only) it is the first row at or after
+#' that time, since what a dose record sets -- a time-varying covariate, say --
+#' is in effect from the dose onwards, and failing that the last row before it.
 #'
 #' @param data the table AUC_SS is added to.
 #' @param time the subject's last dose time, for every row of `data`.
@@ -1151,20 +1157,32 @@ rows_at_last_dose <- function(data, time) {
   }
   ids <- as.character(data$ID)
   t <- data$TIME
-  is_dose <- if("EVID" %in% names(data)) data$EVID %in% c(1, 4) else rep(FALSE, n)
-  new_run <- c(TRUE, ids[-1] != ids[-n] | t[-1] < t[-n])
+  evid <- if("EVID" %in% names(data)) data$EVID else rep(0, n)
+  is_dose <- evid %in% c(1, 4)
+  replicate <- if("sim.id" %in% names(data)) {
+    as.character(data[["sim.id"]])
+  } else {
+    rep("1", n)
+  }
+  new_run <- c(
+    TRUE,
+    replicate[-1] != replicate[-n] |
+      ids[-1] != ids[-n] |
+      t[-1] < t[-n] |
+      (t[-1] == t[-n] & evid[-1] > evid[-n])
+  )
   new_run[is.na(new_run)] <- FALSE
   for(rows in split(idx, cumsum(new_run))) {
     t_dose <- time[rows[1]]
     if(is.na(t_dose)) next
     at_dose <- rows[is_dose[rows] & t[rows] == t_dose]
-    before <- rows[t[rows] <= t_dose]
+    after <- rows[t[rows] >= t_dose]
     idx[rows] <- if(length(at_dose) > 0) {
       utils::tail(at_dose, 1)
-    } else if(length(before) > 0) {
-      utils::tail(before, 1)
+    } else if(length(after) > 0) {
+      after[1]
     } else {
-      rows[1]
+      utils::tail(rows, 1)
     }
   }
   idx
