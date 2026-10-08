@@ -282,15 +282,26 @@ warn_on_restarting_time <- function(data, label) {
   ## Time going back at a reset record: a dataset that is merely out of order
   ## is sorted as a matter of course, but NONMEM only lets the time restart
   ## at a reset (EVID 3 or 4).
-  ## Each record against its subject's previous one: subjects' records need
-  ## not be contiguous in a dataset that is still to be sorted.
-  suppressWarnings(time <- as.numeric(data$TIME))
-  previous <- stats::ave(time, as.character(data$ID),
-                         FUN = function(t) c(NA, t[-length(t)]))
-  restarts <- !is.na(previous) & time < previous & data$EVID %in% c(3, 4)
+  ## Each record against its subject's previous one (subjects' records need
+  ## not be contiguous in a dataset that is still to be sorted): the sort by
+  ## TIME and descending EVID puts it first where its time is earlier, or the
+  ## same with a higher EVID. That only changes what is simulated where a
+  ## reset is involved.
+  suppressWarnings({
+    time <- as.numeric(data$TIME)
+    evid <- as.numeric(data$EVID)
+  })
+  id <- as.character(data$ID)
+  lag <- function(x) stats::ave(x, id, FUN = function(v) c(NA, v[-length(v)]))
+  prev_time <- lag(time)
+  prev_evid <- lag(evid)
+  moves <- !is.na(prev_time) &
+    (time < prev_time | (time == prev_time & evid > prev_evid))
+  restarts <- moves & (evid %in% c(3, 4) | prev_evid %in% c(3, 4))
   if(any(restarts %in% TRUE)) {
     cli::cli_warn(c(
-      "Time goes back within a subject in the simulation dataset ({label}).",
+      "A reset record is out of time order within a subject in the \
+       simulation dataset ({label}).",
       i = "The dataset is sorted by {.field ID} and {.field TIME} before it is \
            simulated, which interleaves encounters on a restarting clock. Use \
            {.fn stack_encounters} to put them on one running clock."

@@ -444,6 +444,15 @@ test_that("calc_pk_variables: observation-only occasions follow the dataset's re
   expect_equal(unique(out$CMIN_OBS), 4)
 })
 
+test_that("calc_pk_variables: a regimen without occasions defers to the table's", {
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 6, 23, 100, 101, 102), DV = c(0, 5, 2, 0, 0.5, 0.4),
+    EVID = c(1, 0, 0, 3, 0, 0)
+  )
+  reg <- list(dose = 100, id = 1, time = 0)
+  expect_true(is.na(unique(calc_pk_variables(dat, regimen = reg)$CMIN_OBS)))
+})
+
 test_that("calc_pk_variables: CMIN_OBS is NA without a dosing interval", {
   dat <- .make_pk_data()
   dat <- dat[dat$EVID == 0, ]

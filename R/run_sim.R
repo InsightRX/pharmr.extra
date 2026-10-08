@@ -1144,6 +1144,14 @@ cmin_per_subject <- function(data, regimen = NULL, keys = "ID") {
       obs_occasions$occasion[obs_occasions$id %in% c(id, NA)]
     )
     last <- occasion[max(which(is_obs))]
+    own_doses <- d$EVID %in% c(1, 4)
+    ## A regimen that does not say which occasion a dose belongs to cannot
+    ## pick the last occasion's: the table's own dose records can, else the
+    ## regimen's doses from the reset opening that occasion on, or from the
+    ## last time its dose times restart.
+    no_occasions <- !is.null(doses) && all(is.na(doses$occasion)) &&
+      max(occasion) > 1
+    if(no_occasions && any(own_doses)) doses <- NULL
     dose_times <- if(!is.null(doses)) {
       sel <- doses$id %in% c(id, NA)
       if(!all(is.na(doses$occasion))) {
@@ -1153,9 +1161,21 @@ cmin_per_subject <- function(data, regimen = NULL, keys = "ID") {
                      1L, na.rm = TRUE)
         sel <- sel & doses$occasion %in% ((last - 1L) %% n_occ + 1L)
       }
-      doses$time[sel]
+      times <- doses$time[sel]
+      if(no_occasions) {
+        resets <- d$EVID %in% c(3, 4) & occasion == last
+        times <- if(any(resets)) {
+          ## from the reset that opens the last occasion on
+          times[times >= min(d$.time[resets])]
+        } else {
+          ## the last run of dose times that does not go back in time
+          segment <- time_segments(times)
+          times[segment == max(segment, 0L)]
+        }
+      }
+      times
     } else {
-      own <- d[d$EVID %in% c(1, 4) & occasion == last, , drop = FALSE]
+      own <- d[own_doses & occasion == last, , drop = FALSE]
       suppressWarnings(as.numeric(expand_addl_doses(own)$TIME))
     }
     in_last <- is_obs & occasion == last
