@@ -369,6 +369,27 @@ test_that("calc_pk_variables: CMIN_OBS counts the doses ADDL implies", {
   expect_equal(unique(calc_pk_variables(dat)$CMIN_OBS), 2)
 })
 
+test_that("calc_pk_variables: CMIN_OBS is taken over the last occasion only", {
+  ## two occasions, time reset by an EVID 4 dose; the first has the lower trough
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 1, 2, 0, 1, 2), DV = c(0, 1, 0.1, 0, 5, 4),
+    EVID = c(4, 0, 0, 4, 0, 0)
+  )
+  expect_equal(unique(calc_pk_variables(dat)$CMIN_OBS), 4)
+  ## same from the regimen, against an observation-only table
+  reg <- list(dose = c(100, 100), id = c(1, 1), time = c(0, 0))
+  out <- calc_pk_variables(dat[dat$EVID == 0, ], regimen = reg)
+  expect_equal(unique(out$CMIN_OBS), 4)
+  ## a later dose of an earlier occasion does not split the last one
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 12, 13, 0, 6, 18, 23), DV = c(0, 0, 9, 0, 6, 3, 2),
+    EVID = c(1, 1, 0, 4, 0, 0, 0)
+  )
+  expect_equal(unique(calc_pk_variables(dat)$CMIN_OBS), 2)
+  dat$DV[dat$TIME == 6] <- 1
+  expect_equal(unique(calc_pk_variables(dat)$CMIN_OBS), 1)
+})
+
 test_that("calc_pk_variables: CMIN_OBS is NA without a dosing interval", {
   dat <- .make_pk_data()
   dat <- dat[dat$EVID == 0, ]

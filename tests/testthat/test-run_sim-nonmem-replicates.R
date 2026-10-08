@@ -154,6 +154,21 @@ test_that("sim_regimen_doses expands the doses ADDL/II imply", {
   )
 })
 
+test_that("sim_regimen_doses expands ADDL without an ID column", {
+  dat <- data.frame(TIME = c(0, 30), DV = 0, AMT = c(100, 0), EVID = c(1, 0),
+                    ADDL = c(2, 0), II = c(12, 0))
+  expect_equal(sim_regimen_doses(dat)$time, c(0, 12, 24))
+})
+
+test_that("sim_regimen_doses keeps occasions in order when time restarts", {
+  dat <- data.frame(ID = 1, TIME = c(0, 30, 0, 30), DV = 0,
+                    AMT = c(100, 0, 50, 0), EVID = c(1, 0, 4, 0),
+                    ADDL = c(1, 0, 1, 0), II = c(12, 0, 12, 0))
+  res <- sim_regimen_doses(dat)
+  expect_equal(res$time, c(0, 12, 0, 12))
+  expect_equal(res$dose, c(100, 100, 50, 50))
+})
+
 test_that("sim_regimen_doses keeps the time of doses without II", {
   dat <- data.frame(
     ID = 1, TIME = c(0, 30, 40), DV = 0, AMT = c(100, 50, 0),

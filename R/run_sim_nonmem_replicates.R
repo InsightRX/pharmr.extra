@@ -162,7 +162,7 @@ get_default_dose_compartment <- function(code) {
 #' `ADDL` and `II`.
 #'
 #' @returns `dose_rows`, with an extra record for every implied dose, in
-#' order of subject and time.
+#' order of subject, occasion (see `time_segments()`) and time.
 #' @noRd
 expand_addl_doses <- function(dose_rows) {
   if(!all(c("TIME", "ADDL", "II") %in% names(dose_rows))) return(dose_rows)
@@ -183,10 +183,46 @@ expand_addl_doses <- function(dose_rows) {
   time[is_copy] <- time[is_copy] + k[is_copy] * ii[idx][is_copy]
   out$TIME <- time
   out$ADDL <- 0
-  subject <- if("ID" %in% names(out)) match(out$ID, unique(out$ID)) else 1
-  out <- out[order(subject, out$TIME), , drop = FALSE]
+  ## Sorted by time within each subject and occasion: a subject whose time
+  ## restarts (a reset, a new occasion) keeps its occasions in dataset order.
+  subject <- if("ID" %in% names(out)) {
+    match(out$ID, unique(out$ID))
+  } else {
+    rep(1L, nrow(out))
+  }
+  occasion <- time_segments(
+    as.numeric(dose_rows$TIME), dose_rows[["ID"]],
+    reset = dose_rows[["EVID"]] %in% 4
+  )[idx]
+  out <- out[order(subject, occasion, out$TIME), , drop = FALSE]
   rownames(out) <- NULL
   out
+}
+
+#' Number the stretches of rows over which time does not go back
+#'
+#' A subject's time restarting (an `EVID` 3/4 reset into a new occasion, a
+#' new simulation subproblem) starts a new stretch.
+#'
+#' @param time numeric vector, in dataset order.
+#' @param id subject of each element, or `NULL` for a single subject.
+#' @param reset logical, elements that start a new stretch regardless of time
+#' (an `EVID` 4 dose), or `NULL`.
+#'
+#' @returns integer vector the length of `time`: 1 for each subject's first
+#' stretch, 2 for its second, and so on.
+#' @noRd
+time_segments <- function(time, id = NULL, reset = NULL) {
+  n <- length(time)
+  if(n == 0) return(integer(0))
+  id <- if(is.null(id)) rep("", n) else as.character(id)
+  new_subject <- c(TRUE, id[-1] != id[-n])
+  goes_back <- c(FALSE, !is.na(time[-1]) & !is.na(time[-n]) & time[-1] < time[-n])
+  if(is.null(reset)) reset <- rep(FALSE, n)
+  block <- cumsum(new_subject | goes_back | reset %in% TRUE)
+  first <- !duplicated(block)
+  segment <- stats::ave(seq_along(block[first]), id[first], FUN = seq_along)
+  as.integer(segment[block])
 }
 
 #' Turn a model into a simulation-only model with the requested `$TABLE`
