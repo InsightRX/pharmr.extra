@@ -1125,41 +1125,44 @@ calc_pk_variables <- function(
 cmin_per_subject <- function(data, regimen = NULL, keys = "ID") {
   data <- as.data.frame(dplyr::ungroup(data))
   suppressWarnings(data$.time <- as.numeric(data$TIME))
-  doses <- regimen_dose_times(regimen)
-  starts <- regimen_occasion_starts(regimen)
+  ## The regimen's tables, indexed by subject once rather than searched for
+  ## every profile.
+  all_doses <- regimen_dose_times(regimen)
+  has_dose_occasions <- !is.null(all_doses) && !all(is.na(all_doses$occasion))
+  doses_for <- index_by_id(all_doses)
+  starts_for <- index_by_id(regimen_occasion_starts(regimen))
   obs_occasions <- regimen$obs_occasion
   if(!is.null(obs_occasions)) {
     obs_occasions$id <- ifelse(is.na(obs_occasions$id), NA_character_,
                                canonical_key(obs_occasions$id))
   }
+  obs_occasions_for <- index_by_id(obs_occasions)
   profile <- do.call(paste, c(data[, keys, drop = FALSE], sep = "\r"))
   rows <- split(seq_len(nrow(data)), factor(profile, levels = unique(profile)))
-  cmin <- lapply(rows, function(i) {
+  cmin <- vapply(rows, function(i) {
     d <- data[i, , drop = FALSE]
     is_obs <- d$EVID %in% 0 & !is.na(d$DV)
-    if(!any(is_obs)) return(NULL)
+    if(!any(is_obs)) return(NA_real_)
     id <- canonical_key(d$ID[1])
-    occasion <- profile_occasions(
-      d, starts[starts$id %in% c(id, NA), ],
-      obs_occasions$occasion[obs_occasions$id %in% c(id, NA)]
-    )
+    starts <- starts_for(id)
+    occasion <- profile_occasions(d, starts, obs_occasions_for(id)$occasion)
     last <- occasion[max(which(is_obs))]
     own_doses <- d$EVID %in% c(1, 4)
+    doses <- doses_for(id)
     ## A regimen that does not say which occasion a dose belongs to cannot
     ## pick the last occasion's: the table's own dose records can, else the
     ## regimen's doses from the reset opening that occasion on, or from the
     ## last time its dose times restart.
-    no_occasions <- !is.null(doses) && all(is.na(doses$occasion)) &&
+    no_occasions <- !is.null(all_doses) && !has_dose_occasions &&
       max(occasion) > 1
-    if(no_occasions && any(own_doses)) doses <- NULL
-    dose_times <- if(!is.null(doses)) {
-      sel <- doses$id %in% c(id, NA)
-      if(!all(is.na(doses$occasion))) {
+    use_regimen <- !is.null(all_doses) && !(no_occasions && any(own_doses))
+    dose_times <- if(use_regimen) {
+      sel <- rep(TRUE, nrow(doses))
+      if(has_dose_occasions) {
         ## the regimen numbers each subject's occasions once; a table that
         ## repeats them (subproblems it could not tell apart) wraps around
-        n_occ <- max(doses$occasion[sel], starts$occasion[starts$id %in% c(id, NA)],
-                     1L, na.rm = TRUE)
-        sel <- sel & doses$occasion %in% ((last - 1L) %% n_occ + 1L)
+        n_occ <- max(doses$occasion, starts$occasion, 1L, na.rm = TRUE)
+        sel <- doses$occasion %in% ((last - 1L) %% n_occ + 1L)
       }
       times <- doses$time[sel]
       if(no_occasions) {
@@ -1183,17 +1186,35 @@ cmin_per_subject <- function(data, regimen = NULL, keys = "ID") {
     ## number of doses given at or before each observation
     interval <- findInterval(time, sort(unique(dose_times[!is.na(dose_times)])))
     k <- interval[which.max(time)]
-    value <- if(length(k) == 0 || k == 0) {
-      NA_real_
-    } else {
-      min(as.numeric(d$DV[in_last][interval == k]))
-    }
-    cbind(d[1, keys, drop = FALSE], CMIN_OBS = value)
-  })
-  out <- do.call(rbind, cmin)
-  if(is.null(out)) out <- cbind(data[0, keys, drop = FALSE], CMIN_OBS = numeric(0))
+    if(length(k) == 0 || k == 0) return(NA_real_)
+    min(as.numeric(d$DV[in_last][interval == k]))
+  }, numeric(1))
+  ## one row per profile with observations
+  first <- vapply(rows, `[`, integer(1), 1)
+  has_obs <- vapply(rows, function(i) any(data$EVID[i] %in% 0 & !is.na(data$DV[i])),
+                    logical(1))
+  out <- data[first[has_obs], keys, drop = FALSE]
+  out$CMIN_OBS <- unname(cmin[has_obs])
   rownames(out) <- NULL
   out
+}
+
+#' Look up the rows of a regimen table by subject
+#'
+#' @param x data.frame with a character `id` column (`NA` for rows that apply
+#' to every subject), or `NULL`.
+#'
+#' @returns a function of one canonical subject ID returning that subject's
+#' rows of `x` (the rows for every subject first), in their original order.
+#' @noRd
+index_by_id <- function(x) {
+  if(is.null(x)) return(function(id) NULL)
+  for_all <- x[is.na(x$id), , drop = FALSE]
+  per_id <- split(x[!is.na(x$id), , drop = FALSE], x$id[!is.na(x$id)])
+  function(id) {
+    own <- per_id[[id]]
+    if(is.null(own)) for_all else if(nrow(for_all) == 0) own else rbind(for_all, own)
+  }
 }
 
 #' The occasion of every row of one profile
