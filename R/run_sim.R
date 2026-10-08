@@ -1183,7 +1183,9 @@ profile_occasions <- function(d, starts) {
   }
   if(nrow(starts) > 1) {
     starts <- starts[order(starts$occasion), , drop = FALSE]
-    if(!is.unsorted(starts$time)) {
+    ## occasions on one running clock; where they restart it (two starting at
+    ## the same time, say) the rows' own order tells them apart instead
+    if(!is.unsorted(starts$time, strictly = TRUE)) {
       at <- pmax(1L, findInterval(d$.time, starts$time))
       return(as.integer(starts$occasion[at]))
     }
