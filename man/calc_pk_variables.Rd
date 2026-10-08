@@ -17,7 +17,10 @@ element gives the compartment each dose goes into, which decides the
 bioavailability that applies (where absent, the regimen's \code{default_cmt},
 else compartment 1), and an optional \code{time} element the dose time, at which
 that bioavailability is taken.
-\code{NULL} skips AUC_SS.}
+\code{NULL} skips AUC_SS.
+A \code{time} element is also what CMIN_OBS uses to assign observations to
+dosing intervals; without it the dose records (\code{EVID} 1 or 4) in \code{data}
+are used, if there are any.}
 
 \item{dv_scale}{multiplier putting \code{dose / CL} into the units the model
 reports concentrations in, i.e. \verb{V / S<n>} for the observation compartment

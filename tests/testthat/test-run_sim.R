@@ -325,6 +325,82 @@ test_that("calc_pk_variables: CMIN_OBS computed correctly when EVID present", {
   expect_equal(unique(out$CMIN_OBS[out$ID == 2]), 1)
 })
 
+test_that("calc_pk_variables: CMIN_OBS from the regimen's dose times when the table has no dose records", {
+  ## nlmixr2 output: observation rows only
+  dat <- .make_pk_data()
+  dat <- dat[dat$EVID == 0, ]
+  reg <- list(dose = c(100, 100), id = c(1, 2), time = c(0, 0))
+  out <- calc_pk_variables(dat, regimen = reg)
+  expect_equal(unique(out$CMIN_OBS[out$ID == 1]), 2)
+  expect_equal(unique(out$CMIN_OBS[out$ID == 2]), 1)
+})
+
+test_that("calc_pk_variables: CMIN_OBS is taken over each subject's last dosing interval", {
+  dat <- data.frame(
+    ID   = rep(1:2, each = 6),
+    TIME = c(1, 6, 11, 13, 18, 23,   # ID 1: doses at 0 and 12
+             1, 6, 11, 25, 30, 35),  # ID 2: doses at 0 and 24
+    DV   = c(5, 3, 0.5, 6, 4, 2,
+             5, 3, 0.4, 7, 5, 3),
+    EVID = 0
+  )
+  reg <- list(dose = rep(100, 4), id = c(1, 1, 2, 2), time = c(0, 12, 0, 24))
+  out <- calc_pk_variables(dat, regimen = reg)
+  ## not the 0.5 / 0.4 from the first interval
+  expect_equal(unique(out$CMIN_OBS[out$ID == 1]), 2)
+  expect_equal(unique(out$CMIN_OBS[out$ID == 2]), 3)
+  ## a regimen without subjects applies its dose times to everyone
+  reg_all <- list(dose = c(100, 100), time = c(0, 12))
+  out <- calc_pk_variables(dat, regimen = reg_all)
+  expect_equal(unique(out$CMIN_OBS[out$ID == 2]), 3)
+})
+
+test_that("calc_pk_variables: CMIN_OBS counts the doses ADDL implies", {
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 1, 6, 11, 13, 18, 23),
+    DV = c(0, 5, 3, 0.5, 6, 4, 2),
+    EVID = c(1, 0, 0, 0, 0, 0, 0), ADDL = c(1, 0, 0, 0, 0, 0, 0),
+    II = c(12, 0, 0, 0, 0, 0, 0)
+  )
+  ## from the regimen ...
+  reg <- list(dose = c(100, 100), id = c(1, 1), time = c(0, 12))
+  expect_equal(unique(calc_pk_variables(dat[dat$EVID == 0, ], regimen = reg)$CMIN_OBS), 2)
+  ## ... and from the table's own dose records
+  expect_equal(unique(calc_pk_variables(dat)$CMIN_OBS), 2)
+})
+
+test_that("calc_pk_variables: CMIN_OBS is NA without a dosing interval", {
+  dat <- .make_pk_data()
+  dat <- dat[dat$EVID == 0, ]
+  ## ID 1 dosed after its last observation, ID 2 never dosed
+  reg <- list(dose = 100, id = 1, time = 48)
+  out <- calc_pk_variables(dat, regimen = reg)
+  expect_true(all(is.na(out$CMIN_OBS)))
+})
+
+test_that("calc_pk_variables: simulation iterations are kept apart", {
+  dat <- rbind(
+    cbind(.make_pk_data(), sim.id = 1),
+    cbind(dplyr::mutate(.make_pk_data(), DV = DV * 10), sim.id = 2)
+  )
+  out <- calc_pk_variables(dat)
+  one <- out[out$ID == 1, ]
+  expect_equal(unique(one$CMIN_OBS[one$sim.id == 1]), 2)
+  expect_equal(unique(one$CMIN_OBS[one$sim.id == 2]), 20)
+  expect_equal(unique(one$CMAX_OBS[one$sim.id == 1]), 10)
+  expect_equal(unique(one$CMAX_OBS[one$sim.id == 2]), 100)
+})
+
+test_that("calc_pk_variables: NONMEM subproblems are kept apart", {
+  ## two subproblems, as read_table_nm(subproblems = TRUE) returns them
+  dat <- rbind(.make_pk_data(), dplyr::mutate(.make_pk_data(), DV = DV * 10))
+  dat$.subproblem <- rep(1:2, each = 10)
+  out <- calc_pk_variables(dat)
+  expect_equal(out$CMIN_OBS[out$ID == 1], rep(c(2, 20), each = 5))
+  expect_equal(out$CMAX_OBS[out$ID == 1], rep(c(10, 100), each = 5))
+  expect_equal(out$CMIN_OBS[out$ID == 2], rep(c(1, 10), each = 5))
+})
+
 test_that("calc_pk_variables: CMIN_OBS skipped with message when EVID absent", {
   dat <- dplyr::select(.make_pk_data(), -"EVID")
   expect_message(

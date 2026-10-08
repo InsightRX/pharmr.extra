@@ -116,12 +116,14 @@ test_that("resolve_sim_regimens carries the default dose compartment", {
   expect_equal(regs[[1]]$regimen_for_pk$default_cmt, 2)
 })
 
-test_that("sim_regimen_doses times a record by its last dose, ADDL counted", {
+test_that("sim_regimen_doses counts the doses ADDL implies", {
   dat <- data.frame(
     ID = c(1, 1, 2), TIME = c(0, 6, 0), DV = 0, AMT = c(100, 0, 100),
     EVID = c(1, 0, 1), ADDL = c(3, 0, "."), II = c(12, 0, 0)
   )
-  expect_equal(sim_regimen_doses(dat)$time, c(36, 0))
+  ## subject 1's last dose is the third additional one, at 36
+  expect_equal(sim_regimen_doses(dat)$time, c(0, 12, 24, 36, 0))
+  expect_equal(sim_regimen_doses(dat)$id, c(1, 1, 1, 1, 2))
 })
 
 test_that("sim_regimen_doses keeps the subject and compartment of each dose", {
@@ -135,6 +137,32 @@ test_that("sim_regimen_doses keeps the subject and compartment of each dose", {
     list(dose = c(100, 100, 250, 250), id = c(1, 1, 2, 2),
          time = c(0, 12, 0, 12), cmt = c(1, 1, 1, 1), default_cmt = 1)
   )
+})
+
+test_that("sim_regimen_doses expands the doses ADDL/II imply", {
+  dat <- data.frame(
+    ID = c(1, 1, 1, 2, 2), TIME = c(0, 36, 40, 0, 40), DV = 0,
+    AMT = c(100, 50, 0, 250, 0), EVID = c(1, 1, 0, 1, 0),
+    ADDL = c(2, 0, 0, 3, 0), II = c(12, 0, 0, 12, 0), CMT = 1
+  )
+  expect_equal(
+    sim_regimen_doses(dat),
+    list(dose = c(100, 100, 100, 50, 250, 250, 250, 250),
+         id = c(1, 1, 1, 1, 2, 2, 2, 2),
+         time = c(0, 12, 24, 36, 0, 12, 24, 36),
+         cmt = rep(1, 8), default_cmt = 1)
+  )
+})
+
+test_that("sim_regimen_doses keeps the time of doses without II", {
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 30, 40), DV = 0, AMT = c(100, 50, 0),
+    EVID = c(1, 1, 0), ADDL = c("1", ".", "."), II = c("12", ".", "."),
+    CMT = 1
+  )
+  res <- sim_regimen_doses(dat)
+  expect_equal(res$time, c(0, 12, 30))
+  expect_equal(res$dose, c(100, 100, 50))
 })
 
 # Execute half -----------------------------------------------------------------
