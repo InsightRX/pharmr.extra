@@ -36,8 +36,15 @@
 #' `label` (the `.regimen` value), `data` (that regimen's dataset, sorted and
 #' with `.regimen` dropped) and `regimen_for_pk` (the dosing regimen
 #' [calc_pk_variables()] needs, or `NULL`).
+#' @param default_dose_cmt the compartment a dose without one goes into (see
+#' [get_default_dose_compartment()]).
 #' @noRd
-resolve_sim_regimens <- function(data, input_data, verbose = TRUE) {
+resolve_sim_regimens <- function(
+    data,
+    input_data,
+    default_dose_cmt = 1,
+    verbose = TRUE
+) {
   if(is.null(data)) {
     if(verbose) cli::cli_alert_info("Using input dataset for simulation")
     sim_data <- as.data.frame(input_data)
@@ -76,7 +83,7 @@ resolve_sim_regimens <- function(data, input_data, verbose = TRUE) {
       index          = i,
       label          = reg_label,
       data           = reg_data,
-      regimen_for_pk = sim_regimen_doses(reg_data)
+      regimen_for_pk = sim_regimen_doses(reg_data, default_cmt = default_dose_cmt)
     )
   })
 }
@@ -90,13 +97,16 @@ resolve_sim_regimens <- function(data, input_data, verbose = TRUE) {
 #' what decides which bioavailability (`F<n>`) applies to it.
 #'
 #' @param data one regimen's simulation dataset.
+#' @param default_cmt the compartment a dose without one (no, an empty or a
+#' zero `CMT`) goes into.
 #'
-#' @returns `list(dose = , id = , time = , cmt = )` with one element per dose
-#' record (`id`, `time` and `cmt` are `NULL` without an `ID`, `TIME` or `CMT`
-#' column; `time` is that of the record's last dose, counting `ADDL`), or
-#' `NULL` when the dataset has no dose records.
+#' @returns `list(dose = , id = , time = , cmt = , default_cmt = )` with one
+#' element per dose record in the first four (`id`, `time` and `cmt` are
+#' `NULL` without an `ID`, `TIME` or `CMT` column; `time` is that of the
+#' record's last dose, counting `ADDL`), or `NULL` when the dataset has no
+#' dose records.
 #' @noRd
-sim_regimen_doses <- function(data) {
+sim_regimen_doses <- function(data, default_cmt = 1) {
   if(!all(c("EVID", "AMT") %in% names(data))) return(NULL)
   dose_rows <- data[data$EVID %in% c(1, 4), , drop = FALSE]
   if(nrow(dose_rows) == 0) return(NULL)
@@ -116,8 +126,37 @@ sim_regimen_doses <- function(data) {
     dose = dose_rows$AMT,
     id   = dose_rows[["ID"]],
     time = time,
-    cmt  = dose_rows[["CMT"]]
+    cmt  = dose_rows[["CMT"]],
+    default_cmt = default_cmt
   )
+}
+
+#' The compartment a NONMEM model doses into by default
+#'
+#' A dose record without a compartment (no, an empty or a zero `CMT`) goes
+#' into the compartment `$MODEL` marks `DEFDOSE`, and into compartment 1 where
+#' none is marked or there is no `$MODEL` (the predefined ADVANs).
+#'
+#' @param code NONMEM control stream.
+#'
+#' @returns the compartment number.
+#' @noRd
+get_default_dose_compartment <- function(code) {
+  code <- paste(code, collapse = "\n")
+  if(length(code) == 0 || is.na(code)) return(1)
+  ## Comments out, then the $MODEL record: up to the next record
+  code <- gsub(";[^\n]*", "", code)
+  model_rec <- stringr::str_match(
+    code, "(?is)\\$MODEL?\\b(.*?)(?=\\n\\s*\\$|$)"
+  )[, 2]
+  if(is.na(model_rec)) return(1)
+  comps <- stringr::str_match_all(
+    model_rec,
+    "(?i)(?<![A-Za-z])COMP(?:ARTMENT)?\\s*=\\s*(\\([^)]*\\)|[^\\s(]+)"
+  )[[1]][, 2]
+  is_default <- grepl("(?i)\\bDEFDOS(E)?\\b", comps, perl = TRUE)
+  if(!any(is_default)) return(1)
+  which(is_default)[1]
 }
 
 #' Turn a model into a simulation-only model with the requested `$TABLE`
@@ -181,7 +220,7 @@ build_nonmem_sim_model <- function(
   ## wherever it carries IIV, so it has to come from the table just like CL.
   ## NONMEM names are case-insensitive, so `f1` counts as well.
   bioavailability_names <- get_defined_pk_parameters(
-    sim_model, possible = c(paste0("F", 1:9), paste0("f", 1:9))
+    sim_model, possible = c(paste0("F", 1:99), paste0("f", 1:99))
   )
   table_variables <- unique(
     c(checked_variables, parameter_names, bioavailability_names)

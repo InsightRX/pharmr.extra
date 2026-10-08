@@ -251,8 +251,12 @@ run_sim <- function(
   ## once here: it depends on the model only, and every path that computes PK
   ## variables -- in this process or in a worker -- needs the same number.
   dv_scale <- 1
+  ## Likewise the compartment a dose record without a CMT goes into, which
+  ## decides the bioavailability AUC_SS applies to it.
+  default_dose_cmt <- 1
   if(tool == "nonmem" && add_pk_variables && update_table) {
     dv_scale <- get_dv_scale_factor(model, verbose = verbose)
+    default_dose_cmt <- get_default_dose_compartment(model$code)
   }
 
   ## `keep`: copy the control streams and listings out of the run folder and
@@ -369,7 +373,9 @@ run_sim <- function(
   ## regimen is run in its own run folder (`id/regimen_<i>`) so regimens don't
   ## overwrite each other's output. Numeric indexing avoids sanitizing user
   ## labels that may contain spaces NONMEM cannot handle in `$DATA` paths.
-  regimens <- resolve_sim_regimens(data, input_data, verbose = verbose)
+  regimens <- resolve_sim_regimens(
+    data, input_data, default_dose_cmt = default_dose_cmt, verbose = verbose
+  )
 
   ## Turn the model into a simulation-only model, with the requested $TABLE.
   ## Built once rather than once per regimen: it depends on the model, the seed
@@ -412,6 +418,7 @@ run_sim <- function(
         update_table     = update_table,
         add_pk_variables = add_pk_variables,
         dv_scale         = dv_scale,
+        regimen_for_pk   = reg$regimen_for_pk,
         n_cores          = n_cores,
         force            = TRUE,
         verbose          = verbose
@@ -615,7 +622,10 @@ run_sim <- function(
     ## Resolved here, in the parent, for the same reason: locating nmfe goes
     ## through the Pharmpy configuration.
     nmfe <- get_nmfe_location(verbose = verbose)
-    regimens <- resolve_sim_regimens(data, model$dataset, verbose = verbose)
+    regimens <- resolve_sim_regimens(
+      data, model$dataset, default_dose_cmt = default_dose_cmt,
+      verbose = verbose
+    )
     ctx <- prepare_nonmem_replicate_context(
       model        = model,
       draws        = draws,
@@ -996,8 +1006,9 @@ sample_uncertainty_parameters <- function(
 #' subject each dose belongs to) AUC_SS uses each subject's own last dose,
 #' otherwise the last dose overall is used for every subject. An optional `cmt`
 #' element gives the compartment each dose goes into, which decides the
-#' bioavailability that applies (compartment 1 when absent), and an optional
-#' `time` element the dose time, at which that bioavailability is taken.
+#' bioavailability that applies (where absent, the regimen's `default_cmt`,
+#' else compartment 1), and an optional `time` element the dose time, at which
+#' that bioavailability is taken.
 #' `NULL` skips AUC_SS.
 #' @param dv_scale multiplier putting `dose / CL` into the units the model
 #' reports concentrations in, i.e. `V / S<n>` for the observation compartment
@@ -1006,8 +1017,8 @@ sample_uncertainty_parameters <- function(
 #' @param bioavailability named character vector mapping a dose compartment
 #' (number or name, as in the `CMT` of the dose records) to the column in
 #' `data` holding the bioavailability for that compartment. `NULL` (the
-#' default) maps compartment `n` to a column `F<n>` (`F1`-`F9`, as NONMEM
-#' names them, in either case) where `data` has one. Doses into a compartment without a
+#' default) maps compartment `n` to a column `F<n>` (as NONMEM names them, in
+#' either case) where `data` has one. Doses into a compartment without a
 #' bioavailability column are taken as fully bioavailable.
 #'
 #' @returns data.frame
@@ -1099,12 +1110,14 @@ last_dose_per_subject <- function(regimen, data) {
     if(is.null(x) || length(x) != length(dose)) return(rep(default, length(dose)))
     x
   }
-  ## A dose without a compartment goes into the default dose compartment,
-  ## compartment 1 -- also where the dataset has a CMT column but leaves it
+  ## A dose without a compartment goes into the default dose compartment
+  ## (`regimen$default_cmt`, compartment 1 unless the model says otherwise)
+  ## -- also where the dataset has a CMT column but leaves it
   ## empty for this record, or sets it to 0, which NONMEM and rxode2 read as
   ## "the default dose compartment" too.
-  cmt <- canonical_key(per_dose(regimen$cmt, "1"))
-  cmt[is.na(cmt) | cmt %in% c("", ".", "0")] <- "1"
+  default_cmt <- canonical_key(regimen$default_cmt %||% 1)
+  cmt <- canonical_key(per_dose(regimen$cmt, default_cmt))
+  cmt[is.na(cmt) | cmt %in% c("", ".", "0")] <- default_cmt
   suppressWarnings(time <- as.numeric(per_dose(regimen$time, NA_real_)))
   id <- regimen$id
   if(!is.null(id) && length(id) == length(dose) && "ID" %in% names(data)) {
@@ -1217,7 +1230,7 @@ rows_at_last_dose <- function(data, time) {
 bioavailability_for_doses <- function(data, cmt, bioavailability = NULL) {
   if(is.null(bioavailability)) {
     ## NONMEM names are case-insensitive: `f1` is F1 too
-    f_cols <- grep("^[Ff][1-9]$", names(data), value = TRUE)
+    f_cols <- grep("^[Ff][1-9][0-9]*$", names(data), value = TRUE)
     bioavailability <- stats::setNames(f_cols, substring(f_cols, 2))
   }
   names(bioavailability) <- canonical_key(names(bioavailability))

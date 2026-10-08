@@ -14,8 +14,9 @@ derive AUC_SS from the last dose. When it also has an \code{id} element (the
 subject each dose belongs to) AUC_SS uses each subject's own last dose,
 otherwise the last dose overall is used for every subject. An optional \code{cmt}
 element gives the compartment each dose goes into, which decides the
-bioavailability that applies (compartment 1 when absent), and an optional
-\code{time} element the dose time, at which that bioavailability is taken.
+bioavailability that applies (where absent, the regimen's \code{default_cmt},
+else compartment 1), and an optional \code{time} element the dose time, at which
+that bioavailability is taken.
 \code{NULL} skips AUC_SS.}
 
 \item{dv_scale}{multiplier putting \code{dose / CL} into the units the model
@@ -26,8 +27,8 @@ reports concentrations in, i.e. \verb{V / S<n>} for the observation compartment
 \item{bioavailability}{named character vector mapping a dose compartment
 (number or name, as in the \code{CMT} of the dose records) to the column in
 \code{data} holding the bioavailability for that compartment. \code{NULL} (the
-default) maps compartment \code{n} to a column \verb{F<n>} (\code{F1}-\code{F9}, as NONMEM
-names them, in either case) where \code{data} has one. Doses into a compartment without a
+default) maps compartment \code{n} to a column \verb{F<n>} (as NONMEM names them, in
+either case) where \code{data} has one. Doses into a compartment without a
 bioavailability column are taken as fully bioavailable.}
 }
 \value{

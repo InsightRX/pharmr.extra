@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<testsuites>
+  <testsuite name="create_model" timestamp="2026-05-28T10:00:00" tests="3" skipped="1" failures="1" errors="0" time="2.5">
+    <testcase classname="create_model" name="[PHAI-T23] builds a 1-cmt model" time="0.50"/>
+    <testcase classname="create_model" name="[PHAI-T23] builds a 2-cmt model" time="1.50">
+      <failure type="error" message="expectation failed">CL not found</failure>
+    </testcase>
+    <testcase classname="create_model" name="[PHAI-T24] handles oral route" time="0.50">
+      <skipped message="NONMEM not available"/>
+    </testcase>
+  </testsuite>
+  <testsuite name="run_nlme" timestamp="2026-05-28T10:01:00" tests="2" skipped="0" failures="0" errors="0" time="3.0">
+    <testcase classname="run_nlme" name="[PHAI-T25] fits a FOCEI model" time="3.00"/>
+    <testcase classname="run_nlme" name="untagged helper test" time="0.10"/>
+  </testsuite>
+</testsuites>

@@ -361,6 +361,8 @@ nwpri_chunk_seeds <- function(seed, n_chunks, spacing = 1000003L) {
 #' @param add_pk_variables add derived PK variables to the output table?
 #' @param dv_scale multiplier putting AUC_SS into the units the model reports
 #' concentrations in (see [get_dv_scale_factor()]).
+#' @param regimen_for_pk the doses AUC_SS is derived from (see
+#' `sim_regimen_doses()`).
 #'
 #' @returns named list of data.frames, one per output table.
 #' @noRd
@@ -376,6 +378,7 @@ run_nwpri_regimen_tables <- function(
     update_table = TRUE,
     add_pk_variables = FALSE,
     dv_scale = 1,
+    regimen_for_pk = sim_regimen_doses(sim_data_regimen),
     n_cores = 1L,
     force = TRUE,
     verbose = TRUE
@@ -420,7 +423,6 @@ run_nwpri_regimen_tables <- function(
   )
 
   if(update_table && add_pk_variables) {
-    regimen_for_pk <- sim_regimen_doses(sim_data_regimen)
     ## Per draw, not over the whole table: every subproblem repeats the same
     ## IDs, so a Cmax taken over the concatenation would be the maximum over
     ## all draws rather than this draw's.

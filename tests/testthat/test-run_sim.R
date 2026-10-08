@@ -539,6 +539,23 @@ test_that("calc_pk_variables: IDs and compartments match however they're spelled
   expect_equal(unique(out$AUC_SS[out$ID == 2]), 0.5 * 200 / 5)
 })
 
+test_that("calc_pk_variables: a dose without CMT goes into the default compartment", {
+  ## DEFDOSE on compartment 2: F2 applies to doses without a compartment
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5, F1 = 0.5, F2 = 0.8)
+  reg <- list(dose = c(100, 100), id = c(1, 2), cmt = c(NA, 0), default_cmt = 2)
+  out <- calc_pk_variables(dat, regimen = reg)
+  expect_equal(unique(out$AUC_SS), 0.8 * 100 / 5)
+  reg$cmt <- NULL
+  out <- calc_pk_variables(dat, regimen = reg)
+  expect_equal(unique(out$AUC_SS), 0.8 * 100 / 5)
+})
+
+test_that("calc_pk_variables: bioavailability for compartments past 9", {
+  dat <- dplyr::mutate(.make_pk_data(), CL = 5, F1 = 0.5, F12 = 0.3)
+  out <- calc_pk_variables(dat, regimen = list(dose = 100, id = 1, cmt = 12))
+  expect_equal(unique(out$AUC_SS[out$ID == 1]), 0.3 * 100 / 5)
+})
+
 test_that("calc_pk_variables: no F column means full bioavailability", {
   dat <- dplyr::mutate(.make_pk_data(), CL = 5)
   out <- calc_pk_variables(dat, regimen = list(dose = 100, id = 1, cmt = 1))
