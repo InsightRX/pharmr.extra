@@ -94,38 +94,31 @@ resolve_sim_regimens <- function(
 #' dataset rather than from the model. Each dose carries the subject it belongs
 #' to, since subjects in one regimen need not receive the same dose (a
 #' weight-based regimen, say), and the compartment it goes into, since that is
-#' what decides which bioavailability (`F<n>`) applies to it.
+#' what decides which bioavailability (`F<n>`) applies to it. Its time is
+#' what assigns observations to dosing intervals for CMIN_OBS, as the
+#' simulation output need not hold the dose records (nlmixr2's does not).
+#'
+#' Doses implied by `ADDL`/`II` are expanded into records of their own.
 #'
 #' @param data one regimen's simulation dataset.
 #' @param default_cmt the compartment a dose without one (no, an empty or a
 #' zero `CMT`) goes into.
 #'
 #' @returns `list(dose = , id = , time = , cmt = , default_cmt = )` with one
-#' element per dose record in the first four (`id`, `time` and `cmt` are
-#' `NULL` without an `ID`, `TIME` or `CMT` column; `time` is that of the
-#' record's last dose, counting `ADDL`), or `NULL` when the dataset has no
+#' element per dose (doses implied by `ADDL`/`II` included) in the first four
+#' (`id`, `time` and `cmt` are `NULL` without an `ID`, `TIME` or `CMT`
+#' column), or `NULL` when the dataset has no
 #' dose records.
 #' @noRd
 sim_regimen_doses <- function(data, default_cmt = 1) {
   if(!all(c("EVID", "AMT") %in% names(data))) return(NULL)
   dose_rows <- data[data$EVID %in% c(1, 4), , drop = FALSE]
   if(nrow(dose_rows) == 0) return(NULL)
-  ## The time of the record's last dose: a record with ADDL additional doses
-  ## every II gives its last one at TIME + ADDL * II.
-  time <- dose_rows[["TIME"]]
-  if(!is.null(time) && all(c("ADDL", "II") %in% names(dose_rows))) {
-    suppressWarnings({
-      addl <- as.numeric(dose_rows$ADDL)
-      ii <- as.numeric(dose_rows$II)
-      time <- as.numeric(time)
-    })
-    extra <- ifelse(!is.na(addl) & addl > 0 & !is.na(ii), addl * ii, 0)
-    time <- time + extra
-  }
+  dose_rows <- expand_addl_doses(dose_rows)
   list(
     dose = dose_rows$AMT,
     id   = dose_rows[["ID"]],
-    time = time,
+    time = dose_rows[["TIME"]],
     cmt  = dose_rows[["CMT"]],
     default_cmt = default_cmt
   )
@@ -157,6 +150,43 @@ get_default_dose_compartment <- function(code) {
   is_default <- grepl("(?i)\\bDEFDOS(E)?\\b", comps, perl = TRUE)
   if(!any(is_default)) return(1)
   which(is_default)[1]
+}
+
+#' Expand the doses implied by `ADDL`/`II` into dose records of their own
+#'
+#' A record with `ADDL = n` and `II = tau` stands for itself plus `n` more
+#' doses `tau` apart, which matter both for the dosing intervals CMIN_OBS is
+#' taken over and for which dose is a subject's last.
+#'
+#' @param dose_rows dose records (`EVID` 1 or 4) with `TIME`, and optionally
+#' `ADDL` and `II`.
+#'
+#' @returns `dose_rows`, with an extra record for every implied dose, in
+#' order of subject and time.
+#' @noRd
+expand_addl_doses <- function(dose_rows) {
+  if(!all(c("TIME", "ADDL", "II") %in% names(dose_rows))) return(dose_rows)
+  suppressWarnings({
+    addl <- as.numeric(dose_rows$ADDL)
+    ii <- as.numeric(dose_rows$II)
+  })
+  n_extra <- ifelse(!is.na(addl) & addl > 0 & !is.na(ii) & ii > 0,
+                    floor(addl), 0)
+  if(all(n_extra == 0)) return(dose_rows)
+  idx <- rep(seq_len(nrow(dose_rows)), n_extra + 1)
+  out <- dose_rows[idx, , drop = FALSE]
+  ## Only the generated copies move: a record without ADDL keeps its time
+  ## whatever its II (often missing, `.`).
+  k <- sequence(n_extra + 1) - 1
+  is_copy <- k > 0
+  suppressWarnings(time <- as.numeric(out$TIME))
+  time[is_copy] <- time[is_copy] + k[is_copy] * ii[idx][is_copy]
+  out$TIME <- time
+  out$ADDL <- 0
+  subject <- if("ID" %in% names(out)) match(out$ID, unique(out$ID)) else 1
+  out <- out[order(subject, out$TIME), , drop = FALSE]
+  rownames(out) <- NULL
+  out
 }
 
 #' Turn a model into a simulation-only model with the requested `$TABLE`
@@ -459,6 +489,8 @@ prepare_nonmem_replicate_specs <- function(
 #'
 #' @param nmfe path to the nmfe script, resolved by the caller while Python is
 #' still reachable.
+#' @param n_iterations number of `$SIMULATION` subproblems, to tell apart in
+#' the output table (see `tag_sim_subproblems()`).
 #' @param update_table were the `$TABLE` records rebuilt by [run_sim()]?
 #' @param add_pk_variables add derived PK variables to the output table?
 #' @param dv_scale multiplier putting AUC_SS into the units the model reports
@@ -473,12 +505,14 @@ prepare_nonmem_replicate_specs <- function(
 #' @noRd
 make_nonmem_replicate_fn <- function(
     nmfe,
+    n_iterations = 1,
     update_table = TRUE,
     add_pk_variables = FALSE,
     dv_scale = 1,
     clean = TRUE
 ) {
   force(nmfe)
+  force(n_iterations)
   force(update_table)
   force(add_pk_variables)
   force(dv_scale)
@@ -493,6 +527,11 @@ make_nonmem_replicate_fn <- function(
             table_names = spec$table_names,
             clean       = clean
           )
+          if(update_table) {
+            tab <- tag_sim_subproblems(
+              tab, file.path(reg$folder, spec$table_names[1]), n_iterations
+            )
+          }
           if(update_table && add_pk_variables) {
             tab <- calc_pk_variables(tab, regimen = reg$regimen_for_pk,
                                      dv_scale = dv_scale)

@@ -171,3 +171,42 @@ read_table_nm_subproblems <- function(file) {
   rownames(out) <- NULL
   out
 }
+
+#' Tag the rows of a simulation table with the subproblem they came from
+#'
+#' A `$SIMULATION` with `SUBPROBLEMS > 1` repeats every subject once per
+#' subproblem, and the default reader returns the blocks as one undivided
+#' table. The PK variables of [run_sim()] are per subject *and* subproblem, so
+#' the table is read again with the subproblems kept apart and their index
+#' carried over as a `.subproblem` column.
+#'
+#' Only for a table known to come from such a simulation, and only when the
+#' re-read matches it row for row and has `n_iterations` subproblems; anything
+#' else (a table without column labels, say) leaves `tab` as it is, with a
+#' warning that the iterations cannot be told apart.
+#'
+#' @param tab the table as [read_table_nm()] read it.
+#' @param file the file it was read from.
+#' @param n_iterations number of `$SIMULATION` subproblems.
+#'
+#' @returns `tab`, with a `.subproblem` column when it could be added.
+#' @noRd
+tag_sim_subproblems <- function(tab, file, n_iterations) {
+  if(is.null(tab) || n_iterations <= 1) return(tab)
+  sub <- tryCatch(
+    suppressWarnings(suppressMessages(
+      read_table_nm(file = file, subproblems = TRUE)
+    )),
+    error = function(e) NULL
+  )
+  if(is.null(sub) || nrow(sub) != nrow(tab) ||
+     length(unique(sub$.subproblem)) != n_iterations) {
+    cli::cli_warn(c(
+      "Could not tell the subproblems of simulation table {.path {file}} apart.",
+      i = "PK variables are computed over all {n_iterations} iterations together."
+    ))
+    return(tab)
+  }
+  tab$.subproblem <- sub$.subproblem
+  tab
+}

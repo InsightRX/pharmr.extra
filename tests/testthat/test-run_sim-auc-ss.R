@@ -110,6 +110,19 @@ test_that("run_sim_nlmixr: AUC_SS is each subject's F * dose / CL", {
   }
 })
 
+test_that("run_sim_nlmixr: CMIN_OBS is the trough over the last interval", {
+  skip_if_not_installed("rxode2")
+  out <- run_sim_nlmixr(
+    data = .oral_ss_dat(), model_code = .oral_nlmixr_code(), seed = 3,
+    add_pk_variables = TRUE, verbose = FALSE
+  )
+  for(id in 1:2) {
+    sub <- out[out$ID == id & out$EVID == 0, ]
+    expect_false(anyNA(sub$CMIN_OBS))
+    expect_equal(unique(sub$CMIN_OBS), min(sub$DV))
+  }
+})
+
 test_that("the NONMEM simulation table carries the model's bioavailability", {
   skip_if_nonmem_not_available()
   mod <- suppressMessages(create_model(route = "oral", bioavailability = TRUE))

@@ -459,6 +459,16 @@ run_sim <- function(
     }
 
     ## post-processing
+    if(update_table && n_iterations > 1) {
+      attr(results, "tables")[[output_file]] <- tag_sim_subproblems(
+        tab = attr(results, "tables")[[output_file]],
+        file = file.path(
+          attr(results, "fit_folder") %||% file.path(path %||% getwd(), id_i),
+          output_file
+        ),
+        n_iterations = n_iterations
+      )
+    }
     if(update_table && add_pk_variables) {
       ## The dosing regimen comes from the simulation dataset so AUC_SS can be
       ## computed in calc_pk_variables (needs regimen$dose).
@@ -658,6 +668,7 @@ run_sim <- function(
     }
     replicate_fn <- make_nonmem_replicate_fn(
       nmfe             = nmfe,
+      n_iterations     = n_iterations,
       update_table     = update_table,
       add_pk_variables = add_pk_variables,
       dv_scale         = dv_scale
@@ -1010,6 +1021,9 @@ sample_uncertainty_parameters <- function(
 #' else compartment 1), and an optional `time` element the dose time, at which
 #' that bioavailability is taken.
 #' `NULL` skips AUC_SS.
+#' A `time` element is also what CMIN_OBS uses to assign observations to
+#' dosing intervals; without it the dose records (`EVID` 1 or 4) in `data`
+#' are used, if there are any.
 #' @param dv_scale multiplier putting `dose / CL` into the units the model
 #' reports concentrations in, i.e. `V / S<n>` for the observation compartment
 #' (see [get_dv_scale_factor()]). `1` (the default) is the usual
@@ -1037,28 +1051,24 @@ calc_pk_variables <- function(
   }
 
   if(!is.null(data)) {
-    ## Find cmax/tmax for each ID
+    ## Per subject, and per simulation iteration where there are several:
+    ## nlmixr2 repeats every ID in each iteration (`sim.id`), NONMEM in each
+    ## subproblem (`.subproblem`, see tag_sim_subproblems()).
+    keys <- c("ID", intersect(c("sim.id", ".subproblem"), names(data)))
+
+    ## Find cmax/tmax for each subject
     data <- data |>
-      dplyr::group_by(.data$ID) |>
+      dplyr::group_by(dplyr::across(dplyr::all_of(keys))) |>
       dplyr::mutate(CMAX_OBS = max(.data$DV)) |>
       dplyr::mutate(TMAX_OBS = .data$TIME[match(.data$CMAX_OBS[1], .data$DV)][1])
 
-    ## Find Cmin for each ID, for last interval
+    ## Find Cmin for each subject, over the dosing interval holding the
+    ## subject's last observation.
     if(all(c("ID", "EVID") %in% names(data))) {
-      tmp_data <- data |>
-        dplyr::group_by(.data$ID) |>
-        dplyr::mutate(.dose_id = cumsum(.data$EVID == 1))
-      last_obs_dose_id <- tmp_data |>
-        dplyr::filter(.data$EVID == 0) |>
-        dplyr::pull(".dose_id") |>
-        utils::tail(1)
-      cmin_data <- tmp_data |>
-        dplyr::mutate(.dose_cmin = max(c(1, last_obs_dose_id))) |> # last full interval (before last dose)
-        dplyr::filter(.data$.dose_id == .data$.dose_cmin & .data$EVID == 0) |>
-        dplyr::summarise(CMIN_OBS = min(.data$DV))
-      data <- dplyr::left_join(data, cmin_data, by = "ID")      
+      cmin_data <- cmin_per_subject(data, regimen, keys = keys)
+      data <- dplyr::left_join(data, cmin_data, by = keys)
     } else {
-      cli::cli_alert_info("Skipping Cmin calculation, some required columns not in output data.")      
+      cli::cli_alert_info("Skipping Cmin calculation, some required columns not in output data.")
     }
 
     ## Add AUC_SS as F * dose / CL, if we're simulating a specific regimen.
@@ -1084,6 +1094,75 @@ calc_pk_variables <- function(
   }
 
   data
+}
+
+#' Cmin over the dosing interval holding each subject's last observation
+#'
+#' Observations are assigned to dosing intervals by time rather than by
+#' counting the dose records in `data`: the NONMEM simulation table holds the
+#' dose records, but nlmixr2's output only has observation rows, so counting
+#' would put every observation before the first dose.
+#'
+#' @param data the table CMIN_OBS is added to, with `ID`, `TIME`, `DV` and
+#' `EVID`.
+#' @param regimen list with `time` and optionally `id`, one element per dose
+#' record (see `sim_regimen_doses()`), or `NULL` to take the dose times from
+#' the dose records in `data`.
+#' @param keys columns identifying a subject's profile: `ID`, plus `sim.id`
+#' or `.subproblem` when a simulation has several iterations.
+#'
+#' @returns data.frame with the `keys` and `CMIN_OBS`, one row per profile
+#' with observations. `CMIN_OBS` is `NA` where the last observation precedes
+#' the first dose, as there is no dosing interval to take it over.
+#' @noRd
+cmin_per_subject <- function(data, regimen = NULL, keys = "ID") {
+  data <- as.data.frame(dplyr::ungroup(data))
+  obs <- data[data$EVID %in% 0 & !is.na(data$DV), , drop = FALSE]
+  doses <- dose_times_per_subject(regimen, data)
+  for_all <- doses$time[is.na(doses$id)]
+  per_id <- split(doses$time[!is.na(doses$id)], doses$id[!is.na(doses$id)])
+  profile <- do.call(paste, c(obs[, keys, drop = FALSE], sep = "\r"))
+  rows <- split(seq_len(nrow(obs)), factor(profile, levels = unique(profile)))
+  profiles <- obs[vapply(rows, `[`, integer(1), 1), keys, drop = FALSE]
+  profiles$CMIN_OBS <- vapply(rows, function(i) {
+    time <- obs$TIME[i]
+    dose_times <- c(for_all, per_id[[canonical_key(obs$ID[i[1]])]])
+    ## number of doses given at or before each observation
+    interval <- findInterval(time, sort(unique(dose_times)))
+    last <- interval[which.max(time)]
+    if(last == 0) return(NA_real_)
+    min(as.numeric(obs$DV[i][interval == last]))
+  }, numeric(1))
+  rownames(profiles) <- NULL
+  profiles
+}
+
+#' Dose times, from the regimen or else from the dose records in `data`
+#'
+#' Doses implied by `ADDL`/`II` in the dose records of `data` are included.
+#'
+#' @param regimen list with `time` and optionally `id`, or `NULL`.
+#' @param data table with `ID`, `TIME` and `EVID`.
+#'
+#' @returns `data.frame(id = , time = )`, one row per dose; `id` is `NA` for a
+#' dose that applies to every subject.
+#' @noRd
+dose_times_per_subject <- function(regimen, data) {
+  suppressWarnings(time <- as.numeric(regimen$time))
+  if(length(time) > 0) {
+    id <- regimen$id
+    id <- if(!is.null(id) && length(id) == length(time)) {
+      canonical_key(id)
+    } else {
+      rep(NA_character_, length(time))
+    }
+  } else {
+    dose_rows <- expand_addl_doses(data[data$EVID %in% c(1, 4), , drop = FALSE])
+    suppressWarnings(time <- as.numeric(dose_rows$TIME))
+    id <- canonical_key(dose_rows$ID)
+  }
+  keep <- !is.na(time)
+  data.frame(id = id[keep], time = time[keep])
 }
 
 #' The last dose, its time and the compartment it goes into, for every row of

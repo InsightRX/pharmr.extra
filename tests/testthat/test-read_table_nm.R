@@ -223,3 +223,28 @@ test_that("subproblem reading rejects inputs it cannot handle", {
   writeLines(c("TABLE NO.  1", " ID TIME DV", " 1.0 2.0"), mismatched)
   expect_error(read_table_nm(mismatched, subproblems = TRUE), "column name")
 })
+
+test_that("tag_sim_subproblems tags a simulation table's subproblems", {
+  file <- test_path("fixtures", "simtab_subproblems")
+  tab <- read_table_nm(file)
+  out <- tag_sim_subproblems(tab, file, n_iterations = 3)
+  expect_equal(out$.subproblem, rep(1:3, each = 4))
+  expect_equal(out[names(tab)], tab, ignore_attr = "na.action")
+  ## a single iteration needs no tagging
+  expect_identical(tag_sim_subproblems(tab, file, n_iterations = 1), tab)
+})
+
+test_that("tag_sim_subproblems leaves a table it cannot match alone, with a warning", {
+  file <- test_path("fixtures", "simtab_subproblems")
+  tab <- read_table_nm(file)
+  expect_warning(
+    out <- tag_sim_subproblems(tab, file, n_iterations = 2),
+    "subproblem"
+  )
+  expect_identical(out, tab)
+  expect_warning(
+    out <- tag_sim_subproblems(tab[-1, ], file, n_iterations = 3),
+    "subproblem"
+  )
+  expect_false(".subproblem" %in% names(out))
+})
