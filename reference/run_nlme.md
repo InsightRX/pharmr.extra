@@ -151,14 +151,20 @@ run_nlme(
   copy the dataset into the run folder? If `TRUE`, the dataset is copied
   into the run folder as `data.csv` and the model's `$DATA` record is
   rewritten to point to that copy. If `FALSE` (default), the dataset is
-  left in its existing location and the model's `$DATA` record is left
-  untouched (the caller is responsible for `$DATA` already pointing at
-  the dataset correctly). `copy_dataset = FALSE` can only be honored
-  when the dataset is a file on disk — i.e. `data` is supplied as a file
-  path, or the model's `$DATA` record points to an existing file. If
-  neither is the case (only an in-memory data frame, `model$dataset`, or
-  original dataset is available), a warning is issued and the dataset is
-  copied into the run folder (with `$DATA` rewritten) anyway.
+  left in its existing location and the model's `$DATA` record is
+  rewritten to the dataset's absolute path (other `$DATA` options such
+  as `IGNORE=` are kept), since NONMEM is run from inside the run folder
+  where a relative path would not resolve. A `data` file path is
+  resolved against the working directory; when `data` is not given, a
+  relative `$DATA` path is resolved against the folder the model file
+  was read from (or the working directory if unknown). A `$DATA` that
+  already is an absolute path to an existing file is left as-is.
+  `copy_dataset = FALSE` can only be honored when the dataset is a file
+  on disk — i.e. `data` is supplied as a file path, or the model's
+  `$DATA` record points to an existing file. If neither is the case
+  (only an in-memory data frame, `model$dataset`, or original dataset is
+  available), a warning is issued and the dataset is copied into the run
+  folder (with `$DATA` rewritten) anyway.
 
 - clean:
 

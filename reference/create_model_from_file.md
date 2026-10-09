@@ -9,6 +9,7 @@ create_model_from_file(
   model_file,
   ext_file = NULL,
   data = NULL,
+  data_dir = NULL,
   verbose = TRUE
 )
 ```
@@ -27,6 +28,14 @@ create_model_from_file(
 - data:
 
   the filename of the dataset (or an actual data.frame)
+
+- data_dir:
+
+  directory a relative `$DATA` path in the model is relative to.
+  Defaults to the folder `model_file` is in, as for NONMEM. Stored on
+  the returned model as attribute `data_dir`, which
+  [`run_nlme()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme.md)
+  uses to point `$DATA` at the dataset's absolute path.
 
 - verbose:
 

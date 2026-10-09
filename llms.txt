@@ -244,6 +244,9 @@ MIT © InsightRX
   : Get covariate data (single row per subject) from a dataset given
   model
 
+- [`get_dataset_path_from_model()`](https://insightrx.github.io/pharmr.extra/reference/get_dataset_path_from_model.md)
+  : Resolve an on-disk dataset path from a model's \$DATA record
+
 - [`get_declared_variables()`](https://insightrx.github.io/pharmr.extra/reference/get_declared_variables.md)
   : Get declared variables in Pharmpy model
 
