@@ -21,11 +21,18 @@ prepare_run_folder <- function(
 
   ## Set up other files
   dataset_path <- file.path(fit_folder, "data.csv")
-  ## Whether to rewrite the model's $DATA record. Only do so when the dataset
-  ## is actually placed into the run folder (copied/written). When the dataset
-  ## is left in its existing location (`copy_dataset = FALSE`), $DATA is left
-  ## untouched so the model's original data reference is preserved verbatim.
+  ## Whether to rewrite the model's $DATA record. NONMEM is run from inside
+  ## the run folder, so $DATA must point either at the copy in the run folder
+  ## (`copy_dataset = TRUE`) or at the dataset's absolute path
+  ## (`copy_dataset = FALSE`): a relative path would no longer resolve. The
+  ## only case where $DATA is left as-is is when it is already an absolute
+  ## path to an existing file.
   update_data_record <- TRUE
+  ## Directory a relative $DATA path in the model is relative to: the folder
+  ## the model file was read from (see create_model_from_file()), or the
+  ## working directory when that is unknown.
+  data_dir <- attr(model, "data_dir")
+  if(is.null(data_dir)) data_dir <- getwd()
   model_file <- "run.mod"
   output_file <- "run.lst"
   model_path <- file.path(fit_folder, model_file)
@@ -44,19 +51,22 @@ prepare_run_folder <- function(
   if(!is.null(data)) {
     if(inherits(data, "character")) {
       if(!file.exists(data)) {
-        cli::cli_abort("`data` file does not exist.")
+        cli::cli_abort(c(
+          "`data` file does not exist: {.path {data}}.",
+          "i" = "Relative paths are resolved against the working directory ({.path {getwd()}})."
+        ))
       }
       if(isTRUE(auto_stack_encounters)) {
         cli::cli_warn("`auto_stack_encounters` can only be used when `data` is specified as data.frame, not when it is a CSV filename.")
       }
       if(!copy_dataset) {
-        ## Leave the dataset in its existing location and leave the model's
-        ## $DATA record untouched. The file is not modified (so no quoted-header
-        ## rewrite); the user is responsible for the dataset being NONMEM-ready
-        ## and for $DATA already pointing at it correctly.
-        if(verbose) proc <- cli::cli_process_start("Using dataset in existing location (not copying into run folder, $DATA left unchanged)")
+        ## Leave the dataset in its existing location and point $DATA at its
+        ## absolute path (resolved against the caller's working directory,
+        ## not the run folder NONMEM runs in). The file is not modified (so no
+        ## quoted-header rewrite); the user is responsible for the dataset
+        ## being NONMEM-ready.
+        if(verbose) proc <- cli::cli_process_start("Using dataset in existing location (not copying into run folder)")
         dataset_path <- normalizePath(data, mustWork = TRUE)
-        update_data_record <- FALSE
       } else {
         if(verbose) proc <- cli::cli_process_start("Copying dataset")
         if(!isTRUE(file.copy(from = data, to = dataset_path))) {
@@ -95,14 +105,14 @@ prepare_run_folder <- function(
     ## When `copy_dataset = FALSE` and the model's $DATA record already points
     ## to an existing file (e.g. create_model() wrote the in-memory dataset to
     ## a temp CSV and pointed $DATA at it, so it is no longer DUMMYPATH), honor
-    ## `copy_dataset = FALSE`: leave that file in place and leave $DATA
-    ## untouched, rather than re-writing the in-memory `original_data` into the
-    ## run folder.
-    dataset_file <- if(!copy_dataset) get_dataset_path_from_model(model) else NULL
+    ## `copy_dataset = FALSE`: leave that file in place and point $DATA at its
+    ## absolute path, rather than re-writing the in-memory `original_data` into
+    ## the run folder.
+    dataset_file <- if(!copy_dataset) get_dataset_path_from_model(model, base_dir = data_dir) else NULL
     if(!is.null(dataset_file)) {
-      if (verbose) proc <- cli::cli_process_start("Using dataset from model's $DATA record (not copying into run folder, $DATA left unchanged)")
+      if (verbose) proc <- cli::cli_process_start("Using dataset from model's $DATA record (not copying into run folder)")
       dataset_path <- normalizePath(dataset_file, mustWork = TRUE)
-      update_data_record <- FALSE
+      update_data_record <- !isTRUE(attr(dataset_file, "absolute"))
     } else {
       if(!copy_dataset) {
         cli::cli_warn(c(
@@ -119,14 +129,16 @@ prepare_run_folder <- function(
     ## path first — if it points to a real file we can honor `copy_dataset`.
     ## Only fall back to writing `model$dataset` (in-memory) to the run folder
     ## when no usable on-disk source exists.
-    dataset_file <- get_dataset_path_from_model(model)
+    dataset_file <- get_dataset_path_from_model(model, base_dir = data_dir)
     if (!is.null(dataset_file)) {
       if (!copy_dataset) {
-        ## Dataset already referenced by $DATA and present on disk: leave both
-        ## the file and the $DATA record untouched.
-        if (verbose) proc <- cli::cli_process_start("Using dataset from model's $DATA record (not copying into run folder, $DATA left unchanged)")
+        ## Dataset already referenced by $DATA and present on disk: leave the
+        ## file in place. A relative $DATA (resolved against the model's
+        ## folder) is rewritten to the absolute path, since NONMEM runs in the
+        ## run folder; an absolute $DATA is left as-is.
+        if (verbose) proc <- cli::cli_process_start("Using dataset from model's $DATA record (not copying into run folder)")
         dataset_path <- normalizePath(dataset_file, mustWork = TRUE)
-        update_data_record <- FALSE
+        update_data_record <- !isTRUE(attr(dataset_file, "absolute"))
       } else {
         if (verbose) proc <- cli::cli_process_start("Copying dataset from model's $DATA record")
         if (!isTRUE(file.copy(from = dataset_file, to = dataset_path))) {
@@ -143,7 +155,11 @@ prepare_run_folder <- function(
       if (verbose) proc <- cli::cli_process_start("Copying dataset from model object")
       write.csv(model$dataset, file = dataset_path, quote = FALSE, row.names = FALSE)
     } else {
-      cli::cli_abort("No dataset could be resolved: `model$dataset` is NULL and no existing file was found from the model's $DATA record.")
+      data_ref <- get_dataset_ref_from_model(model)
+      cli::cli_abort(c(
+        "No dataset could be resolved: `model$dataset` is NULL and no existing file was found from the model's $DATA record.",
+        "i" = if(!is.null(data_ref)) "$DATA refers to {.path {data_ref}}, which does not exist relative to {.path {data_dir}}."
+      ))
     }
   }
 
@@ -151,9 +167,9 @@ prepare_run_folder <- function(
   model_code <- model$code
   ## Replace dictionary placeholder column names with DROP
   model_code <- gsub("_DDRP_[A-Za-z0-9_]+", "DROP", model_code, perl = TRUE)
-  ## Only rewrite $DATA when the dataset was placed into the run folder. When
-  ## the dataset is left in place (`copy_dataset = FALSE`), preserve the
-  ## model's original $DATA record verbatim.
+  ## Point $DATA at the dataset (run-folder copy or absolute path), unless it
+  ## already is an absolute path to the existing file. Only the path token is
+  ## replaced; IGNORE=/ACCEPT= and other options are kept.
   if (update_data_record) {
     model_code <- change_nonmem_dataset(
       model_code,
@@ -175,23 +191,54 @@ prepare_run_folder <- function(
 #' Resolve an on-disk dataset path from a model's $DATA record
 #'
 #' Parses the $DATA record of a NONMEM model and returns the first element that
-#' is an existing file on disk (ignoring `IGNORE=`/`ACCEPT=` options). Returns
+#' is an existing file on disk (ignoring `IGNORE=`/`ACCEPT=` options). Relative
+#' paths are resolved against `base_dir`, the folder the model file was read
+#' from, rather than the working directory or the run folder. Returns
 #' `NULL` when no element points to an existing file (e.g. $DATA is the
 #' `DUMMYPATH` placeholder used while the dataset lives only in memory).
 #'
 #' @param model pharmpy model object
+#' @param base_dir directory relative `$DATA` paths are resolved against.
+#' Defaults to the working directory.
 #'
-#' @returns path to an existing dataset file (character), or `NULL`
+#' @returns path to an existing dataset file (character), or `NULL`. The
+#' returned path carries an attribute `absolute`, `TRUE` when `$DATA` already
+#' held an absolute path.
 #'
-get_dataset_path_from_model <- function(model) {
+get_dataset_path_from_model <- function(model, base_dir = getwd()) {
+  for (f in get_dataset_elements_from_model(model)) {
+    ## `~` is expanded by R but not by NONMEM, so such a path still needs to
+    ## be rewritten to the expanded absolute path.
+    tilde <- startsWith(f, "~")
+    absolute <- fs::is_absolute_path(f) && !tilde
+    path <- if (absolute) f else if (tilde) path.expand(f) else file.path(base_dir, f)
+    if (file.exists(path) && !dir.exists(path)) {
+      return(structure(path, absolute = absolute))
+    }
+  }
+  NULL
+}
+
+#' Dataset path as written in a model's $DATA record
+#'
+#' @param model pharmpy model object
+#' @returns the first non-option element of `$DATA` (character), or `NULL`
+#' @noRd
+get_dataset_ref_from_model <- function(model) {
+  elem <- get_dataset_elements_from_model(model)
+  if (length(elem)) elem[[1]] else NULL
+}
+
+#' Non-option elements of a model's $DATA record, quotes stripped
+#'
+#' @param model pharmpy model object
+#' @returns character vector
+#' @noRd
+get_dataset_elements_from_model <- function(model) {
   obj <- nm_read_model(code = model$code)
   data_block <- stringr::str_replace_all(obj$DATA, "\\$DATA\\s*", "")
   data_elem <- unlist(stringr::str_split(data_block, "\\s"))
   data_elem <- data_elem[!grepl("(IGNORE=|ACCEPT=)", data_elem)]
-  for (f in data_elem) {
-    if (nzchar(f) && file.exists(f)) {
-      return(f)
-    }
-  }
-  NULL
+  data_elem <- gsub("^[\"']|[\"']$", "", data_elem)
+  data_elem[nzchar(data_elem)]
 }

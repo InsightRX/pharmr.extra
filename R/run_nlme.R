@@ -71,9 +71,14 @@
 #' @param copy_dataset copy the dataset into the run folder? If `TRUE`, the
 #' dataset is copied into the run folder as `data.csv` and the model's `$DATA`
 #' record is rewritten to point to that copy. If `FALSE` (default), the dataset
-#' is left in its existing location and the model's `$DATA` record is left
-#' untouched (the caller is responsible for `$DATA` already pointing at the
-#' dataset correctly). `copy_dataset = FALSE` can only be honored when the
+#' is left in its existing location and the model's `$DATA` record is rewritten
+#' to the dataset's absolute path (other `$DATA` options such as `IGNORE=` are
+#' kept), since NONMEM is run from inside the run folder where a relative path
+#' would not resolve. A `data` file path is resolved against the working
+#' directory; when `data` is not given, a relative `$DATA` path is resolved
+#' against the folder the model file was read from (or the working directory
+#' if unknown). A `$DATA` that already is an absolute path to an existing file
+#' is left as-is. `copy_dataset = FALSE` can only be honored when the
 #' dataset is a file on disk — i.e. `data` is supplied as a file path, or the
 #' model's `$DATA` record points to an existing file. If neither is the case
 #' (only an in-memory data frame, `model$dataset`, or original dataset is
@@ -189,6 +194,7 @@ run_nlme <- function(
   ## Preserve R attributes across pharmpy calls (which create new Python objects)
   original_data <- attr(model, "original_data")
   model <- validate_model(model, data = data)
+  data_dir <- attr(model, "data_dir")
   method <- match.arg(method)
 
   ## Engine dispatch: nlmixr-format models go through a separate fitter
@@ -292,6 +298,10 @@ run_nlme <- function(
   ## Restore original_data attribute (lost by pharmpy calls above)
   if(!is.null(original_data)) {
     attr(model, "original_data") <- original_data
+  }
+  ## Same for the folder the model was read from (resolves a relative $DATA)
+  if(!is.null(data_dir)) {
+    attr(model, "data_dir") <- data_dir
   }
 
   ## Whether the run folder is this run's to remove, and what an already

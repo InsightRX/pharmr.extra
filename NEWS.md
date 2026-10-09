@@ -1,5 +1,16 @@
 # pharmr.extra (development version)
 
+* `run_nlme(copy_dataset = FALSE)` (the default) works again with a relative
+  `$DATA` path. NONMEM runs inside the per-run folder, so leaving `$DATA`
+  verbatim made a relative path such as `$DATA warfarin.csv` unresolvable and
+  NM-TRAN failed with "INPUT DATA FILE DOES NOT EXIST". `$DATA` is now
+  rewritten to the dataset's absolute path, keeping `IGNORE=`/`ACCEPT=` and
+  other options: a `data` file path is resolved against the working directory
+  at call time, and a relative `$DATA` in the model (when `data` is not given)
+  against the folder the model file was read from. An absolute `$DATA`
+  pointing at an existing file is left as-is, and a missing dataset now errors
+  with the path it looked for.
+
 * `run_sim(add_pk_variables = TRUE)` computes AUC_SS from each subject's own
   last dose. It used the last dose record of the whole regimen dataset -- i.e.
   the last subject's -- for every subject, so any regimen in which subjects

@@ -113,9 +113,14 @@ not actual time since first overall dose.}
 \item{copy_dataset}{copy the dataset into the run folder? If \code{TRUE}, the
 dataset is copied into the run folder as \code{data.csv} and the model's \verb{$DATA}
 record is rewritten to point to that copy. If \code{FALSE} (default), the dataset
-is left in its existing location and the model's \verb{$DATA} record is left
-untouched (the caller is responsible for \verb{$DATA} already pointing at the
-dataset correctly). \code{copy_dataset = FALSE} can only be honored when the
+is left in its existing location and the model's \verb{$DATA} record is rewritten
+to the dataset's absolute path (other \verb{$DATA} options such as \verb{IGNORE=} are
+kept), since NONMEM is run from inside the run folder where a relative path
+would not resolve. A \code{data} file path is resolved against the working
+directory; when \code{data} is not given, a relative \verb{$DATA} path is resolved
+against the folder the model file was read from (or the working directory
+if unknown). A \verb{$DATA} that already is an absolute path to an existing file
+is left as-is. \code{copy_dataset = FALSE} can only be honored when the
 dataset is a file on disk — i.e. \code{data} is supplied as a file path, or the
 model's \verb{$DATA} record points to an existing file. If neither is the case
 (only an in-memory data frame, \code{model$dataset}, or original dataset is

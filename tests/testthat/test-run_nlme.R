@@ -279,8 +279,7 @@ test_that("prepare_run_folder respects copy_dataset", {
   src_csv <- file.path(src_dir, "mydata.csv")
   writeLines(c("ID,TIME,DV", "1,0,0", "1,1,10"), src_csv)
 
-  ## copy_dataset = FALSE: leave dataset in place AND leave $DATA untouched
-  orig_data_line <- grep("^\\$DATA", strsplit(mod$code, "\n")[[1]], value = TRUE)
+  ## copy_dataset = FALSE: leave dataset in place, point $DATA at its abs path
   obj_no_copy <- prepare_run_folder(
     id = "run1", model = mod, path = withr::local_tempdir(), data = src_csv,
     copy_dataset = FALSE, verbose = FALSE
@@ -290,9 +289,7 @@ test_that("prepare_run_folder respects copy_dataset", {
   data_line <- grep("^\\$DATA", readLines(
     file.path(obj_no_copy$fit_folder, obj_no_copy$model_file)
   ), value = TRUE)
-  ## $DATA is preserved verbatim from the model, not rewritten to src_csv
-  expect_equal(data_line, orig_data_line)
-  expect_no_match(data_line, normalizePath(src_csv), fixed = TRUE)
+  expect_match(data_line, normalizePath(src_csv), fixed = TRUE)
 
   ## copy_dataset = TRUE: dataset copied into run folder, $DATA points to copy
   obj_copy <- prepare_run_folder(
@@ -365,6 +362,174 @@ test_that("prepare_run_folder warns and falls back to copying when copy_dataset=
     file.path(obj$fit_folder, obj$model_file)
   ), value = TRUE)
   expect_match(data_line, "data.csv", fixed = TRUE)
+})
+
+## Write the test fixture model with the given $DATA path (keeping IGNORE=@)
+## and its dataset into `dir`.
+write_model_with_data <- function(dir, data_ref, csv_name = "warf.csv") {
+  dir.create(dir, showWarnings = FALSE, recursive = TRUE)
+  file.copy(test_path("fixtures", "data.csv"), file.path(dir, csv_name))
+  code <- readLines(test_path("fixtures", "run.mod"))
+  code <- sub("^\\$DATA .*$", paste0("$DATA ", data_ref, " IGNORE=@"), code)
+  mod_file <- file.path(dir, "run1.mod")
+  writeLines(code, mod_file)
+  mod_file
+}
+
+## Run run_nlme() up to and including prepare_run_folder(), then stop before
+## NONMEM is called. Returns the run folder's $DATA line.
+data_line_from_run_nlme <- function(...) {
+  obj <- NULL
+  stub(run_nlme, "prepare_run_folder", function(...) {
+    obj <<- prepare_run_folder(...)
+    stop("abort before NONMEM")
+  })
+  tryCatch(run_nlme(...), error = function(e) NULL)
+  expect_false(is.null(obj))
+  expect_false(file.exists(file.path(obj$fit_folder, "data.csv")))
+  grep("^\\$DATA", readLines(file.path(obj$fit_folder, obj$model_file)), value = TRUE)
+}
+
+test_that("copy_dataset = FALSE: relative $DATA, `data` given as relative path", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  dir <- withr::local_tempdir()
+  write_model_with_data(dir, "warf.csv")
+  withr::local_dir(dir)
+
+  data_line <- data_line_from_run_nlme(
+    "run1.mod", data = "warf.csv", id = "run1", path = dir,
+    copy_dataset = FALSE, force = TRUE, verbose = FALSE
+  )
+  expect_equal(
+    data_line,
+    paste0("$DATA ", normalizePath(file.path(dir, "warf.csv")), " IGNORE=@")
+  )
+})
+
+test_that("copy_dataset = FALSE: relative $DATA from the model, `data` omitted", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  dir <- withr::local_tempdir()
+  write_model_with_data(dir, "warf.csv")
+  withr::local_dir(dir)
+
+  data_line <- data_line_from_run_nlme(
+    "run1.mod", id = "run1", path = dir,
+    copy_dataset = FALSE, force = TRUE, verbose = FALSE
+  )
+  expect_equal(
+    data_line,
+    paste0("$DATA ", normalizePath(file.path(dir, "warf.csv")), " IGNORE=@")
+  )
+})
+
+test_that("copy_dataset = FALSE: relative $DATA resolved against the model's folder", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  ## Model and data in a subfolder; working directory is the parent, which
+  ## holds a different file of the same name that must not be picked up.
+  dir <- withr::local_tempdir()
+  write_model_with_data(file.path(dir, "sub"), "warf.csv")
+  writeLines("decoy", file.path(dir, "warf.csv"))
+  withr::local_dir(dir)
+
+  data_line <- data_line_from_run_nlme(
+    "sub/run1.mod", id = "run1", path = dir,
+    copy_dataset = FALSE, force = TRUE, verbose = FALSE
+  )
+  expect_equal(
+    data_line,
+    paste0("$DATA ", normalizePath(file.path(dir, "sub", "warf.csv")), " IGNORE=@")
+  )
+
+  ## Also when the model object was created up front and run from elsewhere
+  mod <- create_model_from_file("sub/run1.mod")
+  withr::local_dir(withr::local_tempdir())
+  obj <- prepare_run_folder(
+    id = "run2", model = mod, path = withr::local_tempdir(),
+    copy_dataset = FALSE, verbose = FALSE
+  )
+  expect_equal(obj$dataset_path, normalizePath(file.path(dir, "sub", "warf.csv")))
+})
+
+test_that("copy_dataset = FALSE: model given as code resolves $DATA against the working directory", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  dir <- withr::local_tempdir()
+  code <- paste(readLines(write_model_with_data(dir, "warf.csv")), collapse = "\n")
+  withr::local_dir(dir)
+
+  data_line <- data_line_from_run_nlme(
+    code, id = "run1", path = dir,
+    copy_dataset = FALSE, force = TRUE, verbose = FALSE
+  )
+  expect_equal(
+    data_line,
+    paste0("$DATA ", normalizePath(file.path(dir, "warf.csv")), " IGNORE=@")
+  )
+})
+
+test_that("copy_dataset = FALSE: absolute existing $DATA is left as-is", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  dir <- withr::local_tempdir()
+  abs_csv <- file.path(dir, "warf.csv")
+  write_model_with_data(dir, abs_csv)
+  withr::local_dir(withr::local_tempdir())
+
+  data_line <- data_line_from_run_nlme(
+    file.path(dir, "run1.mod"), id = "run1", path = getwd(),
+    copy_dataset = FALSE, force = TRUE, verbose = FALSE
+  )
+  expect_equal(data_line, paste0("$DATA ", abs_csv, " IGNORE=@"))
+})
+
+test_that("copy_dataset = FALSE: missing dataset file errors clearly", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  dir <- withr::local_tempdir()
+  write_model_with_data(dir, "missing.csv")
+  withr::local_dir(dir)
+  mod <- create_model_from_file("run1.mod")
+
+  ## `data` given as a path that does not exist
+  expect_error(
+    prepare_run_folder(
+      id = "run1", model = mod, path = dir, data = "nope.csv",
+      copy_dataset = FALSE, verbose = FALSE
+    ),
+    "nope.csv"
+  )
+  ## `data` omitted and the model's relative $DATA does not exist
+  expect_error(
+    prepare_run_folder(
+      id = "run2", model = mod, path = dir,
+      copy_dataset = FALSE, verbose = FALSE
+    ),
+    "missing.csv"
+  )
+})
+
+test_that("get_dataset_path_from_model resolves relative paths against base_dir", {
+  local_pharmr.extra_options()
+  skip_if_nonmem_not_available()
+
+  dir <- withr::local_tempdir()
+  write_model_with_data(dir, "'warf.csv'")
+  withr::local_dir(withr::local_tempdir())
+  mod <- create_model_from_file(file.path(dir, "run1.mod"))
+
+  expect_null(get_dataset_path_from_model(mod, base_dir = getwd()))
+  res <- get_dataset_path_from_model(mod, base_dir = dir)
+  expect_equal(as.character(res), file.path(dir, "warf.csv"))
+  expect_false(attr(res, "absolute"))
 })
 
 test_that("unquote_column_names strips a single pair of surrounding quotes", {
