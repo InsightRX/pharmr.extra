@@ -4,6 +4,10 @@
 #' @param ext_file optional path to a .ext file containing final parameter 
 #'   estimates that will be used to update the initial estimates in the model.
 #' @param data the filename of the dataset (or an actual data.frame)
+#' @param data_dir directory a relative `$DATA` path in the model is relative
+#'   to. Defaults to the folder `model_file` is in, as for NONMEM. Stored on
+#'   the returned model as attribute `data_dir`, which [run_nlme()] uses to
+#'   point `$DATA` at the dataset's absolute path.
 #' @param verbose verbose output
 #' 
 #' @returns a Pharmpy model object
@@ -13,6 +17,7 @@ create_model_from_file <- function(
   model_file,
   ext_file = NULL,
   data = NULL,
+  data_dir = NULL,
   verbose = TRUE
 ) {
   
@@ -31,6 +36,9 @@ create_model_from_file <- function(
     if (!file.exists(dataset_file)) {
       cli::cli_abort("Data file {dataset_file} does not exist")
     }
+    ## $DATA is pointed at this file below; make it absolute so it does not
+    ## depend on the working directory NONMEM is later run from.
+    dataset_file <- normalizePath(dataset_file, mustWork = TRUE)
     data <- read.csv(dataset_file)
   }
 
@@ -58,6 +66,12 @@ create_model_from_file <- function(
     }
   }
 
+  ## A relative $DATA path is relative to the folder of the model file
+  if(is.null(data_dir)) {
+    data_dir <- dirname(normalizePath(model_file, mustWork = TRUE))
+  }
+  data_dir <- normalizePath(data_dir, mustWork = TRUE)
+
   ## Create Pharmpy object
   tryCatch({
     model_code <- readLines(model_file) |>
@@ -69,8 +83,13 @@ create_model_from_file <- function(
       ## otherwise, if it points to a file that does not exists,
       ## Pharmpy will fail
       model_code <- change_nonmem_dataset(model_code, "DUMMYPATH")
+      model <- pharmr::read_model_from_string(model_code)
+    } else {
+      ## Pharmpy resolves a relative $DATA against the working directory when
+      ## reading from a string; read from `data_dir` instead, so the dataset
+      ## next to the model is the one picked up, as for NONMEM.
+      model <- read_model_from_string_in_dir(model_code, data_dir)
     }
-    model <- pharmr::read_model_from_string(model_code)
   })
 
   ## If .ext file provided, update initial estimates
@@ -136,8 +155,25 @@ create_model_from_file <- function(
       model <- pharmr::read_model_from_string(model_code)
     })
   }
-  
+
+  ## Remember what a relative $DATA path is relative to (the model file's
+  ## folder), not the run folder NONMEM is later started in. Read by
+  ## prepare_run_folder().
+  attr(model, "data_dir") <- data_dir
+
   model
+}
+
+#' Read NONMEM model code with a given working directory
+#'
+#' @param code NONMEM model code
+#' @param dir directory to read the code from
+#' @returns a Pharmpy model object
+#' @noRd
+read_model_from_string_in_dir <- function(code, dir) {
+  curr_dir <- setwd(dir)
+  on.exit(setwd(curr_dir), add = TRUE)
+  pharmr::read_model_from_string(code)
 }
 
 #' Strip commas from the $INPUT record of NONMEM model code

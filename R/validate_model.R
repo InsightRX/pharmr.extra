@@ -19,7 +19,9 @@ validate_model <- function(
       tmpfile <- tempfile(pattern = "mod_", fileext = ".mod")
       on.exit(unlink(tmpfile), add = TRUE)
       writeLines(paste0(model, collapse = "\n"), tmpfile)
-      model <- create_model_from_file(tmpfile, data = data)
+      ## Code has no folder of its own: resolve a relative $DATA against the
+      ## working directory, not the tempdir the code is staged in.
+      model <- create_model_from_file(tmpfile, data = data, data_dir = getwd())
     }
   } else {
     cli::cli_abort("`model` should either be model code or a pharmpy model object")
