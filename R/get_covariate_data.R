@@ -12,5 +12,5 @@ get_covariate_data <- function(model) {
   model$dataset |>
     as.data.frame() |>
     dplyr::filter(! duplicated(.data$ID)) |>
-    dplyr::select(c("ID", cov_names))
+    dplyr::select(dplyr::all_of(c("ID", cov_names)))
 }

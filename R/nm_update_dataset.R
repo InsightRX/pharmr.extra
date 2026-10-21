@@ -16,8 +16,8 @@ nm_update_dataset <- function(model_filename, dataset_filename, ...) {
     line <- data[i]
     line_vec <- unlist(stringr::str_split(line, " "))
     idx_not_dataset <- grep("(\\$DAT)|(IGNORE=)|(ACCEPT=)", line_vec)
-    idx_dataset <- seq(line_vec)[-idx_not_dataset][1]
-    if(length(idx_dataset) > 0) {
+    idx_dataset <- setdiff(seq_along(line_vec), idx_not_dataset)[1]
+    if(!is.na(idx_dataset)) {
       line_vec[idx_dataset] <- dataset_filename
       data[i] <- paste(line_vec, collapse = " ")
       mod$DATA <- data
