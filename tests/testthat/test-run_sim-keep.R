@@ -215,7 +215,7 @@ test_that("absolute_path resolves the existing ancestors of a path that does not
 
 test_that("run_sim(keep = ) keeps every replicate's record and removes the run folder", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   tmp <- withr::local_tempdir()
   withr::local_dir(tmp)
   .local_keep_stubs()
@@ -244,7 +244,7 @@ test_that("run_sim(keep = ) keeps every replicate's record and removes the run f
 
 test_that("run_sim(keep = ) keeps the listing of a run that aborted", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   tmp <- withr::local_tempdir()
   withr::local_dir(tmp)
   .local_keep_stubs()
@@ -270,7 +270,7 @@ test_that("run_sim(keep = ) keeps the listing of a run that aborted", {
 
 test_that("run_sim(keep = NULL) leaves the run folder in place", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   tmp <- withr::local_tempdir()
   withr::local_dir(tmp)
   .local_keep_stubs()
@@ -287,7 +287,7 @@ test_that("run_sim(keep = NULL) leaves the run folder in place", {
 
 test_that("run_sim(keep = ) is checked before anything runs", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   tmp <- withr::local_tempdir()
   withr::local_dir(tmp)
   ran <- FALSE
@@ -316,7 +316,7 @@ test_that("run_sim(keep = ) leaves an existing run folder alone when a check fai
   ## `id` folder -- an earlier run, or whatever else the user keeps in it --
   ## with it.
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   tmp <- withr::local_tempdir()
   withr::local_dir(tmp)
   dir.create(file.path(tmp, "sim_keep"))
@@ -334,7 +334,7 @@ test_that("run_sim(keep = ) leaves an existing run folder alone when a check fai
 
 test_that("run_sim(keep = ) is accepted, and does nothing, on the nlmixr2 backend", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   tmp <- withr::local_tempdir()
   withr::local_dir(tmp)
   local_mocked_bindings(
