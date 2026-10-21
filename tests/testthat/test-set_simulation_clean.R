@@ -44,7 +44,6 @@ test_that("remove_nonmem_records collapses excessive blank lines", {
 ## Tests for remove_estimation_steps_from_model() --------------------------
 
 test_that("remove_estimation_steps_from_model removes $EST and $COV", {
-  skip_if_nonmem_not_available()
   local_pharmr.extra_options()
   mod <- make_model_with_cov()
   result <- remove_estimation_steps_from_model(mod)
@@ -53,7 +52,6 @@ test_that("remove_estimation_steps_from_model removes $EST and $COV", {
 })
 
 test_that("remove_estimation_steps_from_model returns unchanged model when no estimation steps", {
-  skip_if_nonmem_not_available()
   local_pharmr.extra_options()
   # Build a model without $EST by stripping it first via string manipulation
   mod <- make_model_without_cov()
@@ -65,13 +63,13 @@ test_that("remove_estimation_steps_from_model returns unchanged model when no es
 
 test_that("remove_estimation_steps_from_model warns for non-NONMEM models", {
   local_pharmr.extra_options()
-  # Create a minimal mock non-NONMEM model object (tool = "nlmixr2")
+  local_mocked_bindings(get_tool_from_model = function(model) "nlmixr")
   fake_model <- list(code = "fake nlmixr code")
-  class(fake_model) <- "nlmixr2"
-  # We need get_tool_from_model to return something != "nonmem"
-  # Since we can't easily mock this, we test indirectly via set_simulation_clean
-  # when it is called with a non-NONMEM model (see below).
-  expect_true(TRUE)  # placeholder; non-NONMEM path covered in set_simulation_clean tests
+  expect_warning(
+    res <- remove_estimation_steps_from_model(fake_model),
+    "only be done for NONMEM models"
+  )
+  expect_identical(res, fake_model)
 })
 
 ## Tests for set_simulation_clean() ----------------------------------------
