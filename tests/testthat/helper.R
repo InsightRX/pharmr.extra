@@ -20,6 +20,14 @@ skip_if_nonmem_not_available <- function() {
   )
 }
 
+## Skip unless the Pharmpy Python module can be imported. Use for tests that
+## only parse model files or fixture output and never run NONMEM itself.
+skip_if_pharmpy_not_available <- function() {
+  if (!reticulate::py_module_available("pharmpy")) {
+    testthat::skip("Pharmpy not available")
+  }
+}
+
 ## Skip unless a runnable NONMEM (nmfe) is reachable. Returns its path, so
 ## callers can `nmfe <- skip_if_nmfe_not_available()`.
 skip_if_nmfe_not_available <- function() {

@@ -4,7 +4,7 @@ skip_on_ci()
 
 test_that("Basic simulation works (using `model` argument, not `fit`)", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_nmfe_not_available()
   withr::local_dir(tempdir())
   
   mod <- pharmr::load_example_model("pheno")
@@ -26,7 +26,7 @@ test_that("Basic simulation works (using `model` argument, not `fit`)", {
 
 test_that("run_sim(keep = ) keeps run.mod and run.lst and removes the run folder", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_nmfe_not_available()
   withr::local_dir(tempdir())
 
   mod <- pharmr::load_example_model("pheno")
@@ -58,7 +58,7 @@ test_that("run_sim(keep = ) keeps run.mod and run.lst and removes the run folder
 
 test_that("Basic simulation works (using model file specified to `model`)", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_nmfe_not_available()
   withr::local_dir(tempdir())
 
   mod <- pharmr::load_example_model("pheno")
@@ -99,7 +99,7 @@ test_that("Basic simulation works (using model file specified to `model`)", {
 
 test_that("create_sim_dataset + run_sim: regimen + t_obs produces 1-subject output by default", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_nmfe_not_available()
   withr::local_dir(tempdir())
 
   mod <- .make_iv_model()
@@ -119,7 +119,7 @@ test_that("create_sim_dataset + run_sim: regimen + t_obs produces 1-subject outp
 
 test_that("create_sim_dataset: n_subjects controls number of simulated subjects", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_nmfe_not_available()
   withr::local_dir(tempdir())
 
   mod <- .make_iv_model()
@@ -138,7 +138,7 @@ test_that("create_sim_dataset: n_subjects controls number of simulated subjects"
 
 test_that("create_sim_dataset + run_sim: covariates determines n_subjects and appears in output", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_nmfe_not_available()
   withr::local_dir(tempdir())
 
   mod <- pharmr::load_example_model("pheno")
@@ -161,7 +161,7 @@ test_that("create_sim_dataset + run_sim: covariates determines n_subjects and ap
 
 test_that("create_sim_dataset + run_sim: covariates values are correctly carried into output", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_nmfe_not_available()
   withr::local_dir(tempdir())
 
   mod <- pharmr::load_example_model("pheno")
@@ -184,7 +184,7 @@ test_that("create_sim_dataset + run_sim: covariates values are correctly carried
 
 test_that("create_sim_dataset + run_sim: multiple regimens produce separate regimen_label values", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_nmfe_not_available()
   withr::local_dir(tempdir())
 
   mod <- .make_iv_model()
@@ -234,7 +234,7 @@ test_that("run_sim: error when both fit and model are NULL", {
 })
 
 test_that("run_sim: error when data is a file path instead of a data.frame", {
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   mod <- make_model_without_cov()
   expect_error(
     run_sim(model = mod, data = "some_file.csv"),
@@ -251,6 +251,59 @@ test_that("run_sim: error when tool/model engine is mismatched", {
     run_sim(model = mod, tool = "nlmixr2"),
     "Could not extract an nlmixr2 model function"
   )
+})
+
+test_that("run_sim: error when fit has no final model attached", {
+  expect_error(
+    run_sim(fit = list(), verbose = FALSE),
+    "No proper model object available"
+  )
+})
+
+test_that("run_sim: error when model file cannot be loaded into Pharmpy", {
+  local_mocked_bindings(create_model_from_file = function(...) NULL)
+  expect_error(
+    suppressMessages(run_sim(model = "run.mod", verbose = FALSE)),
+    "Could not load model into Pharmpy"
+  )
+})
+
+test_that("run_sim: model file is loaded with `data` written to a csv", {
+  seen <- NULL
+  local_mocked_bindings(
+    create_model_from_file = function(model_file, data = NULL) {
+      seen <<- list(model_file = model_file, data = data)
+      stop("stop after load")
+    }
+  )
+  sim_dat <- data.frame(ID = 1, TIME = 0, DV = 0, AMT = 100, EVID = 1)
+  expect_error(
+    suppressMessages(run_sim(model = "run.mod", data = sim_dat, verbose = FALSE)),
+    "stop after load"
+  )
+  expect_equal(seen$model_file, "run.mod")
+  expect_equal(read.csv(seen$data), sim_dat)
+})
+
+test_that("run_sim: error when the model's tool is not supported", {
+  skip_if_pharmpy_not_available()
+  local_mocked_bindings(get_tool_from_model = function(...) "mrgsolve")
+  mod <- make_model_without_cov()
+  expect_error(
+    suppressMessages(run_sim(model = mod, verbose = FALSE)),
+    "Unsupported simulation tool: mrgsolve"
+  )
+})
+
+test_that("run_sim: error when n_uncertainty is not a non-negative integer", {
+  skip_if_pharmpy_not_available()
+  mod <- make_model_without_cov()
+  for (bad in list(0.5, -1, "abc", c(1, 2), .Machine$integer.max + 1)) {
+    expect_error(
+      suppressMessages(run_sim(model = mod, n_uncertainty = bad, verbose = FALSE)),
+      "must be a non-negative integer"
+    )
+  }
 })
 
 # ===========================================================================
@@ -722,6 +775,38 @@ test_that("calc_pk_variables: no F column means full bioavailability", {
   expect_equal(unique(out$AUC_SS[out$ID == 1]), 100 / 5)
 })
 
+# ── create_obs_records() ────────────────────────────────────────────────────
+
+test_that("create_obs_records: takes CMT from observations when data has no MDV", {
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 1), AMT = c(100, 0), EVID = c(1, 0), CMT = c(1, 2),
+    .regimen = "a"
+  )
+  out <- create_obs_records(dat, t_obs = c(1, 2), n_subjects = 1, model = NULL)
+  expect_equal(out$CMT, c(2, 2))
+  expect_equal(out$TIME, c(1, 2))
+})
+
+test_that("create_obs_records: falls back to model obs compartment without observations", {
+  local_mocked_bindings(get_obs_compartment = function(model) 3)
+  dat <- data.frame(ID = 1, TIME = 0, AMT = 100, EVID = 1, MDV = 1, CMT = 1,
+                    .regimen = "a")
+  out <- create_obs_records(dat, t_obs = c(1, 2), n_subjects = 1, model = NULL)
+  expect_equal(out$CMT, c(3, 3))
+})
+
+test_that("create_obs_records: adds IDs for extra subjects and repeats per regimen", {
+  dat <- data.frame(
+    ID = 1, TIME = c(0, 1), AMT = c(100, 0), EVID = c(1, 0), MDV = c(1, 0),
+    CMT = 1, .regimen = c("a", "b")
+  )
+  out <- create_obs_records(dat, t_obs = c(1, 2), n_subjects = 3, model = NULL)
+  expect_equal(nrow(out), 2 * 3 * 2)
+  expect_equal(sort(unique(out$ID)), 1:3)
+  expect_setequal(unique(out$.regimen), c("a", "b"))
+  expect_true(all(out$EVID == 0 & out$MDV == 0 & out$AMT == 0))
+})
+
 # ── create_dosing_records() ─────────────────────────────────────────────────
 
 .dose_data2 <- function() data.frame(ID = 1:2, TIME = 0, DV = 0, EVID = 1)
@@ -793,7 +878,7 @@ test_that("create_dosing_records: multiple regimens propagate to .regimen column
 
 test_that("run_sim (stub): update_table=FALSE skips variable setup, returns table", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -810,7 +895,7 @@ test_that("run_sim (stub): update_table=FALSE skips variable setup, returns tabl
 
 test_that("run_sim (stub): add_pk_variables=FALSE suppresses CMAX_OBS", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -825,7 +910,7 @@ test_that("run_sim (stub): add_pk_variables=FALSE suppresses CMAX_OBS", {
 
 test_that("run_sim (stub): add_pk_variables=TRUE adds CMAX_OBS to output", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -840,7 +925,7 @@ test_that("run_sim (stub): add_pk_variables=TRUE adds CMAX_OBS to output", {
 
 test_that("run_sim (stub): add_pk_variables=TRUE computes AUC_SS when CL in output", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -857,7 +942,7 @@ test_that("run_sim (stub): add_pk_variables=TRUE computes AUC_SS when CL in outp
 
 test_that("run_sim (stub): each regimen runs in its own id/regimen_<i> folder", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -884,7 +969,7 @@ test_that("run_sim (stub): each regimen runs in its own id/regimen_<i> folder", 
 
 test_that("run_sim (stub): path is forwarded to run_nlme when set", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -905,7 +990,7 @@ test_that("run_sim (stub): path is forwarded to run_nlme when set", {
 
 test_that("run_sim (stub): path=NULL (default) is not passed to run_nlme", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -925,7 +1010,7 @@ test_that("run_sim (stub): path=NULL (default) is not passed to run_nlme", {
 
 test_that("sample_uncertainty_parameters draws from a real covariance matrix", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
 
   mod <- pharmr::load_example_model("pheno")
   res <- pharmr::load_example_modelfit_results("pheno")
@@ -940,7 +1025,7 @@ test_that("sample_uncertainty_parameters draws from a real covariance matrix", {
 
 test_that("sample_uncertainty_parameters is invariant to covariance row order", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
 
   fx  <- readRDS(test_path("fixtures", "nlmixr2_pheno_focei_fit.rds"))
   mod <- pharmr::convert_model(pharmr::load_example_model("pheno"), "nlmixr")
@@ -961,7 +1046,7 @@ test_that("sample_uncertainty_parameters is invariant to covariance row order", 
 
 test_that("sample_uncertainty_parameters rejects mismatched covariance row/col names", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
 
   fx  <- readRDS(test_path("fixtures", "nlmixr2_pheno_focei_fit.rds"))
   mod <- pharmr::convert_model(pharmr::load_example_model("pheno"), "nlmixr")
@@ -976,7 +1061,7 @@ test_that("sample_uncertainty_parameters rejects mismatched covariance row/col n
 
 test_that("sample_uncertainty_parameters draws from a real nlmixr2 FOCEi covariance", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
 
   ## Anchor: covariance + estimates captured from an actual nlmixr2 FOCEi fit
   ## of the pheno example (see tests/testthat/fixtures/). The nlmixr2 $cov
@@ -1005,7 +1090,7 @@ test_that("sample_uncertainty_parameters draws from a real nlmixr2 FOCEi covaria
 
 test_that("run_sim (nlmixr2): n_uncertainty propagates a real nlmixr2 covariance", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   skip_if_not_installed("rxode2")
 
   ## resolve fixture path before switching working directory
@@ -1035,7 +1120,7 @@ test_that("run_sim (nlmixr2): n_uncertainty propagates a real nlmixr2 covariance
 
 test_that("run_sim: warns which parameters are held fixed under n_uncertainty", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -1070,7 +1155,7 @@ test_that("run_sim: warns which parameters are held fixed under n_uncertainty", 
 
 test_that("run_sim: n_uncertainty without a fit covariance matrix errors", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
 
   mod <- make_model_without_cov()
   expect_error(
@@ -1081,7 +1166,7 @@ test_that("run_sim: n_uncertainty without a fit covariance matrix errors", {
 
 test_that("run_sim (stub): n_uncertainty samples draws and tags .uncertainty column", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -1117,7 +1202,7 @@ test_that("run_sim (stub): n_uncertainty samples draws and tags .uncertainty col
 
 test_that("run_sim (stub): each replicate perturbs the model with its own draw", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -1160,7 +1245,7 @@ test_that("run_sim (stub): each replicate perturbs the model with its own draw",
 
 test_that("run_sim (stub): n_uncertainty=0 behaves like no uncertainty (point estimate)", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -1175,7 +1260,7 @@ test_that("run_sim (stub): n_uncertainty=0 behaves like no uncertainty (point es
 
 test_that("create_sim_dataset: t_obs limits observation records to requested times", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- .make_iv_model()
@@ -1186,7 +1271,7 @@ test_that("create_sim_dataset: t_obs limits observation records to requested tim
 
 test_that("run_sim (stub): NULL table in results aborts with a NONMEM-failure error", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -1207,7 +1292,7 @@ test_that("run_sim (stub): NULL table in results aborts with a NONMEM-failure er
 
 test_that("create_sim_dataset: n_subjects truncates subjects from original dataset", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- .make_iv_model()
@@ -1217,7 +1302,7 @@ test_that("create_sim_dataset: n_subjects truncates subjects from original datas
 
 test_that("run_sim (stub): regimen as data.frame (not list) works", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- .make_iv_model()
@@ -1253,7 +1338,7 @@ test_that("run_sim (stub): regimen as data.frame (not list) works", {
 
 test_that("run_sim (stub): covariates without ID generates IDs 1:n", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- pharmr::load_example_model("pheno")
@@ -1288,7 +1373,7 @@ test_that("run_sim (stub): covariates without ID generates IDs 1:n", {
 
 test_that("run_sim (stub): covariates without ID infers n_subjects from nrow(covariates)", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- pharmr::load_example_model("pheno")
@@ -1314,7 +1399,7 @@ test_that("run_sim (stub): covariates without ID infers n_subjects from nrow(cov
 
 test_that("run_sim (stub): covariates with ID column still works (regression)", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- pharmr::load_example_model("pheno")

@@ -46,7 +46,7 @@
 
 test_that("uncertainty draws match NWPRI on the fixed effects", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
 
   anchor <- .nwpri_anchor()
   nwpri  <- anchor$nwpri_draws
@@ -70,7 +70,7 @@ test_that("uncertainty draws match NWPRI on the fixed effects", {
 
 test_that("uncertainty draws match NWPRI on the variance parameters", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
 
   anchor <- .nwpri_anchor()
   nwpri  <- anchor$nwpri_draws
@@ -89,7 +89,7 @@ test_that("uncertainty draws match NWPRI on the variance parameters", {
 
 test_that("NWPRI's inverse-Wishart variance draws are skewed, ours are not", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
 
   anchor <- .nwpri_anchor()
   nwpri  <- anchor$nwpri_draws
@@ -113,7 +113,7 @@ test_that("NWPRI's inverse-Wishart variance draws are skewed, ours are not", {
 
 test_that("uncertainty draws reproduce the THETA correlations NWPRI keeps", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
 
   anchor <- .nwpri_anchor()
   nwpri  <- anchor$nwpri_draws
@@ -135,7 +135,7 @@ test_that("uncertainty draws reproduce the THETA correlations NWPRI keeps", {
 
 test_that("uncertainty draws keep the THETA-OMEGA correlations NWPRI drops", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
 
   anchor <- .nwpri_anchor()
   nwpri  <- anchor$nwpri_draws
@@ -156,7 +156,7 @@ test_that("uncertainty draws keep the THETA-OMEGA correlations NWPRI drops", {
 
 test_that("the propagated prediction interval matches NWPRI's", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
 
   anchor <- .nwpri_anchor()
   nwpri  <- anchor$nwpri_draws

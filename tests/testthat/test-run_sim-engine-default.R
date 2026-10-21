@@ -72,7 +72,7 @@ test_that("resolve_uncertainty_engine says which engine it picked", {
 
 test_that("run_sim (nonmem): the default engine is now nwpri", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   used <- new.env()
@@ -89,7 +89,7 @@ test_that("run_sim (nonmem): the default engine is now nwpri", {
 
 test_that("run_sim: the default falls back to replicates where NWPRI cannot run", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   ## `n_iterations > 1` used to be perfectly ordinary under the old default, so
@@ -108,7 +108,7 @@ test_that("run_sim: the default falls back to replicates where NWPRI cannot run"
 
 test_that("run_sim: naming an engine still errors instead of falling back", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   args <- list(
@@ -124,7 +124,7 @@ test_that("run_sim: naming an engine still errors instead of falling back", {
 
 test_that("run_sim: a point-estimate run is unaffected by the engine default", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   used <- new.env()

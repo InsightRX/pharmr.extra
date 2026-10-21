@@ -3,7 +3,7 @@
 # The chunking, seed, collection and draw-counting tests are pure R or run
 # against a mocked-out `call_nmfe()`, so they need neither NONMEM nor pharmpy.
 # The end-to-end section at the bottom of the file does: it is gated on
-# `skip_if_nonmem_not_available()` (pharmpy config) and `skip_if_nmfe_not_available()`.
+# `skip_if_pharmpy_not_available()` (pharmpy config) and `skip_if_nmfe_not_available()`.
 # The record construction the engine feeds on is covered in
 # `test-add_nwpri_prior.R`.
 
@@ -382,7 +382,7 @@ test_that("a chunk whose NONMEM run wrote no table is reported, not returned emp
 
 test_that("run_sim rejects the nwpri engine for non-NONMEM tools", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
 
   expect_error(
     run_sim(model = make_model_with_cov(), data = .sim_dat(), id = "sim_test",
@@ -397,7 +397,7 @@ test_that("run_sim rejects the nwpri engine for non-NONMEM tools", {
 
 test_that("run_sim rejects the nwpri engine with n_iterations > 1", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
 
   expect_error(
     run_sim(model = make_model_with_cov(), data = .sim_dat(), id = "sim_test",
@@ -412,7 +412,7 @@ test_that("run_sim rejects the nwpri engine with n_iterations > 1", {
 
 test_that("run_sim rejects an unknown uncertainty engine", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
 
   expect_error(
     run_sim(model = make_model_with_cov(), data = .sim_dat(), id = "sim_test",
@@ -425,7 +425,7 @@ test_that("run_sim rejects an unknown uncertainty engine", {
 
 test_that("run_sim(uncertainty_engine = 'nwpri') runs NONMEM and tags the draws", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   skip_if_nmfe_not_available()
 
   ## Same fit the record-construction tests are anchored to.

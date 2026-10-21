@@ -37,7 +37,7 @@
 
 test_that("run_sim (nlmixr2): identical draws give identical replicates", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   skip_if_not_installed("rxode2")
   skip_on_cran()
   ## fixture first: `local_dir()` would break the relative `test_path()`
@@ -72,7 +72,7 @@ test_that("run_sim (nlmixr2): identical draws give identical replicates", {
 
 test_that("run_sim (nlmixr2): differing draws still differ under a shared seed", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   skip_if_not_installed("rxode2")
   skip_on_cran()
   ## fixture first: `local_dir()` would break the relative `test_path()`
@@ -92,7 +92,7 @@ test_that("run_sim (nlmixr2): differing draws still differ under a shared seed",
 
 test_that("run_sim (nlmixr2): every parallel replicate spec carries the base seed", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   skip_if_not_installed("rxode2")
   skip_on_cran()
   ## fixture first: `local_dir()` would break the relative `test_path()`
@@ -123,7 +123,7 @@ test_that("run_sim (nlmixr2): every parallel replicate spec carries the base see
 
 test_that("run_sim (nonmem): every replicate is simulated with the base seed", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()

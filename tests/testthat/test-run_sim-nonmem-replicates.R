@@ -1,7 +1,7 @@
 # NONMEM backend of the "replicates" uncertainty engine (#129) ----------------
 #
 # The prepare half needs Pharmpy (it applies the draw and renders the control
-# stream) and is gated on `skip_if_nonmem_not_available()`. The execute half is
+# stream) and is gated on `skip_if_pharmpy_not_available()`. The execute half is
 # pure R -- run NONMEM, read the table back -- so it is tested here against a
 # mocked-out `call_nmfe()` and needs neither NONMEM nor Pharmpy, which is the
 # whole point of the split: that half is what runs in the worker processes.
@@ -388,7 +388,7 @@ test_that("abort_on_failed_replicates re-emits what the worker warned about", {
 
 test_that("prepare_nonmem_replicate_specs gives every replicate its own folder", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   path <- withr::local_tempdir()
 
   mod <- make_model_without_cov()
@@ -430,7 +430,7 @@ test_that("prepare_nonmem_replicate_specs gives every replicate its own folder",
 
 test_that("prepare_nonmem_replicate_specs applies each draw to its replicate", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   path <- withr::local_tempdir()
 
   mod <- make_model_without_cov()
@@ -456,7 +456,7 @@ test_that("prepare_nonmem_replicate_specs applies each draw to its replicate", {
 
 test_that("a replicate can be prepared on its own, without the others", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   path <- withr::local_tempdir()
 
   mod <- make_model_without_cov()

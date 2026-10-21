@@ -6,7 +6,7 @@
 
 test_that("run_sim (stub): a stray cli_process_done() in the backend cannot fail a finished run", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
   local_cli_progress_forced()
 
@@ -48,7 +48,7 @@ test_that("run_sim (stub): a stray cli_process_done() in the backend cannot fail
 
 test_that("run_sim (stub): sequential uncertainty replicates run with verbose = TRUE", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
   local_cli_progress_forced()
 

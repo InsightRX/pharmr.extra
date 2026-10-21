@@ -263,7 +263,7 @@ test_that("a replicate failing in a worker is captured, not propagated", {
 
 test_that("run_sim (nlmixr2): n_cores > 1 gives identical output to n_cores = 1", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   skip_if_not_installed("rxode2")
   skip_on_cran()
 
@@ -295,7 +295,7 @@ test_that("run_sim (nlmixr2): n_cores > 1 gives identical output to n_cores = 1"
 
 test_that("run_sim (nonmem): n_cores > 1 hands prepared folders to the workers", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -344,7 +344,7 @@ test_that("run_sim (nonmem): n_cores > 1 hands prepared folders to the workers",
 
 test_that("run_sim (nonmem): a replicate failing in a worker aborts the run", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -385,7 +385,7 @@ test_that("run_sim (nonmem): a replicate failing in a worker aborts the run", {
 
 test_that("run_sim (nonmem): a failing replicate aborts the run", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -428,7 +428,7 @@ test_that("run_sim (nonmem): a failing replicate aborts the run", {
 
 test_that("run_sim (nlmixr2): a failing replicate is dropped with a warning", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -468,7 +468,7 @@ test_that("run_sim (nlmixr2): a failing replicate is dropped with a warning", {
 
 test_that("run_sim: a short replicate set warns about the shortfall", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -510,7 +510,7 @@ test_that("run_sim: a short replicate set warns about the shortfall", {
 
 test_that("run_sim: errors when every replicate fails", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -543,7 +543,7 @@ test_that("run_sim: errors when every replicate fails", {
 
 test_that("run_sim: `data` is validated before replicates are dispatched", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()
@@ -562,7 +562,7 @@ test_that("run_sim: `data` is validated before replicates are dispatched", {
 
 test_that("run_sim: parallel replicates get the fitted dataset, not the build one", {
   local_pharmr.extra_options()
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   withr::local_dir(tempdir())
 
   mod <- make_model_without_cov()

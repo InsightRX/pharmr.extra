@@ -10,7 +10,7 @@
 #             -1000000005 row (omega/sigma SE in stdcorr form).
 
 test_that("SIR model: parameter estimates are non-NaN and match FOCE values", {
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   local_pharmr.extra_options()
 
   path <- test_path("fixtures", "run_sir", "run.mod")
@@ -35,7 +35,7 @@ test_that("SIR model: parameter estimates are non-NaN and match FOCE values", {
 })
 
 test_that("SIR model: standard errors are non-NaN", {
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   local_pharmr.extra_options()
 
   path <- test_path("fixtures", "run_sir", "run.mod")
@@ -52,7 +52,7 @@ test_that("SIR model: standard errors are non-NaN", {
 })
 
 test_that("SIR model: covariance step is reported as successful", {
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   local_pharmr.extra_options()
 
   path <- test_path("fixtures", "run_sir", "run.mod")
@@ -65,7 +65,7 @@ test_that("SIR model: covariance step is reported as successful", {
 })
 
 test_that("SIR model: covariance matrix is returned", {
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   local_pharmr.extra_options()
 
   path <- test_path("fixtures", "run_sir", "run.mod")
@@ -83,7 +83,7 @@ test_that("SIR model: covariance matrix is returned", {
 # Regression: FOCE-only model (no SIR) still works after the patches ----------
 
 test_that("FOCE-only model: parameter estimates are unaffected by SIR patches", {
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   local_pharmr.extra_options()
 
   path <- test_path("fixtures", "run_folder", "run.mod")
@@ -137,7 +137,7 @@ test_that("normalizes a missing/empty <stem>.ext before delegating to pharmpy", 
 })
 
 test_that("FOCE-only model: covstep_successful is not NULL after reading", {
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   local_pharmr.extra_options()
 
   path <- test_path("fixtures", "run_folder", "run.mod")
