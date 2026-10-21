@@ -124,7 +124,7 @@ test_that("run_sim_nlmixr: CMIN_OBS is the trough over the last interval", {
 })
 
 test_that("the NONMEM simulation table carries the model's bioavailability", {
-  skip_if_nonmem_not_available()
+  skip_if_pharmpy_not_available()
   mod <- suppressMessages(create_model(route = "oral", bioavailability = TRUE))
   sim_model <- build_nonmem_sim_model(mod, seed = 1, n_iterations = 1,
                                       verbose = FALSE)
