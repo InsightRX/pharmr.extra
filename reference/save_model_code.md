@@ -12,7 +12,8 @@ save_model_code(model, path)
 
 - model:
 
-  nlmixr2 model object
+  nlmixr2 model object (`rxUi`), or model code as a character vector
+  (e.g. NONMEM control stream lines).
 
 - path:
 
@@ -20,4 +21,4 @@ save_model_code(model, path)
 
 ## Value
 
-TODO
+Nothing, called for its side effect of writing `path`.
