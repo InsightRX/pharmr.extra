@@ -115,3 +115,29 @@ test_that("set_dv with no dataset on input model does not error", {
   result <- set_dv(model, "CONC")
   expect_equal(result$datainfo$dv_column$name, "CONC")
 })
+
+# .col_with_type ----
+
+test_that(".col_with_type sets the column type on a Pharmpy ColumnInfo", {
+  model <- pharmr::read_model_from_string(base_model_code)
+  col <- model$datainfo$`__getitem__`("CONC")
+  res <- .col_with_type(col, "covariate")
+  expect_equal(res$type, "covariate")
+  expect_equal(res$name, "CONC")
+})
+
+test_that(".col_with_type falls back to the variable mapping when `type` is not a field", {
+  ## pharmpy >= 2.0: ColumnInfo$replace() rejects `type`, which lives in the
+  ## DataVariable instead.
+  vm <- list(type = "unknown", replace = function(type) list(type = type))
+  col <- list(
+    variable_mapping = vm,
+    replace = function(...) {
+      args <- list(...)
+      if (!is.null(args$type)) stop("unexpected keyword argument 'type'")
+      list(variable_mapping = args$variable_mapping)
+    }
+  )
+  res <- .col_with_type(col, "dv")
+  expect_equal(res$variable_mapping$type, "dv")
+})

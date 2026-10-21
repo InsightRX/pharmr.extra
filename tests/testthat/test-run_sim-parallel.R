@@ -622,3 +622,51 @@ test_that("run_sim_nlmixr: `data` alone is enough, with no dataset on the model"
   expect_s3_class(out, "data.frame")
   expect_true(nrow(out) > 0)
 })
+
+## The tests above need a real PSOCK cluster and are skipped on CRAN (and so
+## under covr). These stand the cluster in with mocks so the scheduling logic in
+## parallel_lapply() is exercised everywhere.
+
+test_that("parallel_lapply runs sequentially for a single element", {
+  local_mocked_bindings(
+    makePSOCKcluster = function(...) stop("should not start a cluster"),
+    .package = "parallel"
+  )
+  expect_equal(parallel_lapply(list(3), function(i) i^2, n_cores = 4), list(9))
+})
+
+test_that("parallel_lapply dispatches to at most length(X) workers", {
+  n_started <- NULL
+  stopped <- FALSE
+  local_mocked_bindings(
+    makePSOCKcluster = function(n, ...) {
+      n_started <<- n
+      structure(list(), class = "fake_cluster")
+    },
+    clusterCall = function(cl, fun, ...) invisible(NULL),
+    parLapplyLB = function(cl, X, fun, ...) lapply(X, fun),
+    stopCluster = function(cl) stopped <<- TRUE,
+    .package = "parallel"
+  )
+  res <- parallel_lapply(1:3, function(i) i * 10, n_cores = 8)
+  expect_equal(res, list(10, 20, 30))
+  expect_equal(n_started, 3)
+  expect_true(stopped)
+})
+
+test_that("parallel_lapply retries, then falls back with a warning when clusters fail", {
+  attempts <- 0L
+  local_mocked_bindings(
+    makePSOCKcluster = function(...) {
+      attempts <<- attempts + 1L
+      stop("no workers today")
+    },
+    .package = "parallel"
+  )
+  expect_warning(
+    res <- parallel_lapply(1:3, function(i) i + 1, n_cores = 2),
+    "running sequentially"
+  )
+  expect_equal(res, list(2, 3, 4))
+  expect_equal(attempts, 2L)
+})

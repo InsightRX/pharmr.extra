@@ -218,3 +218,36 @@ test_that("per column is absent when per = NULL (backward compatibility)", {
   reg <- create_regimen(dose = 100, interval = 12, n = 2, route = "oral")
   expect_false("per" %in% names(reg))
 })
+
+## combine_regimens() ------------------------------------------------------
+
+test_that("combine_regimens requires named arguments", {
+  reg <- create_regimen(dose = 100, interval = 12, n = 2, route = "oral")
+  expect_error(combine_regimens(list(reg)), "named arguments")
+})
+
+test_that("combine_regimens rejects regimens not made with create_regimen()", {
+  bad <- data.frame(dose = 100, time = 0, route = "oral", t_inf = 0, interval = 12)
+  expect_error(
+    combine_regimens(a = list(bad)),
+    "create_regimen"
+  )
+})
+
+test_that("combine_regimens labels each regimen and offsets consecutive phases", {
+  load <- create_regimen(dose = 2000, n = 1, interval = 12, route = "iv", t_inf = 1)
+  maint <- create_regimen(dose = 500, n = 3, interval = 24, route = "oral")
+  plain <- create_regimen(dose = 500, n = 2, interval = 12, route = "oral")
+  comb <- combine_regimens(
+    without_load = list(plain),
+    with_load = list(load, maint)
+  )
+  expect_equal(nrow(comb), 6)
+  expect_equal(comb$regimen, c(rep("without_load", 2), rep("with_load", 4)))
+  ## each named regimen restarts at t = 0
+  expect_equal(comb$time[comb$regimen == "without_load"], c(0, 12))
+  ## maintenance starts one loading-dose interval after the loading dose
+  expect_equal(comb$time[comb$regimen == "with_load"], c(0, 12, 36, 60))
+  expect_equal(comb$dose[comb$regimen == "with_load"], c(2000, 500, 500, 500))
+  expect_equal(comb$route[comb$regimen == "with_load"], c("iv", rep("oral", 3)))
+})
