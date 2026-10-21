@@ -121,9 +121,8 @@ test_that("parse_output OFV fallback reads #OBJV, not the #OBJT banner", {
   expect_equal(parse_output(code = code)$ofv, 5335.951, tolerance = 1e-9)
 })
 
-# End-to-end: needs NONMEM/Pharmpy to build the model and apply estimates.
+# End-to-end: needs Pharmpy (but not NONMEM) to build the model and apply estimates.
 test_that("create_model_from_output applies the recovered estimates", {
-  skip_if_nonmem_not_available()
   model <- create_model_from_output(lst_path, verbose = FALSE)
   expect_true(inherits(model, "pharmpy.model.model.Model"))
   inits <- model$parameters$inits
@@ -132,9 +131,73 @@ test_that("create_model_from_output applies the recovered estimates", {
 })
 
 test_that("create_model_from_output writes model code when save_as is given", {
-  skip_if_nonmem_not_available()
   out <- withr::local_tempfile(fileext = ".mod")
   model <- create_model_from_output(lst_path, save_as = out, verbose = FALSE)
   expect_true(file.exists(out))
   expect_match(paste(readLines(out), collapse = "\n"), "\\$THETA")
+})
+
+test_that("create_model_from_output validates its input", {
+  expect_error(create_model_from_output(1), "should be a string")
+  expect_error(
+    create_model_from_output(file.path(tempdir(), "does_not_exist.lst")),
+    "does not exist"
+  )
+})
+
+test_that("create_model_from_output feeds the control stream and a synthetic .ext to create_model_from_file", {
+  captured <- NULL
+  local_mocked_bindings(
+    create_model_from_file = function(model_file, ext_file, data, verbose) {
+      captured <<- list(
+        model_code = readLines(model_file),
+        ext = readLines(ext_file),
+        data = data,
+        verbose = verbose
+      )
+      list(code = "$PROBLEM recovered")
+    }
+  )
+  out <- withr::local_tempfile(fileext = ".mod")
+  expect_message(
+    model <- create_model_from_output(lst_path, data = "data.csv", save_as = out),
+    "rounded"
+  )
+  expect_equal(model, list(code = "$PROBLEM recovered"))
+  expect_equal(readLines(out), "$PROBLEM recovered")
+  expect_equal(captured$data, "data.csv")
+  expect_true(captured$verbose)
+  expect_true(any(grepl("^\\$PROBLEM", captured$model_code)))
+  expect_length(captured$ext, 3)
+  expect_match(captured$ext[2], "THETA1.*OMEGA\\(1,1\\).*SIGMA\\(1,1\\).*OBJ")
+  expect_match(captured$ext[3], "^ *-1000000000")
+})
+
+test_that(".write_ext_from_parsed writes THETA, lower-triangular OMEGA/SIGMA and OFV", {
+  ext <- withr::local_tempfile(fileext = ".ext")
+  parsed <- list(
+    theta = c(1.5, 20),
+    omega = matrix(c(0.1, 0.01, 0.01, 0.2), 2, 2),
+    sigma = matrix(0.05, 1, 1),
+    ofv = 123.456
+  )
+  pharmr.extra:::.write_ext_from_parsed(parsed, ext)
+  lines <- readLines(ext)
+  expect_match(lines[1], "^TABLE NO\\.")
+  header <- strsplit(trimws(lines[2]), "\\s+")[[1]]
+  expect_equal(
+    header,
+    c("ITERATION", "THETA1", "THETA2", "OMEGA(1,1)", "OMEGA(2,1)", "OMEGA(2,2)", "SIGMA(1,1)", "OBJ")
+  )
+  vals <- as.numeric(strsplit(trimws(lines[3]), "\\s+")[[1]])
+  expect_equal(vals, c(-1e9, 1.5, 20, 0.1, 0.01, 0.2, 0.05, 123.456))
+})
+
+test_that(".write_ext_from_parsed handles missing blocks and OFV", {
+  ext <- withr::local_tempfile(fileext = ".ext")
+  parsed <- list(theta = numeric(0), omega = NULL, sigma = matrix(0.1, 1, 1), ofv = NA)
+  pharmr.extra:::.write_ext_from_parsed(parsed, ext)
+  lines <- readLines(ext)
+  expect_equal(strsplit(trimws(lines[2]), "\\s+")[[1]], c("ITERATION", "SIGMA(1,1)", "OBJ"))
+  expect_match(lines[3], "NaN$")
 })

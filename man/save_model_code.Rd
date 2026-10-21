@@ -7,12 +7,13 @@
 save_model_code(model, path)
 }
 \arguments{
-\item{model}{nlmixr2 model object}
+\item{model}{nlmixr2 model object (\code{rxUi}), or model code as a character
+vector (e.g. NONMEM control stream lines).}
 
 \item{path}{path to .md file to save model code to}
 }
 \value{
-TODO
+Nothing, called for its side effect of writing \code{path}.
 }
 \description{
 Save model code to a markdown file
