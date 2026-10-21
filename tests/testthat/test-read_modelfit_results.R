@@ -149,3 +149,140 @@ test_that("FOCE-only model: covstep_successful is not NULL after reading", {
   expect_false(is.null(fit$covstep_successful))
   expect_type(isTRUE(fit$covstep_successful) || isFALSE(fit$covstep_successful), "logical")
 })
+
+# .patch_pharmpy_sir_bugs() — the patched parsers one by one -----------------
+#
+# The tests above check the end result of reading the SIR fixture. These call
+# the replaced Pharmpy functions directly, and read variants of the fixture
+# that exercise the Bug 3 branches the fixture itself never reaches. They only
+# need Pharmpy, not NONMEM.
+
+## The SIR fixture's ext file as Pharmpy parses it (11 tables: FOCE, then 10
+## SIR tables), with the patches applied.
+.sir_ext_tables <- function(ext = test_path("fixtures", "run_sir", "run.ext")) {
+  .patch_pharmpy_sir_bugs()
+  tbl <- reticulate::import("pharmpy.model.external.nonmem.table", convert = FALSE)
+  tbl$NONMEMTableFile(normalizePath(ext))
+}
+
+## Copy the SIR fixture to a temporary folder, dropping the rows of the given
+## `iteration` (e.g. -1000000005) from the last ext table. Returns the model path.
+.sir_fixture_without_row <- function(iteration, .local_envir = parent.frame()) {
+  dir <- withr::local_tempdir(.local_envir = .local_envir)
+  file.copy(
+    list.files(test_path("fixtures", "run_sir"), full.names = TRUE), dir
+  )
+  ext_file <- file.path(dir, "run.ext")
+  ext <- readLines(ext_file)
+  last_table <- max(grep("^TABLE NO\\.", ext))
+  drop <- which(
+    seq_along(ext) > last_table &
+      grepl(paste0("^\\s*", iteration, "\\s"), ext)
+  )
+  stopifnot(length(drop) == 1)
+  writeLines(ext[-drop], ext_file)
+  file.path(dir, "run.mod")
+}
+
+test_that(".patch_pharmpy_sir_bugs replaces the four parsers, once", {
+  skip_if_pharmpy_not_available()
+  .patch_pharmpy_sir_bugs()
+  nm <- reticulate::import("pharmpy.tools.external.nonmem.results")
+  expect_equal(
+    c(nm$`_parse_table_numbers`$`__name__`,
+      nm$`_parse_ofv`$`__name__`,
+      nm$`_parse_parameter_estimates`$`__name__`,
+      nm$`_parse_standard_errors`$`__name__`),
+    c("_patched_parse_table_numbers", "_patched_parse_ofv",
+      "_patched_parse_parameter_estimates", "_patched_parse_standard_errors")
+  )
+  expect_true(.sir_patch_applied$get())
+
+  ## Idempotent: a second call does not run the Python code again.
+  local_mocked_bindings(
+    py_run_string = function(...) stop("patched twice"),
+    .package = "reticulate"
+  )
+  expect_null(.patch_pharmpy_sir_bugs())
+})
+
+test_that("SIR tables are told apart from estimation tables by their method", {
+  skip_if_pharmpy_not_available()
+  tables <- reticulate::py_to_r(.sir_ext_tables()$tables)
+  expect_length(tables, 11)
+  is_sir <- reticulate::py$`_is_sir_table`
+  expect_equal(
+    vapply(tables, function(t) reticulate::py_to_r(is_sir(t)), logical(1)),
+    c(FALSE, rep(TRUE, 10))
+  )
+})
+
+test_that("Bug 1/2: only the estimation table is counted in table_numbers", {
+  skip_if_pharmpy_not_available()
+  nm <- reticulate::import("pharmpy.tools.external.nonmem.results")
+  ext_tables <- .sir_ext_tables()
+  ## Unpatched, every SIR table is counted and the covariance status is looked
+  ## up under the last of them.
+  expect_equal(unlist(nm$`_parse_table_numbers`(ext_tables, NULL)), 1L)
+  ## A subproblem filter still applies.
+  expect_length(nm$`_parse_table_numbers`(ext_tables, 2L), 0)
+})
+
+test_that("Bug 1/2: the final OFV and OFV iterations come from the FOCE table", {
+  skip_if_pharmpy_not_available()
+  nm <- reticulate::import("pharmpy.tools.external.nonmem.results")
+  res <- nm$`_parse_ofv`(.sir_ext_tables(), NULL)
+  ## FOCE: -457.539...; the SIR tables report around -451.
+  expect_equal(res[[1]], -457.53948039169308, tolerance = 1e-8)
+  ## Iterations are indexed "(step, iteration)": all of them step 1, i.e. the
+  ## FOCE table's five iterations without the SIR samples.
+  ofv_iter <- res[[2]]
+  expect_length(ofv_iter, 5)
+  expect_true(all(startsWith(names(ofv_iter), "(1, ")))
+  expect_equal(ofv_iter[[5]], -457.53948039169308, tolerance = 1e-8)
+})
+
+test_that("Bug 1: final estimates and iterations come from the FOCE table", {
+  skip_if_pharmpy_not_available()
+  fit <- read_modelfit_results(test_path("fixtures", "run_sir", "run.mod"))
+  pe_iter <- fit$parameter_estimates_iterations
+  steps <- reticulate::py_to_r(
+    attr(pe_iter, "pandas.index")$get_level_values("step")$tolist()
+  )
+  expect_equal(unique(unlist(steps)), 1L)
+  expect_equal(nrow(pe_iter), 5)
+  ## From the FOCE starting point (THETA1 = 0.5) to its final estimate.
+  expect_equal(pe_iter$POP_KA[c(1, 5)], c(0.5, 4.72965e-01))
+  expect_equal(fit$ofv, -457.53948039169308, tolerance = 1e-8)
+})
+
+test_that("Bug 3: SIR standard errors survive a missing -1000000005 row", {
+  skip_if_pharmpy_not_available()
+  path <- .sir_fixture_without_row("-1000000005")
+  fit <- read_modelfit_results(path)
+
+  ## Unpatched, the missing stdcorr row sets cov_abort: every SE turns NaN and
+  ## the .cov file is not read. Patched, the SIR SEs (last table's -1000000001
+  ## row) are kept, and the covariance step is read as usual.
+  se <- fit$standard_errors
+  expect_false(any(is.nan(as.numeric(se))))
+  expect_equal(se[["POP_KA"]], 1.01357e-02, tolerance = 1e-6)
+  expect_equal(se[["POP_CL"]], 3.26448e-01, tolerance = 1e-6)
+  expect_true(all(is.nan(as.numeric(fit$standard_errors_sdcorr))))
+  expect_true(isTRUE(fit$covstep_successful))
+  expect_false(is.null(fit$covariance_matrix))
+})
+
+test_that("Bug 3: a last table without standard errors gives NaN SEs, not an abort", {
+  skip_if_pharmpy_not_available()
+  path <- .sir_fixture_without_row("-1000000001")
+  fit <- read_modelfit_results(path)
+
+  se <- fit$standard_errors
+  expect_false(is.null(se))
+  expect_true(all(is.nan(as.numeric(se))))
+  ## Estimates are unaffected, and the covariance step is still read.
+  expect_equal(fit$parameter_estimates[["POP_KA"]], 4.72965e-01,
+               tolerance = 1e-4)
+  expect_false(is.null(fit$covariance_matrix))
+})
