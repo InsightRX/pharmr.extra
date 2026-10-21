@@ -1,7 +1,3 @@
-# TODO: add tests. Tests need to add skip function if nonmem isn't installed.
-
-skip_on_ci()
-
 test_that("Basic simulation works (using `model` argument, not `fit`)", {
   local_pharmr.extra_options()
   skip_if_nmfe_not_available()
@@ -211,6 +207,7 @@ test_that("create_sim_dataset + run_sim: multiple regimens produce separate regi
 })
 
 test_that("create_sim_dataset: error when required covariate missing from covariates arg", {
+  skip_if_pharmpy_not_available()
   local_pharmr.extra_options()
   withr::local_dir(tempdir())
 
@@ -243,6 +240,7 @@ test_that("run_sim: error when data is a file path instead of a data.frame", {
 })
 
 test_that("run_sim: error when tool/model engine is mismatched", {
+  skip_if_pharmpy_not_available()
   ## Asking for an nlmixr2 simulation on a NONMEM model object now reaches
   ## the nlmixr2 dispatch, which fails when it can't parse a function out
   ## of the NONMEM control stream.
