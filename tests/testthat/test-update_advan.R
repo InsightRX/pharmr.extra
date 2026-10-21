@@ -43,3 +43,12 @@ test_that("update_advan keeps the model's dataset", {
   expect_equal(nrow(res$dataset), 2)
   expect_equal(as.numeric(res$dataset$DV), c(0, 1))
 })
+
+test_that("update_advan works on the built-in ODE template used by create_model()", {
+  mod <- pharmr::read_model(
+    pharmr.extra:::get_template_modelfile("iv", n_cmt = 1, force_ode = TRUE)
+  )
+  res <- update_advan(mod, 13)
+  expect_equal(get_advan(res), 13L)
+  expect_false(grepl("TRANS[0-9]", res$code))
+})
