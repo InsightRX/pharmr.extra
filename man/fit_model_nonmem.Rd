@@ -11,8 +11,10 @@ fit_model_nonmem(model, data = NULL, ...)
 
 \item{data}{data.frame with data to fit}
 
-\item{...}{passed onto \code{run_nmfe()} function}
+\item{...}{passed onto the tool-specific fitting function}
 }
 \description{
-Fit model using NONMEM
+No longer supported: this relied on a \code{run_nmfe()} helper that is not part
+of the package, so it could never complete. Use \code{\link[=run_nlme]{run_nlme()}} to fit NONMEM
+models.
 }

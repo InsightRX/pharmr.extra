@@ -4,6 +4,18 @@
 #' wrapper.
 #'
 #' @inheritParams run_nlme
+#' @param uncertainty_method parameter uncertainty method passed to Pharmpy
+#'   for newly added estimation steps (e.g. `"SANDWICH"`, `"SMAT"`). Default
+#'   `"none"` adds no uncertainty step.
+#' @param per_step_options optional list with one element per estimation
+#'   method, each a named list of estimation options for that step (as
+#'   produced by `parse_estimation_options()`). `NULL` (default) uses the
+#'   default options for each method.
+#' @param tool estimation tool, `"nonmem"` (default) or `"nlmixr"`. Determines
+#'   the default estimation options and whether NONMEM `$COV`/`$TABLE` records
+#'   are preserved.
+#'
+#' @returns Pharmpy model object with updated estimation step(s).
 #'
 update_estimation_method <- function(
     model,

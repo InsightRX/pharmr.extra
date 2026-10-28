@@ -60,7 +60,7 @@ get_initial_estimates_from_data <- function(
   pars <- dplyr::bind_rows(pars_list)
   tmp <- pars |>
     # remove all Inf values and replace them with the maximum value for the column
-    dplyr::mutate(dplyr::across(where(is.numeric), ~ ifelse(is.infinite(.), max(.[!is.infinite(.)], na.rm = TRUE), .)))
+    dplyr::mutate(dplyr::across(tidyselect::where(is.numeric), ~ ifelse(is.infinite(.), max(.[!is.infinite(.)], na.rm = TRUE), .)))
 
   safe_weighted_mean <- function(x, w) {
     ok <- !(is.na(x) | is.na(w) | !is.finite(x) | !is.finite(w))
@@ -100,7 +100,7 @@ get_initial_estimates_from_data <- function(
 
 #' Core function to get parameter estimates from individual data
 #'
-#' @param inheritParams get_initial_estimates_from_data
+#' @inheritParams get_initial_estimates_from_data
 #' 
 get_initial_estimates_from_individual_data <- function(
   data,

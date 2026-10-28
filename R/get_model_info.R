@@ -5,6 +5,8 @@
 #' information from a Pharmpy model.
 #' 
 #' @inheritParams as_pharmpy_model
+#' @param data currently unused; retained for backward compatibility of the
+#'   function signature.
 #'
 #' @returns For `get_model_info()`: a named list providing a structured summary
 #'   of the model. For other `get_*` functions: a character string.

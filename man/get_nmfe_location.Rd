@@ -7,6 +7,12 @@ The order is as follows:}
 \usage{
 get_nmfe_location(nmfe = NULL, verbose = FALSE)
 }
+\arguments{
+\item{nmfe}{full path to the nmfe script. If \code{NULL} (default), the location
+is read from the Pharmpy configuration.}
+
+\item{verbose}{verbose output?}
+}
 \description{
 \enumerate{
 \item argument specified by user

@@ -8,6 +8,8 @@ any type-conversion issues.}
 set_dataset_clean(model, path_or_df)
 }
 \arguments{
+\item{model}{Pharmpy model object.}
+
 \item{path_or_df}{path to data file or data.frame / tibble}
 }
 \value{

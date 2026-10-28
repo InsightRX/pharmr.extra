@@ -20,7 +20,7 @@ compare_nlme_fit <- function(..., return_object = FALSE) {
   ## `run_name` attribute (set by compare_nlme_runs() for reloaded fits)
   ## over `attr(., "model")$name`, since the latter dereferences a pharmpy
   ## model object that may be an invalid Python pointer after readRDS.
-  fit_info <- purrr::map(fits, function(x) {
+  fit_info <- lapply(fits, function(x) {
     nm <- attr(x, "run_name")
     if(is.null(nm)) {
       nm <- tryCatch(attr(x, "model")$name, error = function(e) NA_character_)
@@ -63,13 +63,22 @@ compare_nlme_fit <- function(..., return_object = FALSE) {
 #' data.frames in list should have the same column names but can have different
 #' row names (e.g. parameter names).
 #'
+#' @param fit_info list with one element per fit, each a list with elements
+#'   `name` (run name), `info_tab` and `par_tab` (as created in
+#'   [compare_nlme_fit()]).
+#' @param table name of the table element to combine, `"info_tab"` (default)
+#'   or `"par_tab"`.
+#' @param label label for the first column of the combined table.
+#'
+#' @returns data.frame with one column per fit, rows matched by name.
+#'
 combine_info_columns <- function(
     fit_info,
     table = "info_tab",
     label = "Detail"
 ) {
   comb <- dplyr::bind_rows(
-    purrr::map(fit_info, function(x) {
+    lapply(fit_info, function(x) {
       run_name <- PKPDsim::ifelse0(x$name, "n/a")
       res <- data.frame(x[[table]][,-1])
       first_label <- names(res)[1]

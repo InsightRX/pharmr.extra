@@ -29,7 +29,7 @@ argument may be:
 \itemize{
 \item a pharmpy \code{ModelfitResults} object (NONMEM path)
 \item the pharmpy-shaped wrapper returned by \code{\link[=run_nlme]{run_nlme()}} on an nlmixr model
-\item a raw \code{nlmixr2FitCore} object (output of \code{\link[nlmixr2:nlmixr2]{nlmixr2::nlmixr2()}} called
+\item a raw \code{nlmixr2FitCore} object (output of \code{\link[nlmixr2est:nlmixr2]{nlmixr2est::nlmixr2()}} called
 directly, without going through \code{\link[=run_nlme]{run_nlme()}})
 }
 

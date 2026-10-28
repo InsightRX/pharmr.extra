@@ -1,5 +1,8 @@
 #' Does the last estimation method in a model have maxeval=0?
 #'
+#' @param model Pharmpy model object.
+#'
+#' @returns logical, `TRUE` if the last estimation step has `MAXEVAL=0`.
 #' @export
 #'
 is_maxeval_zero <- function(model) {

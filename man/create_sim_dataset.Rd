@@ -61,6 +61,9 @@ covariates are not changing over time).}
 \item{n_subjects}{number of subjects to simulate, when using sampled data
 (i.e. requires \code{covariates} argument)}
 
+\item{input_from_data}{currently unused; retained for backward
+compatibility of the function signature.}
+
 \item{verbose}{logical; print progress messages.}
 }
 \value{

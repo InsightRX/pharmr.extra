@@ -1,5 +1,8 @@
 #' Create a folder for running model, with the model and dataset
 #'
+#' @inheritParams run_nlme
+#' @param path path to folder in which to create the run folder `id`.
+#'
 prepare_run_folder <- function(
   id,
   model,

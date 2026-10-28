@@ -41,7 +41,7 @@ to apply to model. Will remove all existing estimation steps in the model
 and update with methods specified in argument.}
 
 \item{control}{nlmixr2-only. Optional control list passed verbatim to
-\code{\link[nlmixr2:nlmixr2]{nlmixr2::nlmixr2()}} (e.g. \code{\link[nlmixr2est:foceiControl]{nlmixr2est::foceiControl()}} or
+\code{\link[nlmixr2est:nlmixr2]{nlmixr2est::nlmixr2()}} (e.g. \code{\link[nlmixr2est:foceiControl]{nlmixr2est::foceiControl()}} or
 \code{\link[nlmixr2est:saemControl]{nlmixr2est::saemControl()}}). Ignored for NONMEM models.}
 
 \item{force}{if run folder (\code{id}) exists, should existing results be
@@ -72,7 +72,7 @@ when SAEM is used without mu-referencing).}
 \description{
 Internal companion to \code{\link[=run_nlme]{run_nlme()}}; called when the input model is in
 pharmpy's nlmixr backend. The function turns the pharmpy nlmixr model into
-an \code{rxode2}/\code{nlmixr2} function, fits it with \code{\link[nlmixr2:nlmixr2]{nlmixr2::nlmixr2()}}, and
+an \code{rxode2}/\code{nlmixr2} function, fits it with \code{\link[nlmixr2est:nlmixr2]{nlmixr2est::nlmixr2()}}, and
 wraps the result in a list that mimics the shape of a pharmpy
 \code{ModelfitResults} so downstream helpers (\code{attach_fit_info()},
 \code{compare_nlme_fit()}, etc.) work without engine-specific branches.

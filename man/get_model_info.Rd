@@ -26,6 +26,9 @@ get_estimation_steps(model)
 containing NONMEM model code, or a pharmpy model stored using
 \code{\link[=export_pharmpy_model]{export_pharmpy_model()}}. Model files, strings, and stored models will be
 coerced to a Pharmpy model.}
+
+\item{data}{currently unused; retained for backward compatibility of the
+function signature.}
 }
 \value{
 For \code{get_model_info()}: a named list providing a structured summary

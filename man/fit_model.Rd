@@ -15,7 +15,7 @@ fit_model(model, data, tool = "nonmem", path, ...)
 
 \item{path}{path to .rds file to save fit results to}
 
-\item{...}{passed onto \code{run_nmfe()} function}
+\item{...}{passed onto the tool-specific fitting function}
 }
 \value{
 TODO

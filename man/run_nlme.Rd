@@ -158,7 +158,7 @@ Requires MPI (e.g. OpenMPI) installed on the host running NONMEM, with
 pharmpy's API does not expose a parafile hook.}
 
 \item{control}{nlmixr2-only. Optional control list passed verbatim to
-\code{\link[nlmixr2:nlmixr2]{nlmixr2::nlmixr2()}} (e.g. \code{\link[nlmixr2est:foceiControl]{nlmixr2est::foceiControl()}} or
+\code{\link[nlmixr2est:nlmixr2]{nlmixr2est::nlmixr2()}} (e.g. \code{\link[nlmixr2est:foceiControl]{nlmixr2est::foceiControl()}} or
 \code{\link[nlmixr2est:saemControl]{nlmixr2est::saemControl()}}). Ignored for NONMEM models.}
 
 \item{keep}{NONMEM only: a folder to keep a record of the fit in. When set,

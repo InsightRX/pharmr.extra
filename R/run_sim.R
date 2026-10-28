@@ -1541,9 +1541,16 @@ create_dosing_records <- function(
 
 #' Create observation records, given a specified t_obs vector
 #'
-#' @param data TODO
-#' @param t_obs TODO
-#' @param n_subjects TODO
+#' @param data simulation dataset (dose records), with at least `ID`, `EVID`
+#'   and `.regimen` columns. Its first observation `CMT` (subject 1) is used
+#'   as the observation compartment when present.
+#' @param t_obs numeric vector of observation times.
+#' @param n_subjects number of subjects to create observation records for.
+#' @param model Pharmpy model object, used to determine the observation
+#'   compartment when `data` does not provide one.
+#'
+#' @returns data.frame of observation records, one set of `t_obs` per subject
+#'   and regimen.
 create_obs_records <- function(
     data,
     t_obs,
@@ -1561,12 +1568,12 @@ create_obs_records <- function(
     cmt <- data |>
       dplyr::filter(.data$ID == 1 & .data$EVID == 0 & .data$MDV == 0) |> 
       dplyr::slice(1) |>
-      dplyr::pull(CMT)
+      dplyr::pull("CMT")
   } else {
     cmt <- data |>
       dplyr::filter(.data$ID == 1 & .data$EVID == 0) |> 
       dplyr::slice(1) |>
-      dplyr::pull(CMT)
+      dplyr::pull("CMT")
   }
   if(is.null(cmt) || is.na(cmt) || length(cmt) == 0) {
     cmt <- get_obs_compartment(model)
@@ -1668,6 +1675,12 @@ abort_on_failed_sim <- function(regimen_label, fit_folder) {
 
 #' Create a dictionary from given specs and default dictionary as fallback
 #'
+#' @param dictionary named list mapping standard column names (e.g. `ID`,
+#'   `TIME`) to the column names used in the dataset.
+#' @param default named list with the default mapping, used for any entry not
+#'   given in `dictionary`.
+#'
+#' @returns named list: `default` with the entries in `dictionary` overriding.
 parse_data_dictionary <- function(
   dictionary,
   default = list(

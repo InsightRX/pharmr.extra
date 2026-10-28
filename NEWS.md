@@ -1,4 +1,30 @@
-# pharmr.extra (development version)
+# pharmr.extra 0.0.0.9165
+
+* `--as-cran` check notes: `parse_psn_args()` tests for logical options with
+  `is.logical()` instead of comparing `class()` to a string, and the
+  DESCRIPTION `Author`/`Maintainer` fields (which disagreed with `Authors@R`)
+  are dropped in favour of `Authors@R`; the title is in title case.
+
+* `fit_model(tool = "nonmem")` now stops with a clear error pointing to
+  `run_nlme()`. It called a `run_nmfe()` helper that does not exist in the
+  package, so it could only ever fail with "could not find function".
+
+* R CMD check is clean of the WARNINGs in package code: the `purrr::map()`
+  calls in `compare_nlme_fit()` are replaced with `lapply()` (`purrr` was
+  never declared), the nlmixr2 child process attaches `nlmixr2est` with
+  `attachNamespace()` instead of `library()`, the unused `jsonlite` import is
+  dropped, and non-ASCII characters are removed from messages in
+  `get_required_input_variables()` and `run_nlme_nlmixr()`. Missing imports
+  from `stats`/`utils` and the undefined global bindings (`CMT`, `ID`,
+  `where`) are fixed as well.
+
+* All function arguments are documented, and the Rd links to `nlmixr2()`
+  point at `nlmixr2est`, where it is documented.
+
+* Tests: the `ensure_default_ext_file()` copy-failure test stubs
+  `file.copy()` so it no longer depends on directory permissions (it did not
+  fail when run as root), and the `basic_gof_plot()` test fits a small
+  nlmixr2 model instead of reading a fixture from another package.
 
 * `run_nlme(copy_dataset = FALSE)` (the default) works again with a relative
   `$DATA` path. NONMEM runs inside the per-run folder, so leaving `$DATA`

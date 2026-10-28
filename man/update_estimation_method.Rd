@@ -21,7 +21,23 @@ to NONMEM model file.}
 to apply to model. Will remove all existing estimation steps in the model
 and update with methods specified in argument.}
 
+\item{uncertainty_method}{parameter uncertainty method passed to Pharmpy
+for newly added estimation steps (e.g. \code{"SANDWICH"}, \code{"SMAT"}). Default
+\code{"none"} adds no uncertainty step.}
+
+\item{per_step_options}{optional list with one element per estimation
+method, each a named list of estimation options for that step (as
+produced by \code{parse_estimation_options()}). \code{NULL} (default) uses the
+default options for each method.}
+
+\item{tool}{estimation tool, \code{"nonmem"} (default) or \code{"nlmixr"}. Determines
+the default estimation options and whether NONMEM \verb{$COV}/\verb{$TABLE} records
+are preserved.}
+
 \item{verbose}{verbose output?}
+}
+\value{
+Pharmpy model object with updated estimation step(s).
 }
 \description{
 The current pharmpy functionality is not stable, hence the need for this

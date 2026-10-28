@@ -6,6 +6,12 @@
 \usage{
 is_maxeval_zero(model)
 }
+\arguments{
+\item{model}{Pharmpy model object.}
+}
+\value{
+logical, \code{TRUE} if the last estimation step has \code{MAXEVAL=0}.
+}
 \description{
 Does the last estimation method in a model have maxeval=0?
 }

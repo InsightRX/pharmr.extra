@@ -6,7 +6,7 @@
 #' argument may be:
 #' - a pharmpy `ModelfitResults` object (NONMEM path)
 #' - the pharmpy-shaped wrapper returned by [run_nlme()] on an nlmixr model
-#' - a raw `nlmixr2FitCore` object (output of [nlmixr2::nlmixr2()] called
+#' - a raw `nlmixr2FitCore` object (output of [nlmixr2est::nlmixr2()] called
 #'   directly, without going through [run_nlme()])
 #'
 #' For nlmixr2 fits, both diagonal and off-diagonal omega elements are

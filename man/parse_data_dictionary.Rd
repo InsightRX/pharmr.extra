@@ -10,6 +10,16 @@ parse_data_dictionary(
     "CMT", MDV = "MDV")
 )
 }
+\arguments{
+\item{dictionary}{named list mapping standard column names (e.g. \code{ID},
+\code{TIME}) to the column names used in the dataset.}
+
+\item{default}{named list with the default mapping, used for any entry not
+given in \code{dictionary}.}
+}
+\value{
+named list: \code{default} with the entries in \code{dictionary} overriding.
+}
 \description{
 Create a dictionary from given specs and default dictionary as fallback
 }

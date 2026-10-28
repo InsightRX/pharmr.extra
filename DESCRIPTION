@@ -1,13 +1,11 @@
 Package: pharmr.extra
-Title: Extension of pharmr (Pharmpy) functionality
-Version: 0.0.0.9163
+Title: Extension of 'pharmr' ('Pharmpy') Functionality
+Version: 0.0.0.9165
 Authors@R: c(
     person("Ron", "Keizer", email = "ron@insight-rx.com", role = c("cre", "aut")),
     person("Michael", "McCarthy", email = "michael.mccarthy@insight-rx.com", role = "ctb"),
     person("InsightRX", role = "cph")
   )
-Author: Ron Keizer
-Maintainer: Ron Keizer <ron@insight-rx.com>
 Description: Provides functions that provide extensions and workarounds for
     pharmr / Pharmpy. The goal of the package is to provide functionality that is
     not (yet) available within Pharmpy, and for some existing functionality provide
@@ -22,7 +20,6 @@ Imports:
     htmlwidgets,
     irxutils,
     job,
-    jsonlite,
     knitr,
     parallel,
     PKPDsim,

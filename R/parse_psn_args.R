@@ -14,7 +14,7 @@ parse_psn_args <- function(options) {
   ## split in logical and epxlicit options
   logical_options <- list()
   for(key in names(options)) {
-    if(class(options[[key]]) == "logical") {
+    if(is.logical(options[[key]])) {
       logical_options[[key]] <- options[[key]]
       options[[key]] <- NULL
     }
