@@ -4,7 +4,7 @@
 \name{pharmr.extra-package}
 \alias{pharmr.extra}
 \alias{pharmr.extra-package}
-\title{pharmr.extra: Extension of pharmr (Pharmpy) functionality}
+\title{pharmr.extra: Extension of 'pharmr' ('Pharmpy') Functionality}
 \description{
 Provides functions that provide extensions and workarounds for pharmr / Pharmpy. The goal of the package is to provide functionality that is not (yet) available within Pharmpy, and for some existing functionality provide more stable alternatives.
 }

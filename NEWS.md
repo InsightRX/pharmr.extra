@@ -1,4 +1,9 @@
-# pharmr.extra 0.0.0.9164
+# pharmr.extra 0.0.0.9165
+
+* `--as-cran` check notes: `parse_psn_args()` tests for logical options with
+  `is.logical()` instead of comparing `class()` to a string, and the
+  DESCRIPTION `Author`/`Maintainer` fields (which disagreed with `Authors@R`)
+  are dropped in favour of `Authors@R`; the title is in title case.
 
 * `fit_model(tool = "nonmem")` now stops with a clear error pointing to
   `run_nlme()`. It called a `run_nmfe()` helper that does not exist in the
