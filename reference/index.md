@@ -404,6 +404,9 @@
 - [`prepare_run_folder()`](https://insightrx.github.io/pharmr.extra/reference/prepare_run_folder.md)
   : Create a folder for running model, with the model and dataset
 
+- [`print(`*`<nlmixr2_modelfit_results>`*`)`](https://insightrx.github.io/pharmr.extra/reference/print.nlmixr2_modelfit_results.md)
+  : Print function for an nlmixr2 fit shaped like a pharmpy modelfit
+
 - [`print(`*`<pharmpy.workflows.results.ModelfitResults>`*`)`](https://insightrx.github.io/pharmr.extra/reference/print.pharmpy.workflows.results.ModelfitResults.md)
   : Print function that provides basic run information for a pharmpy
   modelfit

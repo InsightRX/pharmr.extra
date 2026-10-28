@@ -9,7 +9,7 @@ wrapper."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9163</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9165</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -70,10 +70,33 @@ to apply to model. Will remove all existing estimation steps in the model
 and update with methods specified in argument.</p></dd>
 
 
+<dt id="arg-uncertainty-method">uncertainty_method<a class="anchor" aria-label="anchor" href="#arg-uncertainty-method"></a></dt>
+<dd><p>parameter uncertainty method passed to Pharmpy
+for newly added estimation steps (e.g. <code>"SANDWICH"</code>, <code>"SMAT"</code>). Default
+<code>"none"</code> adds no uncertainty step.</p></dd>
+
+
+<dt id="arg-per-step-options">per_step_options<a class="anchor" aria-label="anchor" href="#arg-per-step-options"></a></dt>
+<dd><p>optional list with one element per estimation
+method, each a named list of estimation options for that step (as
+produced by <code><a href="parse_estimation_options.html">parse_estimation_options()</a></code>). <code>NULL</code> (default) uses the
+default options for each method.</p></dd>
+
+
+<dt id="arg-tool">tool<a class="anchor" aria-label="anchor" href="#arg-tool"></a></dt>
+<dd><p>estimation tool, <code>"nonmem"</code> (default) or <code>"nlmixr"</code>. Determines
+the default estimation options and whether NONMEM <code>$COV</code>/<code>$TABLE</code> records
+are preserved.</p></dd>
+
+
 <dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
 <dd><p>verbose output?</p></dd>
 
 </dl></div>
+    <div class="section level2">
+    <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
+    <p>Pharmpy model object with updated estimation step(s).</p>
+    </div>
 
   </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
     </nav></aside></div>

@@ -30,7 +30,7 @@ fit_model(model, data, tool = "nonmem", path, ...)
 
 - ...:
 
-  passed onto `run_nmfe()` function
+  passed onto the tool-specific fitting function
 
 ## Value
 

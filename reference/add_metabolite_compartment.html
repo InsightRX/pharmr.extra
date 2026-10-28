@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9163</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9165</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -45,8 +45,32 @@
     <div class="sourceCode"><pre class="sourceCode r"><code><span><span class="fu">add_metabolite_compartment</span><span class="op">(</span><span class="va">mod</span>, metabolite <span class="op">=</span> <span class="cn">FALSE</span>, <span class="va">route</span><span class="op">)</span></span></code></pre></div>
     </div>
 
+    <div class="section level2">
+    <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
 
-  </main></div>
+
+<dl><dt id="arg-mod">mod<a class="anchor" aria-label="anchor" href="#arg-mod"></a></dt>
+<dd><p>Pharmpy model object.</p></dd>
+
+
+<dt id="arg-metabolite">metabolite<a class="anchor" aria-label="anchor" href="#arg-metabolite"></a></dt>
+<dd><p>either <code>TRUE</code>/<code>FALSE</code>, or a list with elements
+<code>drug_dvid</code> (integer) and <code>presystemic</code> (logical). See <code><a href="create_model.html">create_model()</a></code>.</p></dd>
+
+
+<dt id="arg-route">route<a class="anchor" aria-label="anchor" href="#arg-route"></a></dt>
+<dd><p>route of administration (e.g. <code>"oral"</code>, <code>"iv"</code>). A presystemic
+metabolite cannot be combined with <code>route = "iv"</code>.</p></dd>
+
+</dl></div>
+    <div class="section level2">
+    <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
+    <p>Pharmpy model object, with the metabolite compartment added if
+requested.</p>
+    </div>
+
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">

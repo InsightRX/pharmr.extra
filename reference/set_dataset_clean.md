@@ -11,6 +11,10 @@ set_dataset_clean(model, path_or_df)
 
 ## Arguments
 
+- model:
+
+  Pharmpy model object.
+
 - path_or_df:
 
   path to data file or data.frame / tibble

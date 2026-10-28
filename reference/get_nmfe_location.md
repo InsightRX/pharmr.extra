@@ -11,3 +11,14 @@
 ``` r
 get_nmfe_location(nmfe = NULL, verbose = FALSE)
 ```
+
+## Arguments
+
+- nmfe:
+
+  full path to the nmfe script. If `NULL` (default), the location is
+  read from the Pharmpy configuration.
+
+- verbose:
+
+  verbose output?

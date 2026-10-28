@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9163</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9165</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -76,7 +76,7 @@ to NONMEM model file.</p></dd>
     <p>Supports both NONMEM-backend and nlmixr-backend pharmpy models. The <code>fit</code>
 argument may be:</p><ul><li><p>a pharmpy <code>ModelfitResults</code> object (NONMEM path)</p></li>
 <li><p>the pharmpy-shaped wrapper returned by <code><a href="run_nlme.html">run_nlme()</a></code> on an nlmixr model</p></li>
-<li><p>a raw <code>nlmixr2FitCore</code> object (output of <code>nlmixr2::nlmixr2()</code> called
+<li><p>a raw <code>nlmixr2FitCore</code> object (output of <code><a href="https://nlmixr2.github.io/nlmixr2est/reference/nlmixr2.html" class="external-link">nlmixr2est::nlmixr2()</a></code> called
 directly, without going through <code><a href="run_nlme.html">run_nlme()</a></code>)</p></li>
 </ul><p>For nlmixr2 fits, both diagonal and off-diagonal omega elements are
 extracted so that block-omega parameters (named <code>IIV_X_IIV_Y</code> in pharmpy)

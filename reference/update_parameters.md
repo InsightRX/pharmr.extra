@@ -43,8 +43,9 @@ Supports both NONMEM-backend and nlmixr-backend pharmpy models. The
   [`run_nlme()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme.md)
   on an nlmixr model
 
-- a raw `nlmixr2FitCore` object (output of `nlmixr2::nlmixr2()` called
-  directly, without going through
+- a raw `nlmixr2FitCore` object (output of
+  [`nlmixr2est::nlmixr2()`](https://nlmixr2.github.io/nlmixr2est/reference/nlmixr2.html)
+  called directly, without going through
   [`run_nlme()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme.md))
 
 For nlmixr2 fits, both diagonal and off-diagonal omega elements are

@@ -4,8 +4,10 @@ Internal companion to
 [`run_nlme()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme.md);
 called when the input model is in pharmpy's nlmixr backend. The function
 turns the pharmpy nlmixr model into an `rxode2`/`nlmixr2` function, fits
-it with `nlmixr2::nlmixr2()`, and wraps the result in a list that mimics
-the shape of a pharmpy `ModelfitResults` so downstream helpers
+it with
+[`nlmixr2est::nlmixr2()`](https://nlmixr2.github.io/nlmixr2est/reference/nlmixr2.html),
+and wraps the result in a list that mimics the shape of a pharmpy
+`ModelfitResults` so downstream helpers
 ([`attach_fit_info()`](https://insightrx.github.io/pharmr.extra/reference/attach_fit_info.md),
 [`compare_nlme_fit()`](https://insightrx.github.io/pharmr.extra/reference/compare_nlme_fit.md),
 etc.) work without engine-specific branches.
@@ -64,7 +66,8 @@ run_nlme_nlmixr(
 - control:
 
   nlmixr2-only. Optional control list passed verbatim to
-  `nlmixr2::nlmixr2()` (e.g.
+  [`nlmixr2est::nlmixr2()`](https://nlmixr2.github.io/nlmixr2est/reference/nlmixr2.html)
+  (e.g.
   [`nlmixr2est::foceiControl()`](https://nlmixr2.github.io/nlmixr2est/reference/foceiControl.html)
   or
   [`nlmixr2est::saemControl()`](https://nlmixr2.github.io/nlmixr2est/reference/saemControl.html)).

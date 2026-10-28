@@ -20,4 +20,4 @@ fit_model_nlmixr(model, data = NULL, ...)
 
 - ...:
 
-  passed onto `run_nmfe()` function
+  passed onto the tool-specific fitting function

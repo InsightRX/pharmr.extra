@@ -1,6 +1,50 @@
 # Changelog
 
-## pharmr.extra (development version)
+## pharmr.extra 0.0.0.9165
+
+- `--as-cran` check notes:
+  [`parse_psn_args()`](https://insightrx.github.io/pharmr.extra/reference/parse_psn_args.md)
+  tests for logical options with
+  [`is.logical()`](https://rdrr.io/r/base/logical.html) instead of
+  comparing [`class()`](https://rdrr.io/r/base/class.html) to a string,
+  and the DESCRIPTION `Author`/`Maintainer` fields (which disagreed with
+  `Authors@R`) are dropped in favour of `Authors@R`; the title is in
+  title case.
+
+- `fit_model(tool = "nonmem")` now stops with a clear error pointing to
+  [`run_nlme()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme.md).
+  It called a `run_nmfe()` helper that does not exist in the package, so
+  it could only ever fail with “could not find function”.
+
+- R CMD check is clean of the WARNINGs in package code: the
+  [`purrr::map()`](https://purrr.tidyverse.org/reference/map.html) calls
+  in
+  [`compare_nlme_fit()`](https://insightrx.github.io/pharmr.extra/reference/compare_nlme_fit.md)
+  are replaced with [`lapply()`](https://rdrr.io/r/base/lapply.html)
+  (`purrr` was never declared), the nlmixr2 child process attaches
+  `nlmixr2est` with
+  [`attachNamespace()`](https://rdrr.io/r/base/ns-load.html) instead of
+  [`library()`](https://rdrr.io/r/base/library.html), the unused
+  `jsonlite` import is dropped, and non-ASCII characters are removed
+  from messages in
+  [`get_required_input_variables()`](https://insightrx.github.io/pharmr.extra/reference/get_required_input_variables.md)
+  and
+  [`run_nlme_nlmixr()`](https://insightrx.github.io/pharmr.extra/reference/run_nlme_nlmixr.md).
+  Missing imports from `stats`/`utils` and the undefined global bindings
+  (`CMT`, `ID`, `where`) are fixed as well.
+
+- All function arguments are documented, and the Rd links to `nlmixr2()`
+  point at `nlmixr2est`, where it is documented.
+
+- Tests: the
+  [`ensure_default_ext_file()`](https://insightrx.github.io/pharmr.extra/reference/ensure_default_ext_file.md)
+  copy-failure test stubs
+  [`file.copy()`](https://rdrr.io/r/base/files.html) so it no longer
+  depends on directory permissions (it did not fail when run as root),
+  and the
+  [`basic_gof_plot()`](https://insightrx.github.io/pharmr.extra/reference/basic_gof_plot.md)
+  test fits a small nlmixr2 model instead of reading a fixture from
+  another package.
 
 - `run_nlme(copy_dataset = FALSE)` (the default) works again with a
   relative `$DATA` path. NONMEM runs inside the per-run folder, so

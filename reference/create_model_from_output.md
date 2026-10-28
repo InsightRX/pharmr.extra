@@ -8,7 +8,12 @@ estimates parsed from the report's `FINAL PARAMETER ESTIMATE` section.
 ## Usage
 
 ``` r
-create_model_from_output(output_file, data = NULL, save_as = NULL, verbose = TRUE)
+create_model_from_output(
+  output_file,
+  data = NULL,
+  save_as = NULL,
+  verbose = TRUE
+)
 ```
 
 ## Arguments

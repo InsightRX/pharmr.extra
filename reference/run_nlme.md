@@ -215,7 +215,8 @@ run_nlme(
 - control:
 
   nlmixr2-only. Optional control list passed verbatim to
-  `nlmixr2::nlmixr2()` (e.g.
+  [`nlmixr2est::nlmixr2()`](https://nlmixr2.github.io/nlmixr2est/reference/nlmixr2.html)
+  (e.g.
   [`nlmixr2est::foceiControl()`](https://nlmixr2.github.io/nlmixr2est/reference/foceiControl.html)
   or
   [`nlmixr2est::saemControl()`](https://nlmixr2.github.io/nlmixr2est/reference/saemControl.html)).

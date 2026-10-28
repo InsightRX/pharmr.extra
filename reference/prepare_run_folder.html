@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9163</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9165</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -54,8 +54,79 @@
 <span><span class="op">)</span></span></code></pre></div>
     </div>
 
+    <div class="section level2">
+    <h2 id="arguments">Arguments<a class="anchor" aria-label="anchor" href="#arguments"></a></h2>
 
-  </main></div>
+
+<dl><dt id="arg-id">id<a class="anchor" aria-label="anchor" href="#arg-id"></a></dt>
+<dd><p>run id, e.g. <code>run1</code>. This will be the folder in which the NONMEM
+model is run. If no folder is specified, it will create a folder <code>run1</code> in
+the current working directory, and will increment the run number for each
+subsequent run.</p></dd>
+
+
+<dt id="arg-model">model<a class="anchor" aria-label="anchor" href="#arg-model"></a></dt>
+<dd><p>pharmpy model object or NONMEM model code (character) or path
+to NONMEM model file.</p></dd>
+
+
+<dt id="arg-path">path<a class="anchor" aria-label="anchor" href="#arg-path"></a></dt>
+<dd><p>path to folder in which to create the run folder <code>id</code>.</p></dd>
+
+
+<dt id="arg-force">force<a class="anchor" aria-label="anchor" href="#arg-force"></a></dt>
+<dd><p>if run folder (<code>id</code>) exists, should existing results be
+removed before rerunning NONMEM? Default <code>FALSE</code>.</p></dd>
+
+
+<dt id="arg-data">data<a class="anchor" aria-label="anchor" href="#arg-data"></a></dt>
+<dd><p>filename of dataset or data.frame as input to NONMEM / nlmixr.
+Optional, can also be included in <code>model</code> object (if specified as pharmpy
+model object).</p></dd>
+
+
+<dt id="arg-auto-stack-encounters">auto_stack_encounters<a class="anchor" aria-label="anchor" href="#arg-auto-stack-encounters"></a></dt>
+<dd><p>only invoked if <code>data</code> argument supplied as
+a data.frame, not if a pharmpy model object is supplied without <code>data</code> or
+when <code>data</code> is a filename.
+Detects if TIME within an individual is
+decreasing from one record to another, which NONMEM cannot handle.
+If this happens, it will add a reset event (EVID=3) at that time, and
+increase the TIME for subsequent events so that NONMEM does not throw an
+error. It will increase the time for the next encounter to the maximum
+encounter length across all subjects in the dataset (rounded up to 100).
+If no decreasing TIME is detected, nothing will be done (most common case).
+This feature is useful e.g. for crossover trials when data on the same
+individual ispresent but is included in the dataset as time-after-dose and
+not actual time since first overall dose.</p></dd>
+
+
+<dt id="arg-copy-dataset">copy_dataset<a class="anchor" aria-label="anchor" href="#arg-copy-dataset"></a></dt>
+<dd><p>copy the dataset into the run folder? If <code>TRUE</code>, the
+dataset is copied into the run folder as <code>data.csv</code> and the model's <code>$DATA</code>
+record is rewritten to point to that copy. If <code>FALSE</code> (default), the dataset
+is left in its existing location and the model's <code>$DATA</code> record is rewritten
+to the dataset's absolute path (other <code>$DATA</code> options such as <code>IGNORE=</code> are
+kept), since NONMEM is run from inside the run folder where a relative path
+would not resolve. A <code>data</code> file path is resolved against the working
+directory; when <code>data</code> is not given, a relative <code>$DATA</code> path is resolved
+against the folder the model file was read from (or the working directory
+if unknown). A <code>$DATA</code> that already is an absolute path to an existing file
+is left as-is. <code>copy_dataset = FALSE</code> can only be honored when the
+dataset is a file on disk — i.e. <code>data</code> is supplied as a file path, or the
+model's <code>$DATA</code> record points to an existing file. If neither is the case
+(only an in-memory data frame, <code>model$dataset</code>, or original dataset is
+available), a warning is issued and the dataset is copied into the run
+folder (with <code>$DATA</code> rewritten) anyway.</p></dd>
+
+
+<dt id="arg-verbose">verbose<a class="anchor" aria-label="anchor" href="#arg-verbose"></a></dt>
+<dd><p>verbose output?</p></dd>
+
+</dl></div>
+
+  </main><aside class="col-md-3"><nav id="toc" aria-label="Table of contents"><h2>On this page</h2>
+    </nav></aside></div>
 
 
     <footer><div class="pkgdown-footer-left">

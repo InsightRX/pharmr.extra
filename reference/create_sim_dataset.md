@@ -84,6 +84,11 @@ create_sim_dataset(
   number of subjects to simulate, when using sampled data (i.e. requires
   `covariates` argument)
 
+- input_from_data:
+
+  currently unused; retained for backward compatibility of the function
+  signature.
+
 - verbose:
 
   logical; print progress messages.

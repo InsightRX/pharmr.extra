@@ -1,4 +1,4 @@
-# pharmr.extra: Extension of pharmr (Pharmpy) functionality
+# pharmr.extra: Extension of 'pharmr' ('Pharmpy') Functionality
 
 Provides functions that provide extensions and workarounds for pharmr /
 Pharmpy. The goal of the package is to provide functionality that is not
@@ -14,6 +14,10 @@ Useful links:
 ## Author
 
 **Maintainer**: Ron Keizer <ron@insight-rx.com>
+
+Authors:
+
+- Ron Keizer <ron@insight-rx.com>
 
 Other contributors:
 

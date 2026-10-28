@@ -101,6 +101,15 @@ create_model(
   `crib`, `cr`, `qss`, or `mmapp`. See Pharmpy/pharmr documentation for
   details.
 
+- tmdd_dv_types:
+
+  named list mapping TMDD model species to `DVID` values in the dataset,
+  passed to
+  [`pharmr::set_tmdd()`](https://rdrr.io/pkg/pharmr/man/set_tmdd.html)
+  as `dv_types`. Allowed names are `drug`, `target`, `complex`,
+  `drug_tot` and `target_tot`. Default `list(drug = 1, target = 2)`.
+  Only used when `tmdd_type` is specified.
+
 - metabolite:
 
   either `TRUE`/`FALSE` or a `list`. If logical, determines if a
@@ -235,6 +244,13 @@ create_model(
   Control mu-referencing of the model. `"auto"` (default) applies
   mu-referencing automatically when `estimation_method = "saem"`. `TRUE`
   always applies mu-referencing. `FALSE` never applies it.
+
+- use_template:
+
+  if `TRUE`, start from one of the NONMEM model templates bundled with
+  this package (in `inst/models/`), chosen by `route`, `n_cmt` and
+  `force_ode`. If `FALSE` (default), the base model is created with
+  [`pharmr::create_basic_pk_model()`](https://rdrr.io/pkg/pharmr/man/create_basic_pk_model.html).
 
 - settings:
 

@@ -29,6 +29,11 @@ get_estimation_steps(model)
   Model files, strings, and stored models will be coerced to a Pharmpy
   model.
 
+- data:
+
+  currently unused; retained for backward compatibility of the function
+  signature.
+
 ## Value
 
 For `get_model_info()`: a named list providing a structured summary of

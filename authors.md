@@ -10,14 +10,14 @@
 
 ## Citation
 
-Keizer R (2026). *pharmr.extra: Extension of pharmr (Pharmpy)
-functionality*. R package version 0.0.0.9163,
+Keizer R (2026). *pharmr.extra: Extension of 'pharmr' ('Pharmpy')
+Functionality*. R package version 0.0.0.9165,
 <https://insightrx.github.io/pharmr.extra/>.
 
     @Manual{,
-      title = {pharmr.extra: Extension of pharmr (Pharmpy) functionality},
+      title = {pharmr.extra: Extension of 'pharmr' ('Pharmpy') Functionality},
       author = {Ron Keizer},
       year = {2026},
-      note = {R package version 0.0.0.9163},
+      note = {R package version 0.0.0.9165},
       url = {https://insightrx.github.io/pharmr.extra/},
     }

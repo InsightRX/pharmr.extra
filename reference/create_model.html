@@ -9,7 +9,7 @@ functionality in pharmr/Pharmpy."></head><body>
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9163</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9165</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -139,6 +139,13 @@ is <code>"exp"</code> for all.</p></dd>
 <dd><p>if a TMDD model structure is desired, can choose one of
 <code>full</code>, <code>ib</code>, <code>crib</code>, <code>cr</code>, <code>qss</code>, or <code>mmapp</code>. See Pharmpy/pharmr
 documentation for details.</p></dd>
+
+
+<dt id="arg-tmdd-dv-types">tmdd_dv_types<a class="anchor" aria-label="anchor" href="#arg-tmdd-dv-types"></a></dt>
+<dd><p>named list mapping TMDD model species to <code>DVID</code> values
+in the dataset, passed to <code><a href="https://rdrr.io/pkg/pharmr/man/set_tmdd.html" class="external-link">pharmr::set_tmdd()</a></code> as <code>dv_types</code>. Allowed names
+are <code>drug</code>, <code>target</code>, <code>complex</code>, <code>drug_tot</code> and <code>target_tot</code>. Default
+<code>list(drug = 1, target = 2)</code>. Only used when <code>tmdd_type</code> is specified.</p></dd>
 
 
 <dt id="arg-metabolite">metabolite<a class="anchor" aria-label="anchor" href="#arg-metabolite"></a></dt>
@@ -273,6 +280,13 @@ passed to pharmpy so that <code>$INPUT</code> uses the standard names. Uses
 <dd><p>Control mu-referencing of the model. <code>"auto"</code> (default)
 applies mu-referencing automatically when <code>estimation_method = "saem"</code>.
 <code>TRUE</code> always applies mu-referencing. <code>FALSE</code> never applies it.</p></dd>
+
+
+<dt id="arg-use-template">use_template<a class="anchor" aria-label="anchor" href="#arg-use-template"></a></dt>
+<dd><p>if <code>TRUE</code>, start from one of the NONMEM model templates
+bundled with this package (in <code>inst/models/</code>), chosen by <code>route</code>, <code>n_cmt</code>
+and <code>force_ode</code>. If <code>FALSE</code> (default), the base model is created with
+<code><a href="https://rdrr.io/pkg/pharmr/man/create_basic_pk_model.html" class="external-link">pharmr::create_basic_pk_model()</a></code>.</p></dd>
 
 
 <dt id="arg-settings">settings<a class="anchor" aria-label="anchor" href="#arg-settings"></a></dt>
