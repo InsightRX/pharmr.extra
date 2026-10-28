@@ -6,6 +6,19 @@
 \usage{
 add_metabolite_compartment(mod, metabolite = FALSE, route)
 }
+\arguments{
+\item{mod}{Pharmpy model object.}
+
+\item{metabolite}{either \code{TRUE}/\code{FALSE}, or a list with elements
+\code{drug_dvid} (integer) and \code{presystemic} (logical). See \code{\link[=create_model]{create_model()}}.}
+
+\item{route}{route of administration (e.g. \code{"oral"}, \code{"iv"}). A presystemic
+metabolite cannot be combined with \code{route = "iv"}.}
+}
+\value{
+Pharmpy model object, with the metabolite compartment added if
+requested.
+}
 \description{
 Add a metabolite compartment, if requested
 }

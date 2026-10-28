@@ -43,6 +43,8 @@
 #' the observations in each subject in the input dataset.
 #' @param n_subjects number of subjects to simulate, when using sampled data
 #' (i.e. requires `covariates` argument)
+#' @param input_from_data currently unused; retained for backward
+#'   compatibility of the function signature.
 #' @param verbose logical; print progress messages.
 #'
 #' @returns data.frame with a NONMEM-format simulation dataset. A `.regimen`
@@ -229,12 +231,12 @@ create_sim_dataset <- function(
     sim_data <- lapply(seq_along(random_sample), function(i) {
       input_data |>
         dplyr::filter(.data$ID == random_sample[i]) |>
-        dplyr::mutate(ID := i)
+        dplyr::mutate(ID = i)
     }) |>
       dplyr::bind_rows()
     cov_ids <- unique(covariates$ID)
     covariates <- covariates |>
-      dplyr::mutate(ID = match(ID, cov_ids))
+      dplyr::mutate(ID = match(.data$ID, cov_ids))
     if (verbose) cli::cli_alert_info("Updating covariates for subjects in simulation")
     covs_reqd <- unlist(lapply(
       pharmr::get_model_covariates(model),

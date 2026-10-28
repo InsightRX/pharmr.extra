@@ -8,3 +8,6 @@
 ^pkgdown$
 ^codecov\.yml$
 ^README\.Rmd$
+^CLAUDE\.md$
+^examples$
+^\.claude$

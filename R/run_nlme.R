@@ -108,7 +108,7 @@
 #' `threads >= 2`, the run is dispatched via `nmfe` instead, since
 #' pharmpy's API does not expose a parafile hook.
 #' @param control nlmixr2-only. Optional control list passed verbatim to
-#' [nlmixr2::nlmixr2()] (e.g. [nlmixr2est::foceiControl()] or
+#' [nlmixr2est::nlmixr2()] (e.g. [nlmixr2est::foceiControl()] or
 #' [nlmixr2est::saemControl()]). Ignored for NONMEM models.
 #' @param keep NONMEM only: a folder to keep a record of the fit in. When set,
 #' the run folder's `run.mod`, `run.lst`, `final.mod`, `stdout`, `stderr` and

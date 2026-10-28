@@ -1,6 +1,7 @@
 #' Drop-in replacement for pharmr::set_dataset_clean that avoids
 #' any type-conversion issues.
 #' 
+#' @param model Pharmpy model object.
 #' @param path_or_df path to data file or data.frame / tibble
 #' 
 #' @returns Pharmpy model object

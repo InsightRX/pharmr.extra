@@ -4,7 +4,12 @@
 \alias{create_model_from_output}
 \title{Create a Pharmpy model object from a NONMEM report file (\code{.lst}/\code{.res})}
 \usage{
-create_model_from_output(output_file, data = NULL, save_as = NULL, verbose = TRUE)
+create_model_from_output(
+  output_file,
+  data = NULL,
+  save_as = NULL,
+  verbose = TRUE
+)
 }
 \arguments{
 \item{output_file}{path to a NONMEM report file (\code{.lst}, \code{.res}, ...).}

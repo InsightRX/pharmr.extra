@@ -55,7 +55,27 @@ test_that("warns and does nothing when multiple non-default .ext files exist", {
 })
 
 test_that("aborts if the underlying file.copy fails", {
+  ## Stub file.copy() so the failure path runs regardless of the environment:
+  ## permission-based tricks do not make the copy fail when tests run as root
+  ## (e.g. in a container).
+  d <- withr::local_tempdir()
+  writeLines("psn-content", file.path(d, "psn.ext"))
+  mockery::stub(ensure_default_ext_file, "file.copy", FALSE)
+
+  expect_error(
+    ensure_default_ext_file(d, "run.mod", verbose = FALSE),
+    "Failed to copy"
+  )
+  expect_false(file.exists(file.path(d, "run.ext")))
+})
+
+test_that("aborts if the run folder is not writable", {
   skip_on_os("windows")  # chmod semantics differ on Windows
+  ## root bypasses directory permissions, so the copy would succeed
+  skip_if(
+    identical(unname(Sys.info()[["effective_user"]]), "root"),
+    "running as root: directory permissions are not enforced"
+  )
   d <- withr::local_tempdir()
   writeLines("psn-content", file.path(d, "psn.ext"))
   ## Make the destination unwritable by removing write perms on the folder

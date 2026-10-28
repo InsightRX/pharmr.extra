@@ -7,7 +7,9 @@
 get_initial_estimates_from_individual_data(data, ltbs = FALSE)
 }
 \arguments{
-\item{inheritParams}{get_initial_estimates_from_data}
+\item{data}{NONMEM-style dataset}
+
+\item{ltbs}{is DV column log-transformed?}
 }
 \description{
 Core function to get parameter estimates from individual data

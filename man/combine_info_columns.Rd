@@ -7,6 +7,19 @@ and make sure that rows match (e.g. parameters)}
 \usage{
 combine_info_columns(fit_info, table = "info_tab", label = "Detail")
 }
+\arguments{
+\item{fit_info}{list with one element per fit, each a list with elements
+\code{name} (run name), \code{info_tab} and \code{par_tab} (as created in
+\code{\link[=compare_nlme_fit]{compare_nlme_fit()}}).}
+
+\item{table}{name of the table element to combine, \code{"info_tab"} (default)
+or \code{"par_tab"}.}
+
+\item{label}{label for the first column of the combined table.}
+}
+\value{
+data.frame with one column per fit, rows matched by name.
+}
 \description{
 data.frames in list should have the same column names but can have different
 row names (e.g. parameter names).

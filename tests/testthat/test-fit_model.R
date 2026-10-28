@@ -60,3 +60,10 @@ test_that("fit_model_nlmixr runs the model through pharmr with the nlmixr tool",
   expect_equal(fit_model_nlmixr(mock_pharmpy_model()), "fit")
   expect_equal(captured, "nlmixr")
 })
+
+test_that("fit_model with tool = 'nonmem' points to run_nlme()", {
+  expect_error(
+    fit_model(mock_pharmpy_model(), data = NULL, tool = "nonmem", path = tempfile()),
+    "no longer supported"
+  )
+})

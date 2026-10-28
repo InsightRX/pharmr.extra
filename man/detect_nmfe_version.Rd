@@ -6,6 +6,14 @@
 \usage{
 detect_nmfe_version(nm_path)
 }
+\arguments{
+\item{nm_path}{path to the NONMEM installation folder (the folder that
+contains the \verb{run/} subfolder).}
+}
+\value{
+file name of the first \verb{nmfe<NN>} script found in \verb{run/}, or \code{NA}
+if none is found.
+}
 \description{
 get nmfe file name from a NONMEM installation folder
 }

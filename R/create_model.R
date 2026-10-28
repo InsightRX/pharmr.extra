@@ -22,6 +22,10 @@
 #' @param tmdd_type if a TMDD model structure is desired, can choose one of
 #' `full`, `ib`, `crib`, `cr`, `qss`, or `mmapp`. See Pharmpy/pharmr 
 #' documentation for details.
+#' @param tmdd_dv_types named list mapping TMDD model species to `DVID` values
+#'   in the dataset, passed to [pharmr::set_tmdd()] as `dv_types`. Allowed names
+#'   are `drug`, `target`, `complex`, `drug_tot` and `target_tot`. Default
+#'   `list(drug = 1, target = 2)`. Only used when `tmdd_type` is specified.
 #' @param metabolite either `TRUE`/`FALSE` or a `list`. If logical, determines 
 #' if a metabolite compartment be added (with input from central using linear 
 #' kinetics). In this case, DVID in the dataset should be set to 1 for the 
@@ -103,6 +107,10 @@
 #' included in the output tables? Default `FALSE`.
 #' @param name name of model
 #' @param tool output model type, either `nonmem` or `nlmixr`
+#' @param use_template if `TRUE`, start from one of the NONMEM model templates
+#'   bundled with this package (in `inst/models/`), chosen by `route`, `n_cmt`
+#'   and `force_ode`. If `FALSE` (default), the base model is created with
+#'   [pharmr::create_basic_pk_model()].
 #' @param verbose verbose output?
 #'
 #' @returns a Pharmpy model object
@@ -718,7 +726,15 @@ estimation_options_defaults <- list(
 )
 
 #' Add a metabolite compartment, if requested
-#' 
+#'
+#' @param mod Pharmpy model object.
+#' @param metabolite either `TRUE`/`FALSE`, or a list with elements
+#'   `drug_dvid` (integer) and `presystemic` (logical). See [create_model()].
+#' @param route route of administration (e.g. `"oral"`, `"iv"`). A presystemic
+#'   metabolite cannot be combined with `route = "iv"`.
+#'
+#' @returns Pharmpy model object, with the metabolite compartment added if
+#'   requested.
 add_metabolite_compartment <- function(
   mod,
   metabolite = FALSE,

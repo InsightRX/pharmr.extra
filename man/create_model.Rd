@@ -78,6 +78,11 @@ is \code{"exp"} for all.}
 \code{full}, \code{ib}, \code{crib}, \code{cr}, \code{qss}, or \code{mmapp}. See Pharmpy/pharmr
 documentation for details.}
 
+\item{tmdd_dv_types}{named list mapping TMDD model species to \code{DVID} values
+in the dataset, passed to \code{\link[pharmr:set_tmdd]{pharmr::set_tmdd()}} as \code{dv_types}. Allowed names
+are \code{drug}, \code{target}, \code{complex}, \code{drug_tot} and \code{target_tot}. Default
+\code{list(drug = 1, target = 2)}. Only used when \code{tmdd_type} is specified.}
+
 \item{metabolite}{either \code{TRUE}/\code{FALSE} or a \code{list}. If logical, determines
 if a metabolite compartment be added (with input from central using linear
 kinetics). In this case, DVID in the dataset should be set to 1 for the
@@ -169,6 +174,11 @@ passed to pharmpy so that \verb{$INPUT} uses the standard names. Uses
 \item{mu_reference}{Control mu-referencing of the model. \code{"auto"} (default)
 applies mu-referencing automatically when \code{estimation_method = "saem"}.
 \code{TRUE} always applies mu-referencing. \code{FALSE} never applies it.}
+
+\item{use_template}{if \code{TRUE}, start from one of the NONMEM model templates
+bundled with this package (in \verb{inst/models/}), chosen by \code{route}, \code{n_cmt}
+and \code{force_ode}. If \code{FALSE} (default), the base model is created with
+\code{\link[pharmr:create_basic_pk_model]{pharmr::create_basic_pk_model()}}.}
 
 \item{settings}{additional settings for model creation and model estimation.
 TBD}

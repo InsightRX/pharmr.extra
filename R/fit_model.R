@@ -10,7 +10,7 @@
 #' @param data data.frame with data to fit
 #' @param tool either `nonmem` or `nlmixr`
 #' @param path path to .rds file to save fit results to
-#' @param ... passed onto `run_nmfe()` function
+#' @param ... passed onto the tool-specific fitting function
 #'
 #' @returns TODO
 #' 
@@ -59,46 +59,15 @@ fit_model_nlmixr <- function(model, data = NULL, ...) {
 
 #' Fit model using NONMEM
 #'
+#' No longer supported: this relied on a `run_nmfe()` helper that is not part
+#' of the package, so it could never complete. Use [run_nlme()] to fit NONMEM
+#' models.
+#'
 #' @inheritParams fit_model
 #'
 fit_model_nonmem <- function(model, data = NULL, ...) {
-
-  ## Create temp folder
-  folder <- file.path(tempdir(), paste0(model$name, "_", irxutils::get_datetime_string(), "_", irxutils::random_string(6)))
-  dir.create(folder)
-  dataset_filename <- file.path(folder, "nm_data.csv")
-  model_filename <- file.path(folder, "run1.mod")
-
-  ## Save dataset to folder
-  if(is.null(data)) { # get from model reference
-    data <- model$dataset
-  }
-  nm_save_dataset(data, dataset_filename)
-
-  ## save model to folder
-  writeLines(model$model_code, model_filename)
-
-  ## TODO: use Pharmpy to do update datset
-  ## rewrite model with updated dataset
-  nm_update_dataset(
-    model_filename,
-    basename(dataset_filename),
-    overwrite = TRUE
-  )
-
-  ## Run model
-  output <- run_nmfe(
-    model_filename,
-    folder = folder,
-    verbose = FALSE
-  )
-
-  ## Check for model errors reported from NONMEM
-  check_errors_nm_output(output)
-
-  ## Return pharmpy results object, attach output data as well
-  res <- pharmr::read_modelfit_results(model_filename)
-  attr(res, "sdtab") <- read_table_nm(file.path(folder, "sdtab1"))
-
-  res
+  cli::cli_abort(c(
+    "{.code fit_model(tool = \"nonmem\")} is no longer supported.",
+    "i" = "Use {.fn run_nlme} to fit NONMEM models."
+  ))
 }

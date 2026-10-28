@@ -5,6 +5,10 @@
 #' 2. check pharmpy config
 #' 3. throw error, force user to specify
 #'
+#' @param nmfe full path to the nmfe script. If `NULL` (default), the location
+#'   is read from the Pharmpy configuration.
+#' @param verbose verbose output?
+#'
 get_nmfe_location <- function(
   nmfe = NULL,
   verbose = FALSE
@@ -32,6 +36,11 @@ get_nmfe_location <- function(
 
 #' get nmfe file name from a NONMEM installation folder
 #'
+#' @param nm_path path to the NONMEM installation folder (the folder that
+#'   contains the `run/` subfolder).
+#'
+#' @returns file name of the first `nmfe<NN>` script found in `run/`, or `NA`
+#'   if none is found.
 detect_nmfe_version <- function(nm_path) {
   files <- dir(
     file.path(nm_path, "run"),

@@ -17,5 +17,5 @@ Comma-separated \verb{$INPUT} items are valid NONMEM but not accepted by
 Pharmpy, which expects space-separated column names. This replaces commas
 inside the \verb{$INPUT} record with spaces, leaving other records (e.g. the
 comma-containing \verb{$THETA}/\verb{$OMEGA} bounds) untouched. Matching stops at the
-next record boundary (\verb{$}).
+next record boundary (\code{$}).
 }

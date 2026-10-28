@@ -100,20 +100,36 @@ export(update_nonmem_data)
 export(update_parameters)
 export(update_pk_tables)
 importFrom(dplyr,"%>%")
-importFrom(irxutils,"%<=%")
-importFrom(irxutils,"%>=%")
+importFrom(irxutils,
+  "%<=%",
+  "%>=%"
+)
 importFrom(pharmr,get_config_path)
-importFrom(rlang,.data)
-importFrom(rlang,`:=`)
-importFrom(rxode2,ini)
-importFrom(rxode2,model)
-importFrom(stats,as.formula)
-importFrom(stats,dt)
-importFrom(stats,end)
-importFrom(stats,median)
-importFrom(stats,runif)
-importFrom(stats,sd)
-importFrom(stats,time)
-importFrom(utils,capture.output)
-importFrom(utils,read.csv)
-importFrom(utils,write.csv)
+importFrom(rlang,
+  ":=",
+  .data
+)
+importFrom(rxode2,
+  ini,
+  model
+)
+importFrom(stats,
+  as.formula,
+  coef,
+  density,
+  dt,
+  end,
+  median,
+  runif,
+  sd,
+  setNames,
+  time,
+  weighted.mean
+)
+importFrom(utils,
+  capture.output,
+  packageVersion,
+  read.csv,
+  tail,
+  write.csv
+)

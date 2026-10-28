@@ -2,7 +2,7 @@
 #'
 #' Internal companion to [run_nlme()]; called when the input model is in
 #' pharmpy's nlmixr backend. The function turns the pharmpy nlmixr model into
-#' an `rxode2`/`nlmixr2` function, fits it with [nlmixr2::nlmixr2()], and
+#' an `rxode2`/`nlmixr2` function, fits it with [nlmixr2est::nlmixr2()], and
 #' wraps the result in a list that mimics the shape of a pharmpy
 #' `ModelfitResults` so downstream helpers (`attach_fit_info()`,
 #' `compare_nlme_fit()`, etc.) work without engine-specific branches.
@@ -60,7 +60,7 @@ run_nlme_nlmixr <- function(
     attr(model, "nlmixr_code") <- rerender_nlmixr_code(pre_mu_model, model)
   } else if(isFALSE(mu_reference) && is_saem && !is_mu_ref) {
     cli::cli_warn(
-      "nlmixr2 SAEM benefits significantly from mu-referencing — without it the M-step can drift positive THETAs through zero. Consider {.code mu_reference = \"auto\"}."
+      "nlmixr2 SAEM benefits significantly from mu-referencing -- without it the M-step can drift positive THETAs through zero. Consider {.code mu_reference = \"auto\"}."
     )
   }
 
@@ -271,7 +271,13 @@ run_nlmixr2_in_subprocess <- function(fn, data, est, control, log_path,
     func = function(fn, data, est, control) {
       ## Bring nlmixr2's DSL helpers (ini/model) into the child's search
       ## path so the parsed model function evaluates the same as in-process.
-      suppressPackageStartupMessages(library(nlmixr2est))
+      ## attachNamespace() rather than library(): nlmixr2est is only in
+      ## Suggests, and package code must not call library().
+      if(!"package:nlmixr2est" %in% search()) {
+        suppressPackageStartupMessages(
+          attachNamespace(loadNamespace("nlmixr2est"))
+        )
+      }
       fit_args <- list(object = fn, data = data, est = est)
       if(!is.null(control)) fit_args$control <- control
       do.call(nlmixr2est::nlmixr2, fit_args)

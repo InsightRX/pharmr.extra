@@ -11,7 +11,7 @@ fit_model_nlmixr(model, data = NULL, ...)
 
 \item{data}{data.frame with data to fit}
 
-\item{...}{passed onto \code{run_nmfe()} function}
+\item{...}{passed onto the tool-specific fitting function}
 }
 \description{
 Fit model using nlmixr2
