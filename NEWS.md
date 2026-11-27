@@ -1,4 +1,4 @@
-# pharmr.extra 0.0.0.9166
+# pharmr.extra 0.0.0.9167
 
 * `run_sim()` returns `.row`, the input dataset row each output row was
   simulated from (counted before the dataset is split by regimen and sorted),
@@ -10,6 +10,14 @@
   every record NONMEM keeps, also when `$DATA` filters drop records. On
   nlmixr2 and under `update_table = FALSE` the output is matched to the
   input instead, and an ambiguous match is left `NA` with a warning.
+
+# pharmr.extra 0.0.0.9166
+
+* When a NONMEM simulation fails, the `pharmr_extra_sim_failed` error from
+  `run_sim()` now lists NM-TRAN's `(WARNING n)` / `(DATA WARNING n)` messages
+  from the top of `run.lst` (deduplicated, capped at 10) above the error
+  snippet. These warnings, e.g. "NM-TRAN INFERS THAT THE DATA ARE
+  SINGLE-SUBJECT", often explain the error but were previously cut off (#163).
 
 # pharmr.extra 0.0.0.9165
 
