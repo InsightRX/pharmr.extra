@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9166</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9167</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -35,6 +35,11 @@
 
     </div>
 
+    <div class="section level2">
+<h2 class="pkg-version" data-toc-text="0.0.0.9167" id="pharmrextra-0009167">pharmr.extra 0.0.0.9167<a class="anchor" aria-label="anchor" href="#pharmrextra-0009167"></a></h2>
+<ul><li>
+<code><a href="../reference/run_sim.html">run_sim()</a></code> returns <code>.row</code>, the input dataset row each output row was simulated from (counted before the dataset is split by regimen and sorted), so row-level dataset columns can be joined back exactly instead of on <code>ID</code>/<code>TIME</code>/<code>EVID</code>, which NONMEM rounds to 5 significant digits and which need not be unique (#164). On NONMEM (with <code>update_table = TRUE</code>) the row number is carried through the simulation as two data items appended to <code>$INPUT</code> (<code>SROWH</code>, <code>SROWL</code>) and written to the table, so it is exact for every record NONMEM keeps, also when <code>$DATA</code> filters drop records. On nlmixr2 and under <code>update_table = FALSE</code> the output is matched to the input instead, and an ambiguous match is left <code>NA</code> with a warning.</li>
+</ul></div>
     <div class="section level2">
 <h2 class="pkg-version" data-toc-text="0.0.0.9166" id="pharmrextra-0009166">pharmr.extra 0.0.0.9166<a class="anchor" aria-label="anchor" href="#pharmrextra-0009166"></a></h2>
 <ul><li>When a NONMEM simulation fails, the <code>pharmr_extra_sim_failed</code> error from <code><a href="../reference/run_sim.html">run_sim()</a></code> now lists NM-TRAN’s <code>(WARNING n)</code> / <code>(DATA WARNING n)</code> messages from the top of <code>run.lst</code> (deduplicated, capped at 10) above the error snippet. These warnings, e.g. “NM-TRAN INFERS THAT THE DATA ARE SINGLE-SUBJECT”, often explain the error but were previously cut off (#163).</li>

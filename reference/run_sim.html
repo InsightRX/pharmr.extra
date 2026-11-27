@@ -7,7 +7,7 @@
 
     <a class="navbar-brand me-2" href="../index.html">pharmr.extra</a>
 
-    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9166</small>
+    <small class="nav-text text-muted me-auto" data-bs-toggle="tooltip" data-bs-placement="bottom" title="">0.0.0.9167</small>
 
 
     <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbar" aria-controls="navbar" aria-expanded="false" aria-label="Toggle navigation">
@@ -292,7 +292,29 @@ which writes no run folders.</p></dd>
 </dl></div>
     <div class="section level2">
     <h2 id="value">Value<a class="anchor" aria-label="anchor" href="#value"></a></h2>
-    <p>data.frame with simulation results. When <code>n_uncertainty</code> is used,
+    <p>data.frame with simulation results. Every row carries <code>.row</code>, the
+number of the row in the input dataset it was simulated from (<code>data</code>, or
+the model's dataset when <code>data</code> is <code>NULL</code>, counted before <code>run_sim()</code>
+splits it by regimen and sorts it), so any column of the input can be
+joined back exactly with e.g. <code>data$WT[out$.row]</code> or
+<code>dplyr::left_join(out, dplyr::mutate(data, .row = dplyr::row_number()), by = ".row")</code>. Joining on <code>ID</code>/<code>TIME</code>/<code>EVID</code> instead is fragile: NONMEM
+writes its table to 5 significant digits, and these keys need not be unique.
+On NONMEM with <code>update_table = TRUE</code> the row number is carried through the
+simulation itself: it is added to the simulation dataset as two data items
+appended to <code>$INPUT</code> (<code>SROWH</code>, <code>SROWL</code>: <code>.row = SROWH * 10000 + SROWL</code>, so
+that both are written exactly at the table's 5 significant digits) and
+written to the simulation table, so every record NONMEM keeps comes back
+with its own row number, whatever <code>$DATA</code> <code>IGNORE</code>/<code>ACCEPT</code> filters drop.
+Those two names are reserved for this; a model that already uses either
+one falls back to the matching below.
+Elsewhere (nlmixr2, or a table the model declares under
+<code>update_table = FALSE</code>) <code>.row</code> is matched record for record where the
+output has a row for every input record (on nlmixr2: every record it
+solves, i.e. all but the dose and reset records, which have no output row).
+Where it has fewer, the rows are matched on <code>ID</code>, <code>TIME</code>, <code>EVID</code> and <code>CMT</code>,
+and a row without one unambiguous match gets <code>NA</code>, with a warning (no
+warning under <code>update_table = FALSE</code>).
+When <code>n_uncertainty</code> is used,
 the result also carries <code>n_uncertainty_requested</code> and <code>n_uncertainty_kept</code>
 attributes: replicates that fail on the nlmixr2 backend are dropped with a
 warning, so these let a caller detect a short (and potentially biased) set
