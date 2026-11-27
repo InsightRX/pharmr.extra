@@ -171,7 +171,22 @@
 #' (default) leaves the run folder in place. Ignored by the nlmixr2 backend,
 #' which writes no run folders.
 #'
-#' @returns data.frame with simulation results. When `n_uncertainty` is used,
+#' @returns data.frame with simulation results. Every row carries `.row`, the
+#' number of the row in the input dataset it was simulated from (`data`, or
+#' the model's dataset when `data` is `NULL`, counted before `run_sim()`
+#' splits it by regimen and sorts it), so any column of the input can be
+#' joined back exactly with e.g. `data$WT[out$.row]` or
+#' `dplyr::left_join(out, dplyr::mutate(data, .row = dplyr::row_number()),
+#' by = ".row")`. Joining on `ID`/`TIME`/`EVID` instead is fragile: NONMEM
+#' writes its table to 5 significant digits, and these keys need not be unique.
+#' `.row` is matched record for record where the output has a row for every
+#' input record (on nlmixr2: every record it solves, i.e. all but the dose and
+#' reset records, which have no output row). Where it has fewer (records
+#' dropped by a `$DATA` `IGNORE`/`ACCEPT` filter, say) the rows are matched on
+#' `ID`, `TIME`, `EVID` and `CMT`, and a row without one unambiguous match gets
+#' `NA`, with a warning (no warning for a table declared by the model under
+#' `update_table = FALSE`).
+#' When `n_uncertainty` is used,
 #' the result also carries `n_uncertainty_requested` and `n_uncertainty_kept`
 #' attributes: replicates that fail on the nlmixr2 backend are dropped with a
 #' warning, so these let a caller detect a short (and potentially biased) set
@@ -490,8 +505,12 @@ run_sim <- function(
     tables <- comb[[reg$label]]
     simtab <- names(tables)[1]
     if(!is.null(simtab) && !is.null(tables[[simtab]])) {
+      ## `.row` (see add_sim_row_index()): only warn about rows it cannot
+      ## match in a table run_sim() wrote itself. A table the model declares
+      ## (`update_table = FALSE`) may legitimately be FIRSTONLY or leave out ID.
       return(
         tables[[simtab]] |>
+          add_sim_row_index(reg$row_map, warn = update_table) |>
           dplyr::mutate(regimen_label = reg$label)
       )
     } else {

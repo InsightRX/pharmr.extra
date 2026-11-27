@@ -220,7 +220,21 @@ an argument error never removes a folder the run did not write to. \code{NULL}
 which writes no run folders.}
 }
 \value{
-data.frame with simulation results. When \code{n_uncertainty} is used,
+data.frame with simulation results. Every row carries \code{.row}, the
+number of the row in the input dataset it was simulated from (\code{data}, or
+the model's dataset when \code{data} is \code{NULL}, counted before \code{run_sim()}
+splits it by regimen and sorts it), so any column of the input can be
+joined back exactly with e.g. \code{data$WT[out$.row]} or
+\code{dplyr::left_join(out, dplyr::mutate(data, .row = dplyr::row_number()), by = ".row")}. Joining on \code{ID}/\code{TIME}/\code{EVID} instead is fragile: NONMEM
+writes its table to 5 significant digits, and these keys need not be unique.
+\code{.row} is matched record for record where the output has a row for every
+input record (on nlmixr2: every record it solves, i.e. all but the dose and
+reset records, which have no output row). Where it has fewer (records
+dropped by a \verb{$DATA} \code{IGNORE}/\code{ACCEPT} filter, say) the rows are matched on
+\code{ID}, \code{TIME}, \code{EVID} and \code{CMT}, and a row without one unambiguous match gets
+\code{NA}, with a warning (no warning for a table declared by the model under
+\code{update_table = FALSE}).
+When \code{n_uncertainty} is used,
 the result also carries \code{n_uncertainty_requested} and \code{n_uncertainty_kept}
 attributes: replicates that fail on the nlmixr2 backend are dropped with a
 warning, so these let a caller detect a short (and potentially biased) set

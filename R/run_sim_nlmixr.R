@@ -116,6 +116,10 @@ run_sim_nlmixr <- function(
     get_dv_scale_factor(code = model_code, verbose = verbose)
   } else 1
 
+  ## Number the input rows before the dataset is split and sorted, so the
+  ## output can say which input row each of its rows was simulated from.
+  sim_data <- number_sim_rows(sim_data)
+
   unique_regimens <- unique(sim_data[[".regimen"]])
   comb <- list()
   set.seed(seed)
@@ -137,6 +141,14 @@ run_sim_nlmixr <- function(
       dplyr::select(-".regimen")
     warn_on_restarting_time(sim_data_regimen, reg_label)
     sim_data_regimen <- sort_nlmixr_events(sim_data_regimen)
+    ## rxSolve returns a row for the solved records only. Matched on ID and
+    ## TIME alone: the output's EVID/CMT are carried over from the observation
+    ## records by shape_rxsolve_output(), so they need not be the record's own.
+    row_map <- sim_row_map(
+      sim_data_regimen[nlmixr_solved_rows(sim_data_regimen), , drop = FALSE],
+      keys = c("ID", "TIME")
+    )
+    sim_data_regimen[[sim_row_column]] <- NULL
 
     raw_sim <- rxode2::rxSolve(
       object = nlmixr_fn,
@@ -178,6 +190,7 @@ run_sim_nlmixr <- function(
       ## Only there for AUC_SS; not a variable of the model's own.
       out_df <- out_df[, setdiff(names(out_df), bioav_cols), drop = FALSE]
     }
+    out_df <- add_sim_row_index(out_df, row_map)
     out_df$regimen_label <- reg_label
     comb[[reg_label]] <- out_df
   }

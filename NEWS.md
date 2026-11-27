@@ -1,3 +1,13 @@
+# pharmr.extra 0.0.0.9166
+
+* `run_sim()` returns `.row`, the input dataset row each output row was
+  simulated from (counted before the dataset is split by regimen and sorted),
+  so row-level dataset columns can be joined back exactly instead of on
+  `ID`/`TIME`/`EVID`, which NONMEM rounds to 5 significant digits and which
+  need not be unique (#164). It is set on every backend and uncertainty
+  engine. Where `$DATA` filters drop records, rows are matched on
+  `ID`/`TIME`/`EVID`/`CMT` and an ambiguous match is left `NA` with a warning.
+
 # pharmr.extra 0.0.0.9165
 
 * `--as-cran` check notes: `parse_psn_args()` tests for logical options with

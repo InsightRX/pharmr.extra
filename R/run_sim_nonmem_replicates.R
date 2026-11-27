@@ -35,7 +35,10 @@
 #' @returns a list with one element per regimen: `index` (1-based),
 #' `label` (the `.regimen` value), `data` (that regimen's dataset, sorted and
 #' with `.regimen` dropped) and `regimen_for_pk` (the dosing regimen
-#' [calc_pk_variables()] needs, or `NULL`).
+#' [calc_pk_variables()] needs, or `NULL`) and `row_map` (what
+#' `add_sim_row_index()` matches the output rows to: the row numbers of the
+#' records in `data`, in `data`'s row order, counted over the whole input
+#' dataset before it was split and sorted).
 #' @param default_dose_cmt the compartment a dose without one goes into (see
 #' [get_default_dose_compartment()]).
 #' @noRd
@@ -57,6 +60,10 @@ resolve_sim_regimens <- function(
     }
   }
 
+  ## Number the input rows before the dataset is split and sorted, so the
+  ## output can say which input row each of its rows was simulated from.
+  sim_data <- number_sim_rows(sim_data)
+
   unique_regimens <- unique(sim_data[[".regimen"]])
   lapply(seq_along(unique_regimens), function(i) {
     reg_label <- unique_regimens[i]
@@ -71,6 +78,8 @@ resolve_sim_regimens <- function(
       reg_data <- reg_data |>
         dplyr::arrange(.data$ID, .data$TIME)
     }
+    row_map <- sim_row_map(reg_data)
+    reg_data[[sim_row_column]] <- NULL
     ## Ensure column names & order match the model's dataset, which is the
     ## order NONMEM reads `$INPUT` in. Only when the two hold the same columns:
     ## a simulation dataset with a strict subset of them (a model covariate the
@@ -84,7 +93,8 @@ resolve_sim_regimens <- function(
       index          = i,
       label          = reg_label,
       data           = reg_data,
-      regimen_for_pk = sim_regimen_doses(reg_data, default_cmt = default_dose_cmt)
+      regimen_for_pk = sim_regimen_doses(reg_data, default_cmt = default_dose_cmt),
+      row_map        = row_map
     )
   })
 }
@@ -520,7 +530,7 @@ check_draws_against_model <- function(sim_model, draws) {
 #'
 #' @returns one replicate spec: `index`, `table_names` (the `$TABLE` files to
 #' read back) and `regimens` (per regimen: `label`, `folder`, `model_file`,
-#' `output_file`, `regimen_for_pk`). Plain R data only -- the specs are what
+#' `output_file`, `regimen_for_pk`, `row_map`). Plain R data only -- the specs are what
 #' travels to the worker processes.
 #' @noRd
 prepare_nonmem_replicate_spec <- function(ctx, draw, index, id, path) {
@@ -548,7 +558,8 @@ prepare_nonmem_replicate_spec <- function(ctx, draw, index, id, path) {
       folder         = normalizePath(obj$fit_folder, mustWork = TRUE),
       model_file     = obj$model_file,
       output_file    = obj$output_file,
-      regimen_for_pk = reg$regimen_for_pk
+      regimen_for_pk = reg$regimen_for_pk,
+      row_map        = reg$row_map
     )
   })
 
@@ -659,6 +670,7 @@ make_nonmem_replicate_fn <- function(
               tab, file.path(reg$folder, spec$table_names[1]), n_iterations
             )
           }
+          tab <- add_sim_row_index(tab, reg$row_map, warn = update_table)
           if(update_table && add_pk_variables) {
             tab <- calc_pk_variables(tab, regimen = reg$regimen_for_pk,
                                      dv_scale = dv_scale)

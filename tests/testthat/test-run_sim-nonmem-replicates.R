@@ -324,6 +324,19 @@ test_that("a NONMEM replicate runs every regimen and labels the output", {
   expect_equal(nrow(res$result), 4)
 })
 
+test_that("a NONMEM replicate returns the input row index", {
+  regs <- list(.prepared_regimen("100 mg", dose = 100),
+               .prepared_regimen("200 mg", dose = 200))
+  regs[[1]]$row_map <- data.frame(.row = c(3L, 1L), ID = 1, TIME = c(0, 6))
+  regs[[2]]$row_map <- data.frame(.row = c(4L, 2L), ID = 1, TIME = c(0, 6))
+  spec <- list(index = 1, table_names = "simtab", regimens = regs)
+  local_mocked_bindings(call_nmfe = .nmfe_writing(), .package = "pharmr.extra")
+
+  res <- make_nonmem_replicate_fn(nmfe = "/nonexistent/nmfe")(spec)
+
+  expect_equal(res$result$.row, c(3L, 1L, 4L, 2L))
+})
+
 test_that("a NONMEM replicate adds PK variables per regimen when asked", {
   spec <- list(
     index = 1, table_names = "simtab",
