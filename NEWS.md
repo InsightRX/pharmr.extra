@@ -1,3 +1,16 @@
+# pharmr.extra 0.0.0.9167
+
+* `run_sim()` returns `.row`, the input dataset row each output row was
+  simulated from (counted before the dataset is split by regimen and sorted),
+  so row-level dataset columns can be joined back exactly instead of on
+  `ID`/`TIME`/`EVID`, which NONMEM rounds to 5 significant digits and which
+  need not be unique (#164). On NONMEM (with `update_table = TRUE`) the row
+  number is carried through the simulation as two data items appended to
+  `$INPUT` (`SROWH`, `SROWL`) and written to the table, so it is exact for
+  every record NONMEM keeps, also when `$DATA` filters drop records. On
+  nlmixr2 and under `update_table = FALSE` the output is matched to the
+  input instead, and an ambiguous match is left `NA` with a warning.
+
 # pharmr.extra 0.0.0.9166
 
 * When a NONMEM simulation fails, the `pharmr_extra_sim_failed` error from

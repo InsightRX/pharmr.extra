@@ -17,7 +17,88 @@ test_that("Basic simulation works (using `model` argument, not `fit`)", {
     data = dat,
     variables = c("ID", "TIME", "DV", "EVID", "CIPREDI", "PRED")
   )
-  expect_equal(dim(out), c(744, 9))
+  expect_equal(dim(out), c(744, 10))
+  ## `.row` points every output row at the input row it was simulated from
+  expect_setequal(out$.row, seq_len(nrow(dat)))
+  expect_equal(out$ID, dat$ID[out$.row])
+  expect_equal(out$EVID, dat$EVID[out$.row])
+  expect_equal(out$TIME, dat$TIME[out$.row], tolerance = 1e-4)
+})
+
+test_that("run_sim: .row is exact for records a $DATA filter keeps", {
+  local_pharmr.extra_options()
+  skip_if_nmfe_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- pharmr::load_example_model("pheno")
+  pharmr::load_dataset(mod)
+  dat <- mod$dataset |>
+    as.data.frame() |>
+    dplyr::filter(ID %in% 1:2)
+  ## A $DATA filter dropping every record flagged FA1 = 9 ...
+  ## (NM-TRAN wants $INPUT ahead of $DATA when $DATA has an IGNORE list)
+  code <- strsplit(mod$code, "\n", fixed = TRUE)[[1]]
+  data_line <- grep("^\\$DATA", code)
+  input_line <- grep("^\\$INPUT", code)
+  code[c(data_line, input_line)] <- c(
+    code[input_line],
+    sub("IGNORE=@", "IGNORE=@ IGNORE=(FA1.EQ.9)", code[data_line], fixed = TRUE)
+  )
+  fmod <- pharmr::read_model_from_string(paste(code, collapse = "\n"))
+  ## (no pharmr::set_dataset(): it rewrites $DATA without the IGNORE list)
+  ## ... and a flagged copy of an observation ahead of the record it copies:
+  ## same ID, TIME and everything else, so the two cannot be told apart from
+  ## the simulation output, only by the row number NONMEM carries through
+  obs <- which(dat$DV > 0)[2]
+  twin <- dat[obs, ]
+  twin$FA1 <- 9
+  dat <- rbind(dat[seq_len(obs - 1), ], twin, dat[obs:nrow(dat), ])
+  rownames(dat) <- NULL
+  dat$TIME[1] <- 1.8970833333 ## not written in full in the table
+
+  expect_no_warning(out <- run_sim(model = fmod, data = dat, verbose = FALSE))
+  expect_equal(nrow(out), nrow(dat) - 1)
+  expect_false(anyNA(out$.row))
+  ## the flagged copy is gone, the record it copied is there under its own row
+  expect_false(obs %in% out$.row)
+  expect_true((obs + 1) %in% out$.row)
+  expect_setequal(out$.row, setdiff(seq_len(nrow(dat)), obs))
+  expect_equal(out$ID, dat$ID[out$.row])
+  expect_equal(out$TIME, dat$TIME[out$.row], tolerance = 1e-4)
+  ## the carrier columns stay internal
+  expect_false(any(c("SROWH", "SROWL") %in% names(out)))
+})
+
+test_that("run_sim: .row joins input columns back across regimens", {
+  local_pharmr.extra_options()
+  skip_if_nmfe_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- pharmr::load_example_model("pheno")
+  pharmr::load_dataset(mod)
+  one <- mod$dataset |>
+    as.data.frame() |>
+    dplyr::filter(ID %in% 1:3) |>
+    dplyr::mutate(EVID = ifelse(AMT == 0, 0, 1), MDV = ifelse(DV == 0, 1, 0))
+  ## two regimens, interleaved and in reverse order, so the input rows are
+  ## nowhere near the order run_sim() simulates them in; and a time NONMEM's
+  ## table cannot write in full
+  one$TIME[2] <- 1.8970833333
+  dat <- dplyr::bind_rows(
+    dplyr::mutate(one, .regimen = "a"),
+    dplyr::mutate(one, .regimen = "b")
+  )
+  dat <- dat[rev(seq_len(nrow(dat))), ]
+  dat$SAMPLE <- seq_len(nrow(dat)) * 1000003
+  out <- run_sim(model = mod, data = dat, verbose = FALSE)
+
+  expect_equal(nrow(out), nrow(dat))
+  expect_setequal(out$.row, seq_len(nrow(dat)))
+  expect_equal(out$regimen_label, dat$.regimen[out$.row])
+  expect_equal(out$ID, dat$ID[out$.row])
+  expect_equal(out$TIME, dat$TIME[out$.row], tolerance = 1e-4)
+  ## the exact value comes back through the join, not the rounded table
+  expect_true(1.8970833333 %in% dat$TIME[out$.row])
 })
 
 test_that("run_sim(keep = ) keeps run.mod and run.lst and removes the run folder", {
@@ -43,7 +124,7 @@ test_that("run_sim(keep = ) keeps run.mod and run.lst and removes the run folder
     variables = c("ID", "TIME", "DV", "EVID", "CIPREDI", "PRED"),
     keep = keep
   )
-  expect_equal(dim(out), c(744, 9))
+  expect_equal(dim(out), c(744, 10))
   expect_true(file.exists(file.path(keep, "regimen_1", "run.mod")))
   expect_true(file.exists(file.path(keep, "regimen_1", "run.lst")))
   ## the listing is the one NONMEM wrote, with the simulation step in it
@@ -75,7 +156,7 @@ test_that("Basic simulation works (using model file specified to `model`)", {
     data = dat,
     variables = c("ID", "TIME", "DV", "EVID", "CIPREDI", "PRED")
   )
-  expect_equal(dim(out), c(744, 9))
+  expect_equal(dim(out), c(744, 10))
   unlink(tmp_mod)
 })
 
@@ -1360,7 +1441,11 @@ test_that("run_sim (stub): covariates without ID generates IDs 1:n", {
     .package = "pharmr.extra"
   )
 
-  out <- run_sim(model = mod, data = sim_dat, verbose = FALSE)
+  ## The stub table is not the dataset simulated, so `.row` cannot match it.
+  expect_warning(
+    out <- run_sim(model = mod, data = sim_dat, verbose = FALSE),
+    "Could not match"
+  )
 
   expect_s3_class(out, "data.frame")
   ## Correct number of subjects
@@ -1390,7 +1475,11 @@ test_that("run_sim (stub): covariates without ID infers n_subjects from nrow(cov
     .package = "pharmr.extra"
   )
 
-  out <- run_sim(model = mod, data = sim_dat, verbose = FALSE)
+  ## The stub table is not the dataset simulated, so `.row` cannot match it.
+  expect_warning(
+    out <- run_sim(model = mod, data = sim_dat, verbose = FALSE),
+    "Could not match"
+  )
 
   expect_equal(length(unique(out$ID)), 2)
 })
@@ -1420,7 +1509,11 @@ test_that("run_sim (stub): covariates with ID column still works (regression)", 
     .package = "pharmr.extra"
   )
 
-  out <- run_sim(model = mod, data = sim_dat, verbose = FALSE)
+  ## The stub table is not the dataset simulated, so `.row` cannot match it.
+  expect_warning(
+    out <- run_sim(model = mod, data = sim_dat, verbose = FALSE),
+    "Could not match"
+  )
 
   expect_equal(length(unique(out$ID)), 2)
   ## IDs are re-indexed to 1:n (existing behaviour preserved)

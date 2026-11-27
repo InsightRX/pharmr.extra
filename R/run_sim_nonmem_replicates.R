@@ -35,7 +35,10 @@
 #' @returns a list with one element per regimen: `index` (1-based),
 #' `label` (the `.regimen` value), `data` (that regimen's dataset, sorted and
 #' with `.regimen` dropped) and `regimen_for_pk` (the dosing regimen
-#' [calc_pk_variables()] needs, or `NULL`).
+#' [calc_pk_variables()] needs, or `NULL`) and `row_map` (what
+#' `add_sim_row_index()` matches the output rows to: the row numbers of the
+#' records in `data`, in `data`'s row order, counted over the whole input
+#' dataset before it was split and sorted).
 #' @param default_dose_cmt the compartment a dose without one goes into (see
 #' [get_default_dose_compartment()]).
 #' @noRd
@@ -57,6 +60,10 @@ resolve_sim_regimens <- function(
     }
   }
 
+  ## Number the input rows before the dataset is split and sorted, so the
+  ## output can say which input row each of its rows was simulated from.
+  sim_data <- number_sim_rows(sim_data)
+
   unique_regimens <- unique(sim_data[[".regimen"]])
   lapply(seq_along(unique_regimens), function(i) {
     reg_label <- unique_regimens[i]
@@ -71,6 +78,8 @@ resolve_sim_regimens <- function(
       reg_data <- reg_data |>
         dplyr::arrange(.data$ID, .data$TIME)
     }
+    row_map <- sim_row_map(reg_data)
+    reg_data[[sim_row_column]] <- NULL
     ## Ensure column names & order match the model's dataset, which is the
     ## order NONMEM reads `$INPUT` in. Only when the two hold the same columns:
     ## a simulation dataset with a strict subset of them (a model covariate the
@@ -84,7 +93,8 @@ resolve_sim_regimens <- function(
       index          = i,
       label          = reg_label,
       data           = reg_data,
-      regimen_for_pk = sim_regimen_doses(reg_data, default_cmt = default_dose_cmt)
+      regimen_for_pk = sim_regimen_doses(reg_data, default_cmt = default_dose_cmt),
+      row_map        = row_map
     )
   })
 }
@@ -382,9 +392,13 @@ build_nonmem_sim_model <- function(
   table_variables <- unique(
     c(checked_variables, parameter_names, bioavailability_names)
   )
+  ## Plus the input row number, carried through NONMEM so every record comes
+  ## back with its own (see add_sim_row_items(); the datasets get the
+  ## matching columns from add_sim_row_data_to_regimens()).
   sim_model |>
     remove_tables_from_model(reload_dataset = FALSE) |>
-    add_table_to_model(table_variables, file = output_file, reload_dataset = FALSE)
+    add_table_to_model(table_variables, file = output_file, reload_dataset = FALSE) |>
+    add_sim_row_items(output_file = output_file)
 }
 
 #' Prepare what every replicate's run folder is built from
@@ -424,16 +438,6 @@ prepare_nonmem_replicate_context <- function(
     output_file = "simtab",
     verbose = TRUE
 ) {
-  ## One CSV per regimen, written once and copied into every replicate's run
-  ## folder by prepare_run_folder(): the dataset is identical across draws.
-  ## A copy per run folder rather than one shared file referenced by an
-  ## absolute path, because NM-TRAN truncates the `$DATA` filename field.
-  regimens <- lapply(regimens, function(reg) {
-    reg$file <- tempfile(pattern = "data", fileext = ".csv")
-    write.csv(reg$data, reg$file, quote = FALSE, row.names = FALSE)
-    reg
-  })
-
   ## Simulation model first, draw second -- the reverse of the order the
   ## sequential engine used to apply them. The two commute (the draw rewrites
   ## $THETA/$OMEGA/$SIGMA values, the simulation setup rewrites $ESTIMATION,
@@ -450,6 +454,17 @@ prepare_nonmem_replicate_context <- function(
     output_file  = output_file,
     verbose      = verbose
   )
+  ## The input row numbers go into the datasets where the model reads them.
+  regimens <- add_sim_row_data_to_regimens(regimens, sim_model)
+  ## One CSV per regimen, written once and copied into every replicate's run
+  ## folder by prepare_run_folder(): the dataset is identical across draws.
+  ## A copy per run folder rather than one shared file referenced by an
+  ## absolute path, because NM-TRAN truncates the `$DATA` filename field.
+  regimens <- lapply(regimens, function(reg) {
+    reg$file <- tempfile(pattern = "data", fileext = ".csv")
+    write.csv(reg$data, reg$file, quote = FALSE, row.names = FALSE)
+    reg
+  })
 
   ## Which tables to read back. Taken from the rendered control stream rather
   ## than from `output_file`, so `update_table = FALSE` (tables as the model
@@ -520,7 +535,7 @@ check_draws_against_model <- function(sim_model, draws) {
 #'
 #' @returns one replicate spec: `index`, `table_names` (the `$TABLE` files to
 #' read back) and `regimens` (per regimen: `label`, `folder`, `model_file`,
-#' `output_file`, `regimen_for_pk`). Plain R data only -- the specs are what
+#' `output_file`, `regimen_for_pk`, `row_map`). Plain R data only -- the specs are what
 #' travels to the worker processes.
 #' @noRd
 prepare_nonmem_replicate_spec <- function(ctx, draw, index, id, path) {
@@ -548,7 +563,8 @@ prepare_nonmem_replicate_spec <- function(ctx, draw, index, id, path) {
       folder         = normalizePath(obj$fit_folder, mustWork = TRUE),
       model_file     = obj$model_file,
       output_file    = obj$output_file,
-      regimen_for_pk = reg$regimen_for_pk
+      regimen_for_pk = reg$regimen_for_pk,
+      row_map        = reg$row_map
     )
   })
 
@@ -659,6 +675,7 @@ make_nonmem_replicate_fn <- function(
               tab, file.path(reg$folder, spec$table_names[1]), n_iterations
             )
           }
+          tab <- add_sim_row_index(tab, reg$row_map, warn = update_table)
           if(update_table && add_pk_variables) {
             tab <- calc_pk_variables(tab, regimen = reg$regimen_for_pk,
                                      dv_scale = dv_scale)

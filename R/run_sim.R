@@ -171,7 +171,30 @@
 #' (default) leaves the run folder in place. Ignored by the nlmixr2 backend,
 #' which writes no run folders.
 #'
-#' @returns data.frame with simulation results. When `n_uncertainty` is used,
+#' @returns data.frame with simulation results. Every row carries `.row`, the
+#' number of the row in the input dataset it was simulated from (`data`, or
+#' the model's dataset when `data` is `NULL`, counted before `run_sim()`
+#' splits it by regimen and sorts it), so any column of the input can be
+#' joined back exactly with e.g. `data$WT[out$.row]` or
+#' `dplyr::left_join(out, dplyr::mutate(data, .row = dplyr::row_number()),
+#' by = ".row")`. Joining on `ID`/`TIME`/`EVID` instead is fragile: NONMEM
+#' writes its table to 5 significant digits, and these keys need not be unique.
+#' On NONMEM with `update_table = TRUE` the row number is carried through the
+#' simulation itself: it is added to the simulation dataset as two data items
+#' appended to `$INPUT` (`SROWH`, `SROWL`: `.row = SROWH * 10000 + SROWL`, so
+#' that both are written exactly at the table's 5 significant digits) and
+#' written to the simulation table, so every record NONMEM keeps comes back
+#' with its own row number, whatever `$DATA` `IGNORE`/`ACCEPT` filters drop.
+#' Those two names are reserved for this; a model that already uses either
+#' one falls back to the matching below.
+#' Elsewhere (nlmixr2, or a table the model declares under
+#' `update_table = FALSE`) `.row` is matched record for record where the
+#' output has a row for every input record (on nlmixr2: every record it
+#' solves, i.e. all but the dose and reset records, which have no output row).
+#' Where it has fewer, the rows are matched on `ID`, `TIME`, `EVID` and `CMT`,
+#' and a row without one unambiguous match gets `NA`, with a warning (no
+#' warning under `update_table = FALSE`).
+#' When `n_uncertainty` is used,
 #' the result also carries `n_uncertainty_requested` and `n_uncertainty_kept`
 #' attributes: replicates that fail on the nlmixr2 backend are dropped with a
 #' warning, so these let a caller detect a short (and potentially biased) set
@@ -391,6 +414,8 @@ run_sim <- function(
     output_file  = output_file,
     verbose      = verbose
   )
+  ## The input row numbers go into the datasets where the model reads them.
+  regimens <- add_sim_row_data_to_regimens(regimens, sim_model)
 
   ## Loop over regimens to simulate.
   comb <- list()
@@ -490,8 +515,12 @@ run_sim <- function(
     tables <- comb[[reg$label]]
     simtab <- names(tables)[1]
     if(!is.null(simtab) && !is.null(tables[[simtab]])) {
+      ## `.row` (see add_sim_row_index()): only warn about rows it cannot
+      ## match in a table run_sim() wrote itself. A table the model declares
+      ## (`update_table = FALSE`) may legitimately be FIRSTONLY or leave out ID.
       return(
         tables[[simtab]] |>
+          add_sim_row_index(reg$row_map, warn = update_table) |>
           dplyr::mutate(regimen_label = reg$label)
       )
     } else {
