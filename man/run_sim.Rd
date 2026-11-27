@@ -227,13 +227,21 @@ splits it by regimen and sorts it), so any column of the input can be
 joined back exactly with e.g. \code{data$WT[out$.row]} or
 \code{dplyr::left_join(out, dplyr::mutate(data, .row = dplyr::row_number()), by = ".row")}. Joining on \code{ID}/\code{TIME}/\code{EVID} instead is fragile: NONMEM
 writes its table to 5 significant digits, and these keys need not be unique.
-\code{.row} is matched record for record where the output has a row for every
-input record (on nlmixr2: every record it solves, i.e. all but the dose and
-reset records, which have no output row). Where it has fewer (records
-dropped by a \verb{$DATA} \code{IGNORE}/\code{ACCEPT} filter, say) the rows are matched on
-\code{ID}, \code{TIME}, \code{EVID} and \code{CMT}, and a row without one unambiguous match gets
-\code{NA}, with a warning (no warning for a table declared by the model under
-\code{update_table = FALSE}).
+On NONMEM with \code{update_table = TRUE} the row number is carried through the
+simulation itself: it is added to the simulation dataset as two data items
+appended to \verb{$INPUT} (\code{SROWH}, \code{SROWL}: \code{.row = SROWH * 10000 + SROWL}, so
+that both are written exactly at the table's 5 significant digits) and
+written to the simulation table, so every record NONMEM keeps comes back
+with its own row number, whatever \verb{$DATA} \code{IGNORE}/\code{ACCEPT} filters drop.
+Those two names are reserved for this; a model that already uses either
+one falls back to the matching below.
+Elsewhere (nlmixr2, or a table the model declares under
+\code{update_table = FALSE}) \code{.row} is matched record for record where the
+output has a row for every input record (on nlmixr2: every record it
+solves, i.e. all but the dose and reset records, which have no output row).
+Where it has fewer, the rows are matched on \code{ID}, \code{TIME}, \code{EVID} and \code{CMT},
+and a row without one unambiguous match gets \code{NA}, with a warning (no
+warning under \code{update_table = FALSE}).
 When \code{n_uncertainty} is used,
 the result also carries \code{n_uncertainty_requested} and \code{n_uncertainty_kept}
 attributes: replicates that fail on the nlmixr2 backend are dropped with a

@@ -392,9 +392,13 @@ build_nonmem_sim_model <- function(
   table_variables <- unique(
     c(checked_variables, parameter_names, bioavailability_names)
   )
+  ## Plus the input row number, carried through NONMEM so every record comes
+  ## back with its own (see add_sim_row_items(); the datasets get the
+  ## matching columns from add_sim_row_data_to_regimens()).
   sim_model |>
     remove_tables_from_model(reload_dataset = FALSE) |>
-    add_table_to_model(table_variables, file = output_file, reload_dataset = FALSE)
+    add_table_to_model(table_variables, file = output_file, reload_dataset = FALSE) |>
+    add_sim_row_items(output_file = output_file)
 }
 
 #' Prepare what every replicate's run folder is built from
@@ -434,16 +438,6 @@ prepare_nonmem_replicate_context <- function(
     output_file = "simtab",
     verbose = TRUE
 ) {
-  ## One CSV per regimen, written once and copied into every replicate's run
-  ## folder by prepare_run_folder(): the dataset is identical across draws.
-  ## A copy per run folder rather than one shared file referenced by an
-  ## absolute path, because NM-TRAN truncates the `$DATA` filename field.
-  regimens <- lapply(regimens, function(reg) {
-    reg$file <- tempfile(pattern = "data", fileext = ".csv")
-    write.csv(reg$data, reg$file, quote = FALSE, row.names = FALSE)
-    reg
-  })
-
   ## Simulation model first, draw second -- the reverse of the order the
   ## sequential engine used to apply them. The two commute (the draw rewrites
   ## $THETA/$OMEGA/$SIGMA values, the simulation setup rewrites $ESTIMATION,
@@ -460,6 +454,17 @@ prepare_nonmem_replicate_context <- function(
     output_file  = output_file,
     verbose      = verbose
   )
+  ## The input row numbers go into the datasets where the model reads them.
+  regimens <- add_sim_row_data_to_regimens(regimens, sim_model)
+  ## One CSV per regimen, written once and copied into every replicate's run
+  ## folder by prepare_run_folder(): the dataset is identical across draws.
+  ## A copy per run folder rather than one shared file referenced by an
+  ## absolute path, because NM-TRAN truncates the `$DATA` filename field.
+  regimens <- lapply(regimens, function(reg) {
+    reg$file <- tempfile(pattern = "data", fileext = ".csv")
+    write.csv(reg$data, reg$file, quote = FALSE, row.names = FALSE)
+    reg
+  })
 
   ## Which tables to read back. Taken from the rendered control stream rather
   ## than from `output_file`, so `update_table = FALSE` (tables as the model

@@ -25,6 +25,50 @@ test_that("Basic simulation works (using `model` argument, not `fit`)", {
   expect_equal(out$TIME, dat$TIME[out$.row], tolerance = 1e-4)
 })
 
+test_that("run_sim: .row is exact for records a $DATA filter keeps", {
+  local_pharmr.extra_options()
+  skip_if_nmfe_not_available()
+  withr::local_dir(tempdir())
+
+  mod <- pharmr::load_example_model("pheno")
+  pharmr::load_dataset(mod)
+  dat <- mod$dataset |>
+    as.data.frame() |>
+    dplyr::filter(ID %in% 1:2)
+  ## A $DATA filter dropping every record flagged FA1 = 9 ...
+  ## (NM-TRAN wants $INPUT ahead of $DATA when $DATA has an IGNORE list)
+  code <- strsplit(mod$code, "\n", fixed = TRUE)[[1]]
+  data_line <- grep("^\\$DATA", code)
+  input_line <- grep("^\\$INPUT", code)
+  code[c(data_line, input_line)] <- c(
+    code[input_line],
+    sub("IGNORE=@", "IGNORE=@ IGNORE=(FA1.EQ.9)", code[data_line], fixed = TRUE)
+  )
+  fmod <- pharmr::read_model_from_string(paste(code, collapse = "\n"))
+  ## (no pharmr::set_dataset(): it rewrites $DATA without the IGNORE list)
+  ## ... and a flagged copy of an observation ahead of the record it copies:
+  ## same ID, TIME and everything else, so the two cannot be told apart from
+  ## the simulation output, only by the row number NONMEM carries through
+  obs <- which(dat$DV > 0)[2]
+  twin <- dat[obs, ]
+  twin$FA1 <- 9
+  dat <- rbind(dat[seq_len(obs - 1), ], twin, dat[obs:nrow(dat), ])
+  rownames(dat) <- NULL
+  dat$TIME[1] <- 1.8970833333 ## not written in full in the table
+
+  expect_no_warning(out <- run_sim(model = fmod, data = dat, verbose = FALSE))
+  expect_equal(nrow(out), nrow(dat) - 1)
+  expect_false(anyNA(out$.row))
+  ## the flagged copy is gone, the record it copied is there under its own row
+  expect_false(obs %in% out$.row)
+  expect_true((obs + 1) %in% out$.row)
+  expect_setequal(out$.row, setdiff(seq_len(nrow(dat)), obs))
+  expect_equal(out$ID, dat$ID[out$.row])
+  expect_equal(out$TIME, dat$TIME[out$.row], tolerance = 1e-4)
+  ## the carrier columns stay internal
+  expect_false(any(c("SROWH", "SROWL") %in% names(out)))
+})
+
 test_that("run_sim: .row joins input columns back across regimens", {
   local_pharmr.extra_options()
   skip_if_nmfe_not_available()

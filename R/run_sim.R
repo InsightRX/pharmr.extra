@@ -179,13 +179,21 @@
 #' `dplyr::left_join(out, dplyr::mutate(data, .row = dplyr::row_number()),
 #' by = ".row")`. Joining on `ID`/`TIME`/`EVID` instead is fragile: NONMEM
 #' writes its table to 5 significant digits, and these keys need not be unique.
-#' `.row` is matched record for record where the output has a row for every
-#' input record (on nlmixr2: every record it solves, i.e. all but the dose and
-#' reset records, which have no output row). Where it has fewer (records
-#' dropped by a `$DATA` `IGNORE`/`ACCEPT` filter, say) the rows are matched on
-#' `ID`, `TIME`, `EVID` and `CMT`, and a row without one unambiguous match gets
-#' `NA`, with a warning (no warning for a table declared by the model under
-#' `update_table = FALSE`).
+#' On NONMEM with `update_table = TRUE` the row number is carried through the
+#' simulation itself: it is added to the simulation dataset as two data items
+#' appended to `$INPUT` (`SROWH`, `SROWL`: `.row = SROWH * 10000 + SROWL`, so
+#' that both are written exactly at the table's 5 significant digits) and
+#' written to the simulation table, so every record NONMEM keeps comes back
+#' with its own row number, whatever `$DATA` `IGNORE`/`ACCEPT` filters drop.
+#' Those two names are reserved for this; a model that already uses either
+#' one falls back to the matching below.
+#' Elsewhere (nlmixr2, or a table the model declares under
+#' `update_table = FALSE`) `.row` is matched record for record where the
+#' output has a row for every input record (on nlmixr2: every record it
+#' solves, i.e. all but the dose and reset records, which have no output row).
+#' Where it has fewer, the rows are matched on `ID`, `TIME`, `EVID` and `CMT`,
+#' and a row without one unambiguous match gets `NA`, with a warning (no
+#' warning under `update_table = FALSE`).
 #' When `n_uncertainty` is used,
 #' the result also carries `n_uncertainty_requested` and `n_uncertainty_kept`
 #' attributes: replicates that fail on the nlmixr2 backend are dropped with a
@@ -406,6 +414,8 @@ run_sim <- function(
     output_file  = output_file,
     verbose      = verbose
   )
+  ## The input row numbers go into the datasets where the model reads them.
+  regimens <- add_sim_row_data_to_regimens(regimens, sim_model)
 
   ## Loop over regimens to simulate.
   comb <- list()

@@ -72,8 +72,9 @@ test_that("add_sim_row_index matches the records a $DATA filter kept", {
 })
 
 test_that("add_sim_row_index leaves an ambiguous match NA", {
-  ## two observations with the same keys, one of which NONMEM dropped: which
-  ## one is left cannot be told from the table
+  ## two observations with the same keys, one of which was dropped: without the
+  ## row number in the table (nlmixr2, `update_table = FALSE`), which one is
+  ## left cannot be told
   dat <- data.frame(ID = 1, TIME = c(0, 1, 1, 2), EVID = c(1, 0, 0, 0))
   map <- .row_map(dat)
   tab <- dat[c(1, 2, 4), ]
@@ -127,4 +128,77 @@ test_that("run_sim_nlmixr: .row points at the input rows simulated", {
   expect_equal(dat$SAMPLE[out$.row[out$ID == 1 & out$TIME == 4]], c(15, 15))
   ## and the bookkeeping column stays internal
   expect_false(sim_row_column %in% names(out))
+})
+
+# Carried through NONMEM -------------------------------------------------------
+
+test_that("nm_input_items reads the $INPUT items", {
+  code <- paste(
+    "$PROBLEM x", "$INPUT ID TIME DV = CONC ; a comment WITH WORDS",
+    "  AMT X=DROP", "$DATA data.csv IGNORE=@", "$PK", "CL = THETA(1)",
+    sep = "\n"
+  )
+  expect_equal(nm_input_items(code), c("ID", "TIME", "DV=CONC", "AMT", "X=DROP"))
+  expect_equal(nm_input_items("$PROBLEM x\n$INP ID TIME\n"), c("ID", "TIME"))
+  expect_equal(nm_input_items("$PROBLEM x\n"), character(0))
+})
+
+test_that("add_sim_row_data puts the row number where $INPUT reads it", {
+  code <- "$INPUT ID TIME DV\n  SROWH SROWL\n$DATA d.csv\n"
+  dat <- data.frame(ID = 1, TIME = 0:1, DV = 0, EXTRA = c("a", "b"))
+  out <- add_sim_row_data(dat, rows = c(123456L, 7L), code = code)
+  expect_equal(names(out), c("ID", "TIME", "DV", "SROWH", "SROWL", "EXTRA"))
+  expect_equal(out$SROWH, c(12, 0))
+  expect_equal(out$SROWL, c(3456, 7))
+  ## both parts below 1e5, so NONMEM's 5 significant digits write them exactly
+  expect_true(all(c(out$SROWH, out$SROWL) < 1e5))
+  ## a dataset narrower than $INPUT is padded with what NONMEM would read
+  out <- add_sim_row_data(dat[, 1:2], rows = 1:2, code = code)
+  expect_equal(names(out), c("ID", "TIME", ".pad1", "SROWH", "SROWL"))
+  expect_equal(out$.pad1, c(0, 0))
+  ## a model that does not carry the row number: dataset untouched
+  expect_identical(add_sim_row_data(dat, 1:2, "$INPUT ID TIME DV\n"), dat)
+})
+
+test_that("add_sim_row_index reads a carried row number off the table", {
+  map <- data.frame(.row = c(123456L, 7L), ID = 1, TIME = c(0, 1))
+  ## as NONMEM writes them, rounded to 5 significant digits
+  tab <- data.frame(ID = 1, TIME = c(0, 1), SROWH = c(12, 0),
+                    SROWL = c(3456, 7), DV = 1)
+  out <- add_sim_row_index(tab, map)
+  expect_equal(out$.row, c(123456L, 7L))
+  expect_false(any(sim_row_items %in% names(out)))
+  ## no matching on keys: rows a filter dropped, or the same keys twice, do not
+  ## matter (here the table is not even in input order)
+  tab <- tab[c(2, 1, 1), ]
+  expect_equal(add_sim_row_index(tab, map)$.row, c(7L, 123456L, 123456L))
+  ## a number that is not one of this regimen's rows is not passed off as one
+  tab$SROWL[1] <- 8
+  expect_warning(out <- add_sim_row_index(tab, map), "without a valid")
+  expect_equal(out$.row, c(NA, 123456L, 123456L))
+})
+
+test_that("add_sim_row_items carries the row number through $INPUT and $TABLE", {
+  skip_if_pharmpy_not_available()
+  mod <- pharmr::read_model_from_string(paste(
+    "$PROBLEM x", "$INPUT ID TIME DV AMT", "$DATA data.csv IGNORE=@",
+    "$SUBROUTINES ADVAN1 TRANS2", "$PK", "CL = THETA(1)", "V = THETA(2)",
+    "S1 = V", "$ERROR", "Y = F + EPS(1)", "$THETA (0,10)", "$THETA (0,50)",
+    "$SIGMA 0.1", "$SIMULATION (1) ONLYSIMULATION",
+    "$TABLE ID TIME DV NOAPPEND NOPRINT FILE=other",
+    "$TABLE", "  ID TIME DV NOAPPEND NOPRINT FILE=simtab", "",
+    sep = "\n"
+  ))
+  out <- add_sim_row_items(mod, output_file = "simtab")
+  expect_equal(nm_input_items(out$code),
+               c("ID", "TIME", "DV", "AMT", "SROWH", "SROWL"))
+  tables <- strsplit(out$code, "$TABLE", fixed = TRUE)[[1]]
+  ## the simulation table writes them; the other table is left alone
+  expect_match(tables[3], "SROWH SROWL")
+  expect_no_match(tables[2], "SROWH")
+  ## a model already using the name is left alone, falling back to matching
+  clash <- pharmr::read_model_from_string(
+    sub("CL = THETA(1)", "CL = THETA(1)\nSROWL = 1", mod$code, fixed = TRUE)
+  )
+  expect_identical(add_sim_row_items(clash, "simtab")$code, clash$code)
 })
