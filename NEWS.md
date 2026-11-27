@@ -1,3 +1,11 @@
+# pharmr.extra 0.0.0.9166
+
+* When a NONMEM simulation fails, the `pharmr_extra_sim_failed` error from
+  `run_sim()` now lists NM-TRAN's `(WARNING n)` / `(DATA WARNING n)` messages
+  from the top of `run.lst` (deduplicated, capped at 10) above the error
+  snippet. These warnings, e.g. "NM-TRAN INFERS THAT THE DATA ARE
+  SINGLE-SUBJECT", often explain the error but were previously cut off (#163).
+
 # pharmr.extra 0.0.0.9165
 
 * `--as-cran` check notes: `parse_psn_args()` tests for logical options with

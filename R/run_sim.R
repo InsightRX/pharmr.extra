@@ -1655,6 +1655,20 @@ abort_on_failed_sim <- function(regimen_label, fit_folder) {
     snippet <- character(0)
   }
 
+  ## NM-TRAN warnings sit near the top of the listing, so they are usually
+  ## not part of the snippet. Surface them separately (skipping any that the
+  ## snippet already shows), as they often explain the downstream error.
+  warnings <- extract_nmtran_warnings(lst)
+  n_more_warnings <- (attr(warnings, "n_total") %||% 0) - length(warnings)
+  if(length(snippet) > 0 && length(warnings) > 0) {
+    in_snippet <- vapply(
+      warnings,
+      function(w) any(squish_ws(snippet) == squish_ws(strsplit(w, "\n")[[1]][1])),
+      logical(1)
+    )
+    warnings <- warnings[!in_snippet]
+  }
+
   ## Escape braces so cli/glue doesn't interpret raw NONMEM output as
   ## interpolation expressions.
   esc <- function(x) gsub("}", "}}", gsub("{", "{{", x, fixed = TRUE), fixed = TRUE)
@@ -1663,6 +1677,16 @@ abort_on_failed_sim <- function(regimen_label, fit_folder) {
     "NONMEM simulation produced no output for regimen {.val {regimen_label}}.",
     i = "Run folder: {.path {fit_folder}}"
   )
+  if(length(warnings) > 0) {
+    warn_lines <- unlist(strsplit(warnings, "\n"))
+    msg <- c(msg, "NM-TRAN warnings (run.lst):", paste0("  ", esc(warn_lines)))
+    if(n_more_warnings > 0) {
+      msg <- c(
+        msg,
+        paste0("  ... and ", n_more_warnings, " more warning(s) in run.lst")
+      )
+    }
+  }
   if(length(snippet) > 0) {
     msg <- c(msg, "NONMEM output (run.lst):", paste0("  ", esc(snippet)))
   } else if(length(err) > 0) {
@@ -1672,6 +1696,53 @@ abort_on_failed_sim <- function(regimen_label, fit_folder) {
   }
   cli::cli_abort(msg, class = "pharmr_extra_sim_failed")
 }
+
+#' Extract NM-TRAN warnings from a NONMEM listing
+#'
+#' Collects the `(WARNING n)` and `(DATA WARNING n)` messages that NM-TRAN
+#' writes near the top of the listing, before the NONMEM program header.
+#' Continuation lines of a message (up to 3) are kept with it. Messages are
+#' deduplicated (ignoring whitespace) and capped at `max_warnings`.
+#'
+#' @param lst character vector with the lines of the listing file
+#' @param max_warnings maximum number of warnings to return
+#'
+#' @returns character vector with one element per warning (continuation lines
+#'   joined with `"\\n"`), with attribute `n_total` giving the number of unique
+#'   warnings found before capping.
+#' @noRd
+extract_nmtran_warnings <- function(lst, max_warnings = 10) {
+  if(length(lst) == 0) return(character(0))
+  ## Only look at the NM-TRAN part, i.e. before the NONMEM program header.
+  header <- which(stringr::str_detect(lst, "NONLINEAR MIXED EFFECTS MODEL PROGRAM"))
+  if(length(header) > 0) {
+    lst <- lst[seq_len(header[1] - 1)]
+  }
+  pattern <- "^\\s*\\((DATA )?WARNING\\s+\\d+\\)"
+  starts <- which(stringr::str_detect(lst, pattern))
+  if(length(starts) == 0) return(character(0))
+  blocks <- vapply(starts, function(i) {
+    block <- trimws(lst[i], which = "right")
+    j <- i + 1
+    while(
+      j <= length(lst) && j <= i + 3 &&
+      nzchar(trimws(lst[j])) &&
+      !stringr::str_detect(lst[j], pattern) &&
+      !stringr::str_detect(lst[j], "^\\s*\\(|^[01]\\S|^\\s*\\$")
+    ) {
+      block <- c(block, trimws(lst[j], which = "right"))
+      j <- j + 1
+    }
+    paste(trimws(block), collapse = "\n")
+  }, character(1))
+  blocks <- blocks[!duplicated(squish_ws(blocks))]
+  n_total <- length(blocks)
+  out <- utils::head(blocks, max_warnings)
+  attr(out, "n_total") <- n_total
+  out
+}
+
+squish_ws <- function(x) gsub("\\s+", " ", trimws(x))
 
 #' Create a dictionary from given specs and default dictionary as fallback
 #'
